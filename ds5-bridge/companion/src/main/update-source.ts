@@ -1,7 +1,7 @@
 import type { Release, ReleaseAsset } from './update-checker';
 
 export const LATEST_RELEASE_URL =
-  'https://api.github.com/repos/LordVicky/OpenDS5/releases/latest';
+  'https://api.github.com/repos/Virmin8/OpenDS5/releases/latest';
 
 /** Opt-in local endpoint used for manual updater UI testing; production defaults to GitHub. */
 export const updateReleaseUrl = (): string =>
