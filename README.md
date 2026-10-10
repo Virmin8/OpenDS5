@@ -69,17 +69,18 @@ its native features unlocked, even though you're playing over Bluetooth.
 
 | | |
 | --- | --- |
-| **Game Profiles** — cover art, native-feature flags, per-game everything ![Game Profile tab](docs/screenshots/game-profile.png) | **Trigger Lab** — design adaptive trigger effects, feel them live ![Trigger Profiles editor](docs/screenshots/trigger-profiles.png) |
-| **Haptics** — HD haptics, rumble and audio-reactive feedback ![Haptics tab](docs/screenshots/haptics.png) | **Chords** — button combos that fire functions in any game ![Chords page](docs/screenshots/chords.png) |
+| **Game Profiles** — your games with cover art and native-feature flags ![Game Profile tab](docs/screenshots/game-profile.png) | **Add Game** — pick from your Steam, Heroic and Lutris libraries and choose the profile to use while playing ![Add Game dialog](docs/screenshots/add-game.png) |
+| **Bluetooth** — switch Bluetooth modes and attach or detach controllers ![Bluetooth tab](docs/screenshots/bluetooth.png) | **Triggers** — adaptive trigger strength with a built-in effect tester ![Triggers tab](docs/screenshots/triggers.png) |
 
 <details>
-<summary><b>More screenshots</b> — audio, triggers, lighting, remapping, system</summary>
+<summary><b>More screenshots</b> — audio, haptics, trigger lab, lighting, remapping, chords, system, settings</summary>
 
 | | |
 | --- | --- |
-| **Audio** ![Audio tab](docs/screenshots/audio.png) | **Adaptive Triggers** ![Triggers tab](docs/screenshots/triggers.png) |
-| **Lighting** ![Lighting tab](docs/screenshots/lighting.png) | **Button Remapping** ![Button Remapping tab](docs/screenshots/button-remapping.png) |
-| **System** ![System tab](docs/screenshots/system.png) | **Bridge Settings** ![Bridge settings](docs/screenshots/bridge-settings.png) |
+| **Audio** ![Audio tab](docs/screenshots/audio.png) | **Haptics** ![Haptics tab](docs/screenshots/haptics.png) |
+| **Trigger Lab** ![Trigger effect editor](docs/screenshots/trigger-profiles.png) | **Lighting** ![Lighting tab](docs/screenshots/lighting.png) |
+| **Button Remapping** ![Button Remapping tab](docs/screenshots/button-remapping.png) | **Chords** ![Chords page](docs/screenshots/chords.png) |
+| **System** ![System tab](docs/screenshots/system.png) | **Settings** ![Bridge settings](docs/screenshots/bridge-settings.png) |
 
 </details>
 
