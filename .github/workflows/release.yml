@@ -118,8 +118,9 @@ jobs:
           case "${GITHUB_REF_NAME}" in
             *-*) prerelease="--prerelease" ;;
           esac
-          # Notes come from the tag's "## [x.y.z]" section of CHANGELOG.md;
-          # without one, fall back to GitHub's generated notes.
+          # Notes come from the tag's "## [x.y.z]" section of CHANGELOG.md, with its
+          # "###" subsections promoted to "##"; without one, fall back to GitHub's
+          # generated notes.
           awk -v v="${GITHUB_REF_NAME#v}" '
             /^## / {
               if (found) exit
@@ -127,7 +128,11 @@ jobs:
               if (part[1] == v) { found = 1; next }
             }
             found
-          ' CHANGELOG.md > /tmp/release-notes.md
+          ' CHANGELOG.md | sed 's/^### /## /' > /tmp/release-notes.md
+          # "## [x.y.z] - date — summary" titles the release "vx.y.z — summary".
+          summary="$(grep -m1 "^## \[${GITHUB_REF_NAME#v}\]" CHANGELOG.md | sed -n 's/^.* — //p')"
+          title="OpenDS5 ${GITHUB_REF_NAME}"
+          [ -n "$summary" ] && title="${GITHUB_REF_NAME} — ${summary}"
           if [ -s /tmp/release-notes.md ]; then
             notes=(--notes-file /tmp/release-notes.md)
           else
@@ -135,7 +140,7 @@ jobs:
             notes=(--generate-notes)
           fi
           gh release create "${GITHUB_REF_NAME}" \
-            --title "OpenDS5 ${GITHUB_REF_NAME}" \
+            --title "${title}" \
             --target "${GITHUB_SHA}" \
             "${notes[@]}" \
             ${prerelease} \
