@@ -3301,6 +3301,10 @@ button.overview-shortcut-chip {
   background: #ffffff;
 }
 
+.feature-card-grid > .system-card-full {
+  grid-column: 1 / -1;
+}
+
 .feature-card-grid {
   display: grid;
   grid-template-columns: var(--feature-left-column) var(--feature-right-column);

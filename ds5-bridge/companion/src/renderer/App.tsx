@@ -421,6 +421,10 @@ const MUTE_KEYBOARD_BEHAVIOR_OPTIONS: Array<[string, MuteKeyboardBehavior]> = [
   ['Tap Once', 'tap'],
   ['Hold While Pressed', 'hold']
 ];
+// vds (the Linux virtual DualSense bridge) only exists on Linux. Settings the
+// Bluetooth path cannot honour (polling rate, microphone, mute button modes)
+// are hidden there; the Windows DS5 Bridge firmware keeps them.
+const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.platform === 'linux';
 const POLLING_RATE_OPTIONS: Array<[string, PollingRateMode]> = [
   ['1000 Hz / Real-time', '1000'],
   ['500 Hz', '500'],
@@ -580,12 +584,13 @@ const CHORD_MEDIA_ACTION_OPTIONS: Array<[string, ChordMediaAction]> = [
   ['Volume Up', 'volume-up'],
   ['Volume Down', 'volume-down']
 ];
-const CHORD_NOTCH_TARGETS: Array<{
+type ChordNotchTarget = {
   id: ChordNotchTargetId;
   label: string;
   downAction: ChordNotchAction;
   upAction: ChordNotchAction;
-}> = [
+};
+const ALL_CHORD_NOTCH_TARGETS: ChordNotchTarget[] = [
   { id: 'speaker', label: 'Speaker', downAction: 'speaker-down', upAction: 'speaker-up' },
   { id: 'mic', label: 'Mic', downAction: 'mic-down', upAction: 'mic-up' },
   { id: 'haptics', label: 'Haptics', downAction: 'haptics-down', upAction: 'haptics-up' },
@@ -593,10 +598,11 @@ const CHORD_NOTCH_TARGETS: Array<{
   { id: 'triggers', label: 'Triggers', downAction: 'triggers-down', upAction: 'triggers-up' },
   { id: 'lighting', label: 'Lighting', downAction: 'lighting-down', upAction: 'lighting-up' }
 ];
+const CHORD_NOTCH_TARGETS = ALL_CHORD_NOTCH_TARGETS.filter((target) => !(VDS_AVAILABLE && target.id === 'mic'));
 const CHORD_CONTROLLER_SETTING_ACTION_OPTIONS: Array<[string, ChordControllerSettingSelectValue]> = [
   ['Audio Haptics', 'toggle-audio-haptics'],
   ['Lightbar Override', 'toggle-lightbar-override'],
-  ['Mic Mute', 'toggle-mic-mute'],
+  ...(VDS_AVAILABLE ? [] : [['Mic Mute', 'toggle-mic-mute'] as [string, ChordControllerSettingSelectValue]]),
   ['Turn Off Controller', 'sleep-controller'],
   ['DualSense', 'persona-dualsense'],
   ['DualShock 4', 'persona-ds4'],
@@ -752,7 +758,6 @@ const REMAP_EDGE_LINE_POINTS: Record<DualSenseEdgeRemapButtonId, [[number, numbe
   rfn: [[370.46, 368.88], [370.64, 296.98]]
 };
 // vds (the Linux virtual DualSense bridge) only exists on Linux.
-const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.platform === 'linux';
 // Volume/profile/turn-off shortcuts: vdsd uses Mute as the modifier (holding PS powers
 // the DualSense off); the DS5 Bridge firmware uses PS.
 const SHORTCUT_MODIFIER_LABEL = VDS_AVAILABLE ? 'Mute' : 'PlayStation Home';
@@ -1641,8 +1646,12 @@ function SystemProfileSummary({
         </div>
         <dl>
           <div><dt>Speaker</dt><dd>{settings.speakerEnabled ? percentLabel(settings.speakerVolumePercent) : 'Off'}</dd></div>
-          <div><dt>Mic</dt><dd>{settings.micMuted ? 'Muted' : percentLabel(settings.micVolumePercent)}</dd></div>
-          <div><dt>Pass-through</dt><dd>{enabledLabel(settings.duplexMicEnabled)}</dd></div>
+          {!VDS_AVAILABLE && (
+            <>
+              <div><dt>Mic</dt><dd>{settings.micMuted ? 'Muted' : percentLabel(settings.micVolumePercent)}</dd></div>
+              <div><dt>Pass-through</dt><dd>{enabledLabel(settings.duplexMicEnabled)}</dd></div>
+            </>
+          )}
         </dl>
       </div>
 
@@ -1676,8 +1685,12 @@ function SystemProfileSummary({
           <h3>System</h3>
         </div>
         <dl>
-          <div><dt>Mute</dt><dd>{muteButtonSummary(settings)}</dd></div>
-          <div><dt>Polling</dt><dd>{optionLabel(POLLING_RATE_OPTIONS, settings.pollingRateMode)}</dd></div>
+          {!VDS_AVAILABLE && (
+            <>
+              <div><dt>Mute</dt><dd>{muteButtonSummary(settings)}</dd></div>
+              <div><dt>Polling</dt><dd>{optionLabel(POLLING_RATE_OPTIONS, settings.pollingRateMode)}</dd></div>
+            </>
+          )}
           <div><dt>Power Save</dt><dd>{enabledLabel(settings.controllerPowerSavingEnabled)}</dd></div>
         </dl>
       </div>
@@ -3308,7 +3321,9 @@ export function App() {
   const remappingLayoutAsset = showDualSenseEdgeRemapButtons ? REMAP_EDGE_LAYOUT_ASSET : REMAP_STANDARD_LAYOUT_ASSET;
   const chordFunctions = snapshot?.settings.chordFunctions ?? [];
   const chordAssignments = snapshot?.settings.chordAssignments ?? [];
-  const muteButtonChordStarterActive = snapshot?.settings.muteButtonMode === 'chord'
+  // Under vds Mute has no mic to control, so it is always free as a starter.
+  const muteButtonChordStarterActive = VDS_AVAILABLE
+    || snapshot?.settings.muteButtonMode === 'chord'
     || (
       snapshot?.settings.muteButtonMode === 'keyboard'
       && snapshot.settings.muteKeyboardChordStarterEnabled
@@ -7558,10 +7573,12 @@ export function App() {
                       {overviewConnectionStatus}
                     </strong>
                   </div>
-                  <div>
-                    <span>Polling Rate</span>
-                    <strong>{connected && pollingRateControlSupported ? pollingRateLabel : '--'}</strong>
-                  </div>
+                  {!VDS_AVAILABLE && (
+                    <div>
+                      <span>Polling Rate</span>
+                      <strong>{connected && pollingRateControlSupported ? pollingRateLabel : '--'}</strong>
+                    </div>
+                  )}
                 </div>
               </button>
 
@@ -10769,6 +10786,7 @@ export function App() {
               </div>
 
               <div className="feature-card-grid">
+                {!VDS_AVAILABLE && (
                 <section className="system-card mute-card">
                   <div className="feature-card-title system-card-heading">
                     <span className="feature-icon system-icon icon-wide"><MicOff size={20} /></span>
@@ -10871,8 +10889,9 @@ export function App() {
                     )}
                   </div>
                 </section>
+                )}
 
-                <section className={`system-card device-card ${showDiagnostics ? 'expanded' : ''}`}>
+                <section className={`system-card device-card ${showDiagnostics ? 'expanded' : ''} ${VDS_AVAILABLE ? 'system-card-full' : ''}`}>
                   <div className="feature-card-title system-card-heading">
                     <span className="feature-icon system-icon icon-wide">
                       {showDiagnostics ? <IconStethoscope size={20} /> : <Settings2 size={20} />}
@@ -11097,16 +11116,18 @@ export function App() {
                         <span>Controller</span>
                         <strong>{controllerConnected ? controllerName(snapshot.status?.controllerType) : '--'}</strong>
                       </div>
-                      <div className="device-row device-control-row">
-                        <span>Polling Rate</span>
-                        <CustomSelect
-                          value={snapshot.settings.pollingRateMode}
-                          disabled={!connected || !pollingRateControlSupported || pendingAction !== null}
-                          options={POLLING_RATE_OPTIONS}
-                          ariaLabel="Polling rate"
-                          onChange={setPollingRateMode}
-                        />
-                      </div>
+                      {!VDS_AVAILABLE && (
+                        <div className="device-row device-control-row">
+                          <span>Polling Rate</span>
+                          <CustomSelect
+                            value={snapshot.settings.pollingRateMode}
+                            disabled={!connected || !pollingRateControlSupported || pendingAction !== null}
+                            options={POLLING_RATE_OPTIONS}
+                            ariaLabel="Polling rate"
+                            onChange={setPollingRateMode}
+                          />
+                        </div>
+                      )}
                       <div className="device-row device-control-row">
                         <span>Host Controller</span>
                         <CustomSelect
