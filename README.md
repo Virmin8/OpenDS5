@@ -219,13 +219,17 @@ yay -S opends5-bin     # repackages the release AppImage; nothing to compile
 yay -S opends5         # or: builds the app and vdsd from source (uses the system electron39)
 ```
 
-Any AUR helper works (`paru`, …). Without one, this script builds and installs
-the same `opends5-bin` package with `makepkg` and pacman, and offers to clean up
-an earlier AppImage setup first (run it again to update):
+Any AUR helper works (`paru`, …). Without one, every release also has a ready
+pacman package (`opends5-bin-x.y.z-1-x86_64.pkg.tar.zst`). This script installs
+the latest one and offers to clean up an earlier AppImage setup first (run it
+again to update):
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/Virmin8/OpenDS5/main/packaging/aur/install.sh)
 ```
+
+Or install a release's package directly with
+`sudo pacman -U <link to the .pkg.tar.zst on the Releases page>`.
 
 The package installs everything the setup
 wizard would, and DKMS builds the kernel module for each installed kernel. When

@@ -10,6 +10,7 @@ on:
       - 'vds/**'
       - 'installer/**'
       - 'scripts/collect-vds-bin.sh'
+      - 'packaging/aur/opends5-bin/**'
       - '.github/workflows/release.yml'
   workflow_dispatch:
 
@@ -169,3 +170,53 @@ jobs:
           release_html_url: ${{ steps.release.outputs.url }}
           reduce_headings: true
           footer_timestamp: true
+
+  # Arch/CachyOS package built from the AppImage above with the opends5-bin
+  # PKGBUILD, so `sudo pacman -U <release url>` installs vdsd, the DKMS module and
+  # the setup hook without an AUR helper. Pull requests only check that it builds.
+  pacman:
+    needs: appimage
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: OpenDS5-AppImage
+          path: appimage
+
+      - name: build package
+        run: |
+          version="$(sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' ds5-bridge/companion/package.json | head -n 1)"
+          appimage="$(find appimage -maxdepth 1 -name '*.AppImage' -print -quit)"
+          [ -n "$appimage" ] || { echo "no AppImage artifact"; exit 1; }
+          work=/tmp/opends5-bin
+          cp -r packaging/aur/opends5-bin "$work"
+          cp "$appimage" "$work/OpenDS5-${version}.AppImage"
+          # Point the PKGBUILD at this build's AppImage; makepkg uses the local file
+          # instead of downloading it.
+          sum="$(sha256sum "$work/OpenDS5-${version}.AppImage" | cut -d' ' -f1)"
+          sed -i "s/^pkgver=.*/pkgver=${version}/; s/^pkgrel=.*/pkgrel=1/; s/^sha256sums=('[0-9a-f]*'/sha256sums=('${sum}'/" "$work/PKGBUILD"
+          useradd -m builder
+          chown -R builder: "$work"
+          # -d: the runtime dependencies are only needed on the target machine.
+          (cd "$work" && runuser -u builder -- makepkg -d --noconfirm)
+          mkdir -p dist
+          cp "$work"/opends5-bin-*.pkg.tar.zst dist/
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenDS5-pacman
+          path: dist/*.pkg.tar.zst
+
+      - name: attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pacman -Sy --noconfirm github-cli
+          gh release upload "${GITHUB_REF_NAME}" dist/*.pkg.tar.zst --repo "${GITHUB_REPOSITORY}" --clobber

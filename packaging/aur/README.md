@@ -20,9 +20,10 @@ an AUR helper. (This needs a release newer than 1.9.1; on 1.9.1 the in-app
 
 ## Install without an AUR helper
 
-`install.sh` downloads the `opends5-bin` recipe from `main`, points it at the latest
-GitHub release (using the release's `.sha256`, so it works before the PKGBUILD here is
-bumped), offers to remove an earlier AppImage installer setup, then runs `makepkg -si`:
+The release workflow builds `opends5-bin` from the release AppImage and attaches it to
+every GitHub release, so `sudo pacman -U <its download URL>` installs it. `install.sh`
+finds the latest one, offers to remove an earlier AppImage installer setup, and runs
+`pacman -U` for you:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/Virmin8/OpenDS5/main/packaging/aur/install.sh)
