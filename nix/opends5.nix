@@ -15,7 +15,7 @@ buildNpmPackage {
 
   src = ../.;
 
-  npmDepsHash = "sha256-IVC+TbdnelQEZ376xXLloAaOrU1oaxKpFCzhPYaUMnk=";
+  npmDepsHash = "sha256-Y4DTxSqALh0e94Vd/JQGWUKmu9dlyWNuN7Gx9R0lxcI=";
 
   postPatch = ''
     cp ds5-bridge/companion/package-lock.json ./package-lock.json
