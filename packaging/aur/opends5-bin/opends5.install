@@ -34,4 +34,27 @@ pre_remove() {
     systemctl disable --now vdsd.service 2>/dev/null || true
   fi
   modprobe -r vds_hcd 2>/dev/null || true
+  # vdsd's OpenDS5 mode runs bluetoothd with --noplugin=input through a drop-in in
+  # /etc that pacman does not own; left behind, Bluetooth keyboards and mice stay off.
+  if grep -qs 'noplugin=input' /etc/systemd/system/bluetooth.service.d/override.conf; then
+    /usr/share/opends5/override-bluetoothd.sh --restart enable-input || true
+  fi
+}
+
+post_remove() {
+  # vdsd's controller list and log, and the group the package created.
+  rm -rf /var/lib/vds
+  rm -f /var/log/vdsd.log
+  groupdel vds 2>/dev/null || true
+  # "Launch at startup" entries that start this package's launcher would fail at every
+  # login. Entries pointing at an AppImage belong to that install and are kept.
+  local home entry
+  getent passwd | while IFS=: read -r _ _ uid _ _ home _; do
+    [ "$uid" -ge 1000 ] || continue
+    entry="$home/.config/autostart/opends5.desktop"
+    if grep -qsx 'Exec="/usr/bin/opends5"' "$entry"; then
+      rm -f "$entry"
+    fi
+  done
+  echo '==> OpenDS5 removed. Your settings in ~/.config/OpenDS5 are kept; delete them if you no longer need them.'
 }

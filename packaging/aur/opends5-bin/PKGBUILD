@@ -4,7 +4,7 @@
 # module, which DKMS builds for the installed kernels.
 pkgname=opends5-bin
 pkgver=1.9.2
-pkgrel=1
+pkgrel=2
 pkgdesc='DualSense companion app and Bluetooth-to-USB bridge (haptics, adaptive triggers, speaker)'
 arch=(x86_64)
 url='https://github.com/Virmin8/OpenDS5'

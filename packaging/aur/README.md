@@ -42,7 +42,15 @@ A pacman hook (`95-opends5.hook`) then finishes the setup once DKMS has built th
 module: it adds the user who ran `sudo pacman`/the AUR helper to the `vds` group, loads
 `vds_hcd`, and enables and starts `vdsd.service` (on upgrades it reloads the module and
 restarts `vdsd`). Log out and back in once after the first install so the new group
-membership applies. Removing the package stops `vdsd` and unloads the module.
+membership applies.
+
+`sudo pacman -R opends5-bin` (or `opends5 opends5-dkms`) removes everything outside
+your home folder: it stops `vdsd`, unloads the module (the DKMS hook deletes the built
+module for every kernel), turns BlueZ's input plugin back on so Bluetooth keyboards and
+mice work again, and deletes `vdsd`'s data in `/var/lib/vds`, its log and the `vds`
+group. A "Launch at startup" entry that starts the package's launcher is removed
+too (one pointing at an AppImage is left alone). Your settings in `~/.config/OpenDS5`
+are kept.
 
 Machines that used the AppImage's system installer must remove its files first
 (`/etc/systemd/system/vdsd.service`, `/etc/modules-load.d/vds.conf`,

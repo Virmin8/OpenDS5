@@ -1,7 +1,7 @@
 pkgbase = opends5
 	pkgdesc = DualSense companion app and Bluetooth-to-USB bridge (haptics, adaptive triggers, speaker)
 	pkgver = 1.9.2
-	pkgrel = 1
+	pkgrel = 2
 	url = https://github.com/Virmin8/OpenDS5
 	arch = x86_64
 	license = AGPL-3.0-only
