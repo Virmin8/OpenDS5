@@ -25,13 +25,16 @@ inline constexpr std::uint8_t kCompanionProtocolMinor = 16;
 struct CompanionSettings {
   std::uint16_t haptics_gain_percent = 100;
   std::uint16_t classic_rumble_gain_percent = 100;
+  bool classic_rumble_v1 = false;
+  // DualSense audio buffer length written into every 0x36 packet header.
+  std::uint8_t haptics_buffer_length = 64;
   std::uint16_t trigger_effect_intensity_percent = 100;
   bool player_led_enabled = true;
   bool led_enabled = true;
   bool idle_disconnect_enabled = false;
   std::uint16_t idle_disconnect_timeout_minutes = 10;
   std::uint16_t speaker_volume_percent = 100;
-  std::uint8_t speaker_gain_level = 2;
+  std::uint8_t speaker_gain_level = 1;
   std::uint8_t lightbar_red = 0;
   std::uint8_t lightbar_green = 0;
   std::uint8_t lightbar_blue = 255;
@@ -44,6 +47,10 @@ struct CompanionSettings {
   bool quiet_mode_enabled = false;
   bool usb_suspend_disconnect_enabled = false;
   bool sleep_keybind_enabled = false;
+  bool speaker_volume_shortcut_enabled = false;
+  // Linux-port extension (command 0x42): Mute + D-pad left/right cycles the
+  // companion app's controller profiles.
+  bool profile_shortcut_enabled = false;
   std::uint8_t host_persona_mode = 0;
   // Linux-port extension (command 0x40): expose the touchpad as a desktop
   // pointer. When false the daemon grabs the touchpad evdev node.
@@ -95,6 +102,16 @@ struct CompanionChordBinding {
 struct CompanionInputState {
   std::uint32_t prev_pressed = 0;
   std::uint32_t consumed_mask = 0;
+  // Mute + button shortcuts (volume, profiles): per-shortcut press/repeat
+  // tracking; mute_consumed hides Mute from the host until it is released.
+  // The PS hold-back keeps a PS-starter chord from leaking a lone PS press.
+  bool mute_consumed = false;
+  std::array<bool, 4> shortcut_pressed{};
+  std::array<std::chrono::steady_clock::time_point, 4> shortcut_last_step{};
+  bool ps_gate_active = false;
+  bool ps_passing = false; // held past the hold-back: passes until released
+  std::chrono::steady_clock::time_point ps_gate_until{};
+  std::chrono::steady_clock::time_point ps_replay_until{};
 };
 
 struct CompanionRuntime {

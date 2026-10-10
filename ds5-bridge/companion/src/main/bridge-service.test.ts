@@ -126,6 +126,7 @@ const FULL_REAPPLY_COMMANDS = [
   COMMAND_ID.SET_USB_SUSPEND_DISCONNECT_ENABLED,
   COMMAND_ID.SET_SLEEP_KEYBIND_ENABLED,
   COMMAND_ID.SET_SPEAKER_VOLUME_SHORTCUT_ENABLED,
+  ...(process.platform === 'win32' ? [] : [COMMAND_ID.SET_PROFILE_SHORTCUT_ENABLED]), // Linux-port extension
   COMMAND_ID.SET_BUTTON_REMAP,
   COMMAND_ID.SET_CHORD_BINDINGS,
   COMMAND_ID.SET_POLLING_RATE_MODE,
@@ -1607,6 +1608,49 @@ describe('BridgeService', () => {
     expect(service.getSnapshot().status?.speakerVolumePercent).toBe(40);
     const volumeCommand = device.sentReports.filter((report) => report[7] === COMMAND_ID.SET_SPEAKER_VOLUME).at(-1);
     expect(volumeCommand?.[9]).toBe(40);
+  });
+
+  it('cycles controller profiles from the profile shortcut, wrapping and skipping game settings', async () => {
+    const service = serviceFixture();
+    const device = new MockHidDevice();
+    device.status = statusReport({ controllerConnected: false, settingsRevision: 4 });
+    hidMock.state.devicesList = [companionDeviceInfo()];
+    hidMock.state.openDevices.set('companion-path', device);
+    const toasts: string[] = [];
+    service.on('toast', (toast: { body: string }) => toasts.push(toast.body));
+
+    await poll(service);
+    // Profile ids come from Date.now(); keep the two saves distinct.
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValueOnce(1_000_000);
+    await service.saveControllerProfile('Racing');
+    now.mockReturnValueOnce(2_000_000);
+    await service.saveControllerProfile('Shooter');
+    now.mockRestore();
+    const ids = service.getSnapshot().settings.controllerProfiles.map((profile) => profile.id);
+    expect(ids.length).toBe(3); // Default, Racing, Shooter
+    await service.selectControllerProfile(ids[0]!);
+
+    // Ignored while the shortcut is off.
+    device.queueShortcutEvent(SHORTCUT_EVENT.PROFILE_NEXT);
+    await pollShortcut(service);
+    await flushReapply();
+    expect(service.getSnapshot().settings.selectedControllerProfileId).toBe(ids[0]);
+
+    await service.setProfileShortcutEnabled(true);
+    device.queueShortcutEvent(SHORTCUT_EVENT.PROFILE_NEXT);
+    await pollShortcut(service);
+    await flushReapply();
+    expect(service.getSnapshot().settings.selectedControllerProfileId).toBe(ids[1]);
+    expect(toasts.at(-1)).toBe('Profile: Racing');
+
+    // Previous from the first profile wraps to the last.
+    await service.selectControllerProfile(ids[0]!);
+    device.queueShortcutEvent(SHORTCUT_EVENT.PROFILE_PREVIOUS);
+    await pollShortcut(service);
+    await flushReapply();
+    expect(service.getSnapshot().settings.selectedControllerProfileId).toBe(ids[2]);
+    expect(toasts.at(-1)).toBe('Profile: Shooter');
   });
 
   it('applies notch chord functions through the normal setting command path', async () => {

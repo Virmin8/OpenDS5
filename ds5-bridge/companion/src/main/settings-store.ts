@@ -142,6 +142,7 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   uiThemePreset: 'dark',
   launchAtStartupEnabled: false,
   startMinimizedEnabled: false,
+  profileShortcutEnabled: false,
   startupControllerProfileId: '',
   gameProfileLinks: {},
   setupSkipped: false,
@@ -162,7 +163,7 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   triggerTestMode: DEFAULT_CONTROLLER_PROFILE_SETTINGS.triggerTestMode,
   speakerEnabled: DEFAULT_CONTROLLER_PROFILE_SETTINGS.speakerEnabled,
   speakerVolumePercent: DEFAULT_CONTROLLER_PROFILE_SETTINGS.speakerVolumePercent,
-  speakerGainLevel: 4,
+  speakerGainLevel: 1,
   micVolumePercent: DEFAULT_CONTROLLER_PROFILE_SETTINGS.micVolumePercent,
   micMuted: DEFAULT_CONTROLLER_PROFILE_SETTINGS.micMuted,
   audioReactiveHapticsEnabled: DEFAULT_CONTROLLER_PROFILE_SETTINGS.audioReactiveHapticsEnabled,
@@ -836,7 +837,7 @@ type PersistedSettings = Partial<CompanionSettings> & {
   settingsSchemaVersion?: number;
 };
 
-const CURRENT_SETTINGS_SCHEMA_VERSION = 2;
+const CURRENT_SETTINGS_SCHEMA_VERSION = 3;
 
 function migratePersistedSettings(value: PersistedSettings): PersistedSettings {
   const version = Number.isFinite(value.settingsSchemaVersion)
@@ -850,6 +851,11 @@ function migratePersistedSettings(value: PersistedSettings): PersistedSettings {
     ...value,
     settingsSchemaVersion: CURRENT_SETTINGS_SCHEMA_VERSION
   };
+  // v3: vdsd's speaker boost now provides the loudness, so the preamp gain
+  // default dropped from 4 to 1. Move installs still on the old default.
+  if (version < 3 && next.speakerGainLevel === 4) {
+    next.speakerGainLevel = 1;
+  }
   return next;
 }
 
@@ -877,6 +883,9 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     startMinimizedEnabled: typeof value?.startMinimizedEnabled === 'boolean'
       ? value.startMinimizedEnabled
       : DEFAULT_SETTINGS.startMinimizedEnabled,
+    profileShortcutEnabled: typeof value?.profileShortcutEnabled === 'boolean'
+      ? value.profileShortcutEnabled
+      : DEFAULT_SETTINGS.profileShortcutEnabled,
     gameProfileLinks: normalizeGameProfileLinks(value?.gameProfileLinks),
     startupControllerProfileId: typeof value?.startupControllerProfileId === 'string'
       && value.startupControllerProfileId.length <= 200

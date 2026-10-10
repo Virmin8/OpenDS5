@@ -1361,9 +1361,23 @@ button {
   top: auto;
   right: auto;
   width: min(760px, calc(100vw - 48px));
-  max-height: min(560px, calc(100vh - 48px));
+  /* Grow with the content; overflow stays visible so shortcut tooltips can
+     extend past the panel. Short windows scroll the columns instead. */
+  max-height: calc(100vh - 48px);
   overflow: visible;
   animation: modal-panel-in 160ms ease-out;
+}
+
+@media (max-height: 680px) {
+  .bridge-settings-modal {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .bridge-settings-columns {
+    min-height: 0;
+    overflow-y: auto;
+  }
 }
 
 .bridge-settings-modal-heading {
@@ -6825,6 +6839,10 @@ button.feature-icon {
   display: inline-block;
   min-width: 7ch;
   font-variant-numeric: tabular-nums;
+}
+
+.diagnostic-warning {
+  color: var(--warning);
 }
 
 .device-diagnostics .debug-entry dd {

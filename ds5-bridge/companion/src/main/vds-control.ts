@@ -1,5 +1,6 @@
 import { createConnection } from 'node:net';
 import type {
+  VdsAudioStats,
   VdsBluetoothMode,
   VdsBluetoothStatus,
   VdsController,
@@ -208,6 +209,52 @@ function daemonLogError(error: unknown): VdsDaemonLog {
     traceOutput: false,
     lines: []
   };
+}
+
+function asNumber(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+/** Audio delivery stats per bridged controller; resets vdsd's per-poll window. */
+export async function getVdsAudioStats(): Promise<VdsAudioStats> {
+  try {
+    const reply = await requestOk({ command: 'audio' });
+    const ports = Array.isArray(reply.ports) ? reply.ports : [];
+    return {
+      available: true,
+      error: '',
+      ports: ports.filter((port): port is JsonObject => typeof port === 'object' && port !== null && !Array.isArray(port))
+        .map((port) => ({
+          path: asString(port.path),
+          streaming: port.streaming === true,
+          bufferLength: asNumber(port.buffer_length),
+          bufferMs: asNumber(port.buffer_ms),
+          windowSeconds: asNumber(port.window_seconds),
+          packetsPerSecond: asNumber(port.packets_per_second),
+          maxGapMs: asNumber(port.max_gap_ms),
+          late: asNumber(port.late),
+          refills: asNumber(port.refills),
+          packetsTotal: asNumber(port.packets_total),
+          lateTotal: asNumber(port.late_total),
+          refillsTotal: asNumber(port.refills_total),
+          queueDepth: asNumber(port.queue_depth),
+          queueDroppedTotal: asNumber(port.queue_dropped_total),
+          blockedTotal: asNumber(port.blocked_total),
+          headphones: port.headphones === true,
+          speakerMono: port.speaker_mono === true,
+          speakerBoostDb: asNumber(port.speaker_boost_db),
+          speakerVolumePercent: asNumber(port.speaker_volume_percent),
+          hapticsGainPercent: asNumber(port.haptics_gain_percent)
+        }))
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      available: false,
+      error: message.includes('unknown command') ? 'This vdsd is too old for audio stats; install the updated vdsd.' : message,
+      ports: []
+    };
+  }
 }
 
 /** Tail of the root-only vdsd log plus the current trace flags. */

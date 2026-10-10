@@ -494,6 +494,29 @@ describe('SettingsStore', () => {
     expect(deleted.buttonRemappingProfiles.map((profile) => profile.id)).toEqual([DEFAULT_BUTTON_REMAP_PROFILE_ID, 'custom']);
   });
 
+  it('moves the old default speaker gain to 1 and keeps chosen gains', () => {
+    const oldDefault = tempUserDataPath();
+    writeFileSync(path.join(oldDefault, 'settings.json'), JSON.stringify({
+      settingsSchemaVersion: 2,
+      speakerGainLevel: 4
+    }), 'utf8');
+    expect(new SettingsStore(oldDefault).get().speakerGainLevel).toBe(1);
+
+    const chosen = tempUserDataPath();
+    writeFileSync(path.join(chosen, 'settings.json'), JSON.stringify({
+      settingsSchemaVersion: 2,
+      speakerGainLevel: 6
+    }), 'utf8');
+    expect(new SettingsStore(chosen).get().speakerGainLevel).toBe(6);
+
+    const migrated = tempUserDataPath();
+    writeFileSync(path.join(migrated, 'settings.json'), JSON.stringify({
+      settingsSchemaVersion: 3,
+      speakerGainLevel: 4
+    }), 'utf8');
+    expect(new SettingsStore(migrated).get().speakerGainLevel).toBe(4);
+  });
+
   it('normalizes invalid persisted values back to safe defaults', () => {
     const userDataPath = tempUserDataPath();
     writeFileSync(path.join(userDataPath, 'settings.json'), JSON.stringify({

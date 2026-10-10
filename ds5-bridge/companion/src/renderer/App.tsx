@@ -1,4 +1,4 @@
-import { type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, Fragment, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   type TablerIcon,
@@ -69,7 +69,7 @@ import {
   IconX as X
 } from '@tabler/icons-react';
 import { VdsPanel } from './VdsPanel';
-import type { VdsDaemonLog, VdsStatus, VdsTraceScope } from '../shared/vds';
+import type { VdsAudioStats, VdsDaemonLog, VdsStatus, VdsTraceScope } from '../shared/vds';
 import playStationLogoUrl from '../../../assets/brand/playstation-logo.svg';
 import controllerImage from '../../../assets/controllers/dualsense-edge-front.svg';
 import remappingEdgeLayoutImage from '../../../assets/controllers/dualsense-edge-remapping-layout.svg';
@@ -272,7 +272,7 @@ type FeatureTipsPanelProps = {
   onSettingsFocusRequest?: (target: SettingsFocusTarget) => void;
   audioHapticsOpen?: boolean;
 };
-type SettingsFocusTarget = 'controller-power-saving' | 'sleep-shortcut' | 'volume-shortcut';
+type SettingsFocusTarget = 'controller-power-saving' | 'sleep-shortcut' | 'volume-shortcut' | 'profile-shortcut';
 type NotificationFocusTarget = 'controller-status' | 'low-battery' | 'all';
 
 const HAPTICS_STEP = 20;
@@ -750,6 +750,39 @@ const REMAP_EDGE_LINE_POINTS: Record<DualSenseEdgeRemapButtonId, [[number, numbe
 };
 // vds (the Linux virtual DualSense bridge) only exists on Linux.
 const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.platform === 'linux';
+// Volume/profile shortcuts: vdsd uses Mute as the modifier (holding PS powers
+// the DualSense off); the DS5 Bridge firmware uses PS.
+const SHORTCUT_MODIFIER_LABEL = VDS_AVAILABLE ? 'Mute' : 'PlayStation Home';
+
+function ShortcutModifierGlyph() {
+  return (
+    <span className="shortcut-glyph-key">
+      {VDS_AVAILABLE
+        ? <MicOff size={16} aria-label="Mute" />
+        : <img src={psHomeGlyphUrl} alt="PlayStation Home" />}
+    </span>
+  );
+}
+
+function DpadShortcutGlyphs({ pair }: { pair: 'up-down' | 'left-right' }) {
+  const [first, second] = pair === 'up-down'
+    ? [{ src: dpadUpGlyphUrl, alt: 'D-pad Up' }, { src: dpadDownGlyphUrl, alt: 'D-pad Down' }]
+    : [{ src: dpadLeftGlyphUrl, alt: 'D-pad Left' }, { src: dpadRightGlyphUrl, alt: 'D-pad Right' }];
+  return (
+    <span className="shortcut-glyph-row" aria-label={`${SHORTCUT_MODIFIER_LABEL} and ${first.alt} or ${second.alt}`}>
+      <ShortcutModifierGlyph />
+      <span className="shortcut-plus" aria-hidden="true">+</span>
+      <span className="shortcut-glyph-pair">
+        <span className="shortcut-glyph-key">
+          <img src={first.src} alt={first.alt} />
+        </span>
+        <span className="shortcut-glyph-key">
+          <img src={second.src} alt={second.alt} />
+        </span>
+      </span>
+    </span>
+  );
+}
 const CONTROL_TABS: Array<{ id: ControlTab; label: string; Icon: TablerIcon }> = [
   { id: 'game-profile', label: 'Game Profile', Icon: IconLayoutGrid },
   { id: 'overview', label: 'Overview', Icon: IconLayoutDashboard },
@@ -3287,9 +3320,14 @@ export function App() {
     if (snapshot?.settings.sleepKeybindEnabled) {
       shortcutKeys.add(chordBindingKey('ps', 'triangle'));
     }
+    const shortcutModifier: ChordStarterId = VDS_AVAILABLE ? CHORD_MUTE_STARTER_ID : 'ps';
     if (snapshot?.settings.speakerVolumeShortcutEnabled) {
-      shortcutKeys.add(chordBindingKey('ps', 'dpad-up'));
-      shortcutKeys.add(chordBindingKey('ps', 'dpad-down'));
+      shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-up'));
+      shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-down'));
+    }
+    if (snapshot?.settings.profileShortcutEnabled) {
+      shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-left'));
+      shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-right'));
     }
     for (const assignment of chordAssignments) {
       const key = chordAssignmentKey(assignment);
@@ -3307,7 +3345,8 @@ export function App() {
     chordAssignments,
     muteButtonChordStarterActive,
     snapshot?.settings.sleepKeybindEnabled,
-    snapshot?.settings.speakerVolumeShortcutEnabled
+    snapshot?.settings.speakerVolumeShortcutEnabled,
+    snapshot?.settings.profileShortcutEnabled
   ]);
   const chordFunctionsSignature = useMemo(() => (
     chordFunctions.map((func) => `${func.id}:${func.name}:${chordFunctionSummary(func)}`).join('|')
@@ -4318,8 +4357,9 @@ export function App() {
     : '--';
   const overviewShortcutItems = [
     snapshot?.settings.sleepKeybindEnabled ? { id: 'sleep', label: 'Sleep Shortcut' } : null,
-    snapshot?.settings.speakerVolumeShortcutEnabled ? { id: 'volume', label: 'Volume Shortcut' } : null
-  ].filter((item): item is { id: 'sleep' | 'volume'; label: string } => Boolean(item));
+    snapshot?.settings.speakerVolumeShortcutEnabled ? { id: 'volume', label: 'Volume Shortcut' } : null,
+    snapshot?.settings.profileShortcutEnabled ? { id: 'profile', label: 'Profile Shortcut' } : null
+  ].filter((item): item is { id: 'sleep' | 'volume' | 'profile'; label: string } => Boolean(item));
   const overviewNotificationItems = [
     controllerToastEnabled ? { id: 'controller-status', label: 'Controller Status' } : null,
     lowBatteryToastEnabled ? { id: 'low-battery', label: 'Low Battery' } : null
@@ -4372,6 +4412,7 @@ export function App() {
   const diagnosticsVisible = activeControlTab === 'system' && showDiagnostics;
   const [vdsDiagnostics, setVdsDiagnostics] = useState<VdsStatus | null>(null);
   const [vdsDaemonLog, setVdsDaemonLog] = useState<VdsDaemonLog | null>(null);
+  const [vdsAudioStats, setVdsAudioStats] = useState<VdsAudioStats | null>(null);
   const [vdsTracePending, setVdsTracePending] = useState(false);
   const vdsDaemonLogRef = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {
@@ -4396,6 +4437,9 @@ export function App() {
       }).catch(() => undefined);
       void window.vds.getDaemonLog(200).then((log) => {
         if (!cancelled) setVdsDaemonLog(log);
+      }).catch(() => undefined);
+      void window.vds.getAudioStats().then((stats) => {
+        if (!cancelled) setVdsAudioStats(stats);
       }).catch(() => undefined);
     };
     poll();
@@ -7845,7 +7889,7 @@ export function App() {
                         className="overview-chip overview-shortcut-chip active"
                         key={item.id}
                         type="button"
-                        onClick={() => focusBridgeSettings(item.id === 'sleep' ? 'sleep-shortcut' : 'volume-shortcut')}
+                        onClick={() => focusBridgeSettings(item.id === 'sleep' ? 'sleep-shortcut' : item.id === 'profile' ? 'profile-shortcut' : 'volume-shortcut')}
                       >
                         {item.label}
                         {item.id === 'sleep' ? (
@@ -7863,21 +7907,8 @@ export function App() {
                           </span>
                         ) : (
                           <span className="settings-shortcut-tooltip shortcut-glyph-tooltip overview-shortcut-tooltip" role="tooltip">
-                            <span>Controller volume up/down with</span>
-                            <span className="shortcut-glyph-row" aria-label="PlayStation Home and D-pad Up or D-pad Down">
-                              <span className="shortcut-glyph-key">
-                                <img src={psHomeGlyphUrl} alt="PlayStation Home" />
-                              </span>
-                              <span className="shortcut-plus" aria-hidden="true">+</span>
-                              <span className="shortcut-glyph-pair">
-                                <span className="shortcut-glyph-key">
-                                  <img src={dpadUpGlyphUrl} alt="D-pad Up" />
-                                </span>
-                                <span className="shortcut-glyph-key">
-                                  <img src={dpadDownGlyphUrl} alt="D-pad Down" />
-                                </span>
-                              </span>
-                            </span>
+                            <span>{item.id === 'profile' ? 'Previous/next controller profile with' : 'Controller volume up/down with'}</span>
+                            <DpadShortcutGlyphs pair={item.id === 'profile' ? 'left-right' : 'up-down'} />
                           </span>
                         )}
                       </button>
@@ -10913,6 +10944,50 @@ export function App() {
                                 </dd>
                               </div>
                             ))}
+                            {vdsAudioStats && !vdsAudioStats.available && (
+                              <div><dt>Audio</dt><dd title={vdsAudioStats.error}>{vdsAudioStats.error}</dd></div>
+                            )}
+                            {(vdsAudioStats?.ports ?? []).map((audio) => (
+                              <Fragment key={`audio-${audio.path}`}>
+                                <div>
+                                  <dt>Audio</dt>
+                                  <dd>
+                                    {audio.streaming ? 'Streaming' : 'Idle'}
+                                    {' · '}
+                                    {audio.headphones
+                                      ? 'headphones, stereo'
+                                      : `speaker, ${audio.speakerMono ? 'mono' : 'stereo'}, boost ${audio.speakerBoostDb > 0 ? `+${audio.speakerBoostDb.toFixed(0)} dB` : 'off'}, volume ${audio.speakerVolumePercent}%`}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Buffer</dt>
+                                  <dd>{audio.bufferLength} samples · {audio.bufferMs.toFixed(1)} ms</dd>
+                                </div>
+                                <div>
+                                  <dt>Delivery</dt>
+                                  <dd>
+                                    {audio.streaming
+                                      ? `${audio.packetsPerSecond.toFixed(1)} packets/s · longest gap ${audio.maxGapMs.toFixed(1)} ms`
+                                      : '--'}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Late Packets</dt>
+                                  <dd
+                                    className={audio.late > 0 ? 'diagnostic-warning' : undefined}
+                                    title="Gaps between audio packets longer than the controller's buffer. Each one is a probable audible dropout; raise the Audio Buffer Length if these keep appearing."
+                                  >
+                                    {audio.late} in the last {audio.windowSeconds > 0 ? `${audio.windowSeconds.toFixed(0)} s` : 'poll'} · {audio.lateTotal} total
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Queue</dt>
+                                  <dd title="Refills: the send queue ran dry mid-stream. Dropped: chunks discarded because the queue was full. Blocked: Bluetooth sends that had to wait.">
+                                    {audio.queueDepth} queued · {audio.refillsTotal} refills · {audio.queueDroppedTotal} dropped · {audio.blockedTotal} blocked
+                                  </dd>
+                                </div>
+                              </Fragment>
+                            ))}
                             {vdsDiagnostics?.bluetooth?.lastError && (
                               <div><dt>Last Error</dt><dd title={vdsDiagnostics.bluetooth.lastError}>{vdsDiagnostics.bluetooth.lastError}</dd></div>
                             )}
@@ -12484,20 +12559,7 @@ export function App() {
                     <strong>Volume Shortcut</strong>
                     <div className="settings-shortcut-tooltip shortcut-glyph-tooltip" role="tooltip">
                       <span>Controller volume up/down with</span>
-                      <span className="shortcut-glyph-row" aria-label="PlayStation Home and D-pad Up or D-pad Down">
-                        <span className="shortcut-glyph-key">
-                          <img src={psHomeGlyphUrl} alt="PlayStation Home" />
-                        </span>
-                        <span className="shortcut-plus" aria-hidden="true">+</span>
-                        <span className="shortcut-glyph-pair">
-                          <span className="shortcut-glyph-key">
-                            <img src={dpadUpGlyphUrl} alt="D-pad Up" />
-                          </span>
-                          <span className="shortcut-glyph-key">
-                            <img src={dpadDownGlyphUrl} alt="D-pad Down" />
-                          </span>
-                        </span>
-                      </span>
+                      <DpadShortcutGlyphs pair="up-down" />
                     </div>
                   </div>
                   <button
@@ -12513,6 +12575,30 @@ export function App() {
                     <span />
                   </button>
                 </div>
+                {VDS_AVAILABLE && (
+                  <div className={`settings-menu-row ${settingsFocusTarget === 'profile-shortcut' ? 'settings-menu-row-highlight' : ''}`}>
+                    <div className="settings-menu-copy settings-menu-copy-tooltip">
+                      <strong>Profile Shortcut</strong>
+                      <div className="settings-shortcut-tooltip shortcut-glyph-tooltip" role="tooltip">
+                        <span>Previous/next controller profile with</span>
+                        <DpadShortcutGlyphs pair="left-right" />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={snapshot.settings.profileShortcutEnabled}
+                      aria-label="Profile shortcut"
+                      className={`switch ${snapshot.settings.profileShortcutEnabled ? 'on' : ''}`}
+                      disabled={!connected}
+                      onClick={() => void runAction('profile-shortcut', () => (
+                        window.bridge.setProfileShortcutEnabled(!snapshot.settings.profileShortcutEnabled)
+                      ))}
+                    >
+                      <span />
+                    </button>
+                  </div>
+                )}
                 <div className="settings-menu-section-label">About</div>
                 <button
                   type="button"

@@ -45,5 +45,40 @@ export type VdsDaemonLog = {
 
 export type VdsTraceScope = 'input' | 'output';
 
+/** Audio delivery for one bridged controller (vdsd `audio` command). */
+export type VdsAudioPortStats = {
+  path: string;
+  /** Audio packets went out within the last 250 ms. */
+  streaming: boolean;
+  /** Controller audio buffer, in 3 kHz samples and milliseconds. */
+  bufferLength: number;
+  bufferMs: number;
+  /** Measured since the previous poll. */
+  windowSeconds: number;
+  packetsPerSecond: number;
+  maxGapMs: number;
+  /** Send gaps longer than the buffer: probable audible dropouts. */
+  late: number;
+  /** Times the send queue ran dry mid-stream. */
+  refills: number;
+  packetsTotal: number;
+  lateTotal: number;
+  refillsTotal: number;
+  queueDepth: number;
+  queueDroppedTotal: number;
+  blockedTotal: number;
+  headphones: boolean;
+  speakerMono: boolean;
+  speakerBoostDb: number;
+  speakerVolumePercent: number;
+  hapticsGainPercent: number;
+};
+
+export type VdsAudioStats = {
+  available: boolean;
+  error: string;
+  ports: VdsAudioPortStats[];
+};
+
 export const VDS_IDLE_SECONDS_MIN = 10;
 export const VDS_IDLE_SECONDS_MAX = 3600;

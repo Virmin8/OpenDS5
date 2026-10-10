@@ -56,6 +56,7 @@ import type { BridgeToast } from './bridge-service';
 import {
   attachVdsController,
   detachVdsController,
+  getVdsAudioStats,
   getVdsDaemonLog,
   getVdsStatus,
   setVdsDaemonTrace,
@@ -1396,6 +1397,7 @@ function registerIpc(
   ipcMain.handle('bridge:getStatus', () => service.getSnapshot());
   ipcMain.handle('vds:getStatus', () => getVdsStatus());
   ipcMain.handle('vds:getDaemonLog', (_event, lines?: number) => getVdsDaemonLog(Number(lines) || 200));
+  ipcMain.handle('vds:getAudioStats', () => getVdsAudioStats());
   ipcMain.handle('vds:setDaemonTrace', (_event, scope: VdsTraceScope, enabled: boolean) => (
     setVdsDaemonTrace(scope === 'input' ? 'input' : 'output', Boolean(enabled))
   ));
@@ -1512,6 +1514,9 @@ function registerIpc(
   });
   ipcMain.handle('bridge:setStartupControllerProfileId', (_event, value: string) => (
     service.setStartupControllerProfileId(typeof value === 'string' ? value : '')
+  ));
+  ipcMain.handle('bridge:setProfileShortcutEnabled', (_event, value: boolean) => (
+    service.setProfileShortcutEnabled(Boolean(value))
   ));
   ipcMain.handle('bridge:setStartMinimizedEnabled', (_event, value: boolean) => (
     service.setStartMinimizedEnabled(Boolean(value))

@@ -239,6 +239,18 @@ std::uint8_t apply_command(CompanionRuntime &runtime,
   case 0x0F: // SET_USB_SUSPEND_DISCONNECT_ENABLED
     settings.usb_suspend_disconnect_enabled = value != 0;
     return kAckOk;
+  case 0x1D: // SET_SPEAKER_VOLUME_SHORTCUT_ENABLED (Mute + D-pad up/down)
+    if (value > 1) {
+      return kAckErrInvalidValue;
+    }
+    settings.speaker_volume_shortcut_enabled = value == 1;
+    return kAckOk;
+  case 0x42: // SET_PROFILE_SHORTCUT_ENABLED (Linux-port extension)
+    if (value > 1) {
+      return kAckErrInvalidValue;
+    }
+    settings.profile_shortcut_enabled = value == 1;
+    return kAckOk;
   case 0x10: // SET_SLEEP_KEYBIND_ENABLED
     settings.sleep_keybind_enabled = value != 0;
     return kAckOk;
@@ -268,6 +280,12 @@ std::uint8_t apply_command(CompanionRuntime &runtime,
     return kAckOk;
   case 0x13: // SET_CLASSIC_RUMBLE_GAIN
     settings.classic_rumble_gain_percent = std::min<std::uint16_t>(value, 400);
+    return kAckOk;
+  case 0x25: // SET_CLASSIC_RUMBLE_V1
+    if (value > 1) {
+      return kAckErrInvalidValue;
+    }
+    settings.classic_rumble_v1 = value == 1;
     return kAckOk;
   case 0x24: // SET_PLAYER_LED_ENABLED
     settings.player_led_enabled = value != 0;
@@ -310,13 +328,17 @@ std::uint8_t apply_command(CompanionRuntime &runtime,
     runtime.pending_input_events.clear();
     return kAckOk;
   }
+  case 0x0B: // SET_HAPTICS_BUFFER_LENGTH (clamped like the firmware)
+    if (value == 0 || value > 255) {
+      return kAckErrInvalidValue;
+    }
+    settings.haptics_buffer_length =
+        static_cast<std::uint8_t>(std::clamp<std::uint16_t>(value, 16, 128));
+    return kAckOk;
   // Settings accepted and stored by the app but not yet actuated here.
-  case 0x0B: // SET_HAPTICS_BUFFER_LENGTH
   case 0x12: // SET_POLLING_RATE_MODE
   case 0x19: // SET_DUPLEX_ENABLED
-  case 0x1D: // SET_SPEAKER_VOLUME_SHORTCUT_ENABLED
   case 0x22: // SET_AUDIO_REACTIVE_HAPTICS
-  case 0x25: // SET_CLASSIC_RUMBLE_V1
     return kAckOk;
   case 0x04:   // TEST_HAPTICS
   case 0x14: { // TEST_CLASSIC_RUMBLE
@@ -647,20 +669,149 @@ bool starter_held(std::uint8_t starter, std::uint32_t pressed,
   }
 }
 
+constexpr std::uint8_t kEventVolumeDown = 0x01;
+constexpr std::uint8_t kEventVolumeUp = 0x02;
+constexpr std::uint8_t kEventProfilePrevious = 0x06;
+constexpr std::uint8_t kEventProfileNext = 0x07;
+// Volume repeats while held (firmware timing). Shortcuts use Mute as the
+// modifier: holding PS for several seconds powers the DualSense off, so PS
+// combos with repeat are unusable. PS is only held back briefly for
+// PS-starter chords, and replayed if no combo followed.
+constexpr auto kShortcutRepeat = std::chrono::milliseconds(180);
+constexpr auto kPsGateHold = std::chrono::milliseconds(250);
+constexpr auto kPsGateReplay = std::chrono::milliseconds(80);
+
+struct MuteShortcut {
+  std::uint8_t button;
+  std::uint8_t event;
+  bool repeat;
+  bool CompanionSettings::*enabled;
+};
+
+constexpr std::array<MuteShortcut, 4> kMuteShortcuts = {{
+    {kIndexDpadDown, kEventVolumeDown, true,
+     &CompanionSettings::speaker_volume_shortcut_enabled},
+    {kIndexDpadUp, kEventVolumeUp, true,
+     &CompanionSettings::speaker_volume_shortcut_enabled},
+    {kIndexDpadLeft, kEventProfilePrevious, false,
+     &CompanionSettings::profile_shortcut_enabled},
+    {kIndexDpadRight, kEventProfileNext, false,
+     &CompanionSettings::profile_shortcut_enabled},
+}};
+
+bool mute_shortcuts_enabled(const CompanionRuntime &runtime) {
+  return runtime.settings.speaker_volume_shortcut_enabled ||
+         runtime.settings.profile_shortcut_enabled;
+}
+
+bool ps_gate_wanted(const CompanionRuntime &runtime) {
+  return std::any_of(runtime.chord_bindings.begin(),
+                     runtime.chord_bindings.end(),
+                     [](const CompanionChordBinding &binding) {
+                       return binding.starter == 1;
+                     });
+}
+
+void queue_input_event(CompanionRuntime &runtime, std::uint8_t event) {
+  if (runtime.pending_input_events.size() < kCompanionMaxPendingInputEvents) {
+    runtime.pending_input_events.push_back(event);
+  }
+}
+
+// Mute + button shortcuts handled by the bridge (volume, profiles). The
+// button is consumed until released; Mute stays hidden until released.
+void process_mute_shortcuts(CompanionRuntime &runtime,
+                            CompanionInputState &state, std::uint32_t pressed,
+                            bool mute_held,
+                            std::chrono::steady_clock::time_point now) {
+  for (std::size_t i = 0; i < kMuteShortcuts.size(); ++i) {
+    const MuteShortcut &shortcut = kMuteShortcuts[i];
+    const std::uint32_t button_bit = 1u << shortcut.button;
+    const bool held = runtime.settings.*shortcut.enabled && mute_held &&
+                      (pressed & button_bit) != 0;
+    if (held) {
+      state.consumed_mask |= button_bit;
+      state.mute_consumed = true;
+      const bool emit =
+          !state.shortcut_pressed[i] ||
+          (shortcut.repeat &&
+           now - state.shortcut_last_step[i] >= kShortcutRepeat);
+      if (emit) {
+        queue_input_event(runtime, shortcut.event);
+        state.shortcut_last_step[i] = now;
+      }
+    }
+    state.shortcut_pressed[i] = held;
+  }
+}
+
+// Holds a lone PS press back for kPsGateHold while a PS combo could follow;
+// a quick tap with no combo is replayed for kPsGateReplay after release.
+std::uint32_t apply_ps_gate(const CompanionRuntime &runtime,
+                            CompanionInputState &state, std::uint32_t pressed,
+                            bool physical_ps, bool combo_used,
+                            std::chrono::steady_clock::time_point now) {
+  const std::uint32_t ps_bit = 1u << kIndexPs;
+  if (combo_used || !ps_gate_wanted(runtime)) {
+    state.ps_gate_active = false;
+    state.ps_passing = false;
+    state.ps_replay_until = {};
+    return pressed;
+  }
+  if (physical_ps) {
+    state.ps_replay_until = {};
+    if (state.ps_passing) {
+      return pressed;
+    }
+    if (!state.ps_gate_active && (pressed & ps_bit) != 0) {
+      state.ps_gate_active = true;
+      state.ps_gate_until = now + kPsGateHold;
+    }
+    if (state.ps_gate_active && now < state.ps_gate_until) {
+      return pressed & ~ps_bit;
+    }
+    state.ps_gate_active = false; // held long enough: pass PS through
+    state.ps_passing = true;
+    return pressed;
+  }
+  state.ps_passing = false;
+  if (state.ps_gate_active) {
+    state.ps_gate_active = false;
+    state.ps_replay_until = now + kPsGateReplay;
+  }
+  if (state.ps_replay_until != std::chrono::steady_clock::time_point{} &&
+      now < state.ps_replay_until) {
+    return pressed | ps_bit;
+  }
+  state.ps_replay_until = {};
+  return pressed;
+}
+
 } // namespace
 
 void companion_translate_input(CompanionRuntime &runtime,
                                CompanionInputState &state,
                                std::span<std::uint8_t> report) {
   if (report.size() < 11 ||
-      (!runtime.button_remap_active && runtime.chord_bindings.empty())) {
+      (!runtime.button_remap_active && runtime.chord_bindings.empty() &&
+       !mute_shortcuts_enabled(runtime) && !state.mute_consumed &&
+       !ps_gate_wanted(runtime) && !state.ps_gate_active &&
+       state.ps_replay_until == std::chrono::steady_clock::time_point{})) {
     return;
   }
 
+  const auto now = std::chrono::steady_clock::now();
   std::uint32_t pressed = read_pressed_buttons(report);
   const std::uint32_t previous = state.prev_pressed;
   state.prev_pressed = pressed;
+  const bool physical_ps = (pressed & (1u << kIndexPs)) != 0;
   state.consumed_mask &= pressed; // released buttons are usable again
+
+  const bool mute_held = (report[10] & kMuteButtonMask) != 0;
+  if (!mute_held) {
+    state.mute_consumed = false;
+  }
+  process_mute_shortcuts(runtime, state, pressed, mute_held, now);
 
   for (const CompanionChordBinding &binding : runtime.chord_bindings) {
     const std::uint32_t button_bit = 1u << binding.button;
@@ -676,9 +827,15 @@ void companion_translate_input(CompanionRuntime &runtime,
     }
     if ((pressed & button_bit) != 0) {
       state.consumed_mask |= button_bit;
+      if (binding.starter == 1) {
+        state.consumed_mask |= 1u << kIndexPs;
+      }
     }
   }
+  // A PS-starter chord consumes PS until released.
+  const bool combo_used = (state.consumed_mask & (1u << kIndexPs)) != 0;
   pressed &= ~state.consumed_mask;
+  pressed = apply_ps_gate(runtime, state, pressed, physical_ps, combo_used, now);
 
   if (runtime.button_remap_active) {
     std::uint32_t remapped = 0;
@@ -717,6 +874,9 @@ void companion_translate_input(CompanionRuntime &runtime,
   }
 
   write_pressed_buttons(report, pressed);
+  if (state.mute_consumed) {
+    report[10] &= static_cast<std::uint8_t>(~kMuteButtonMask);
+  }
 }
 
 bool expire_companion_actuation(CompanionRuntime &runtime,

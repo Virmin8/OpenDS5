@@ -35,7 +35,7 @@ import type { ImportResult } from './main/trigger-profile-store';
 import type { GameProcessCandidate } from './main/game-watcher';
 import type { SetupProgressEvent } from './main/setup-service';
 import type { UpdateState } from './main/update-service';
-import type { VdsBluetoothMode, VdsDaemonLog, VdsStatus, VdsTraceScope } from './shared/vds';
+import type { VdsAudioStats, VdsBluetoothMode, VdsDaemonLog, VdsStatus, VdsTraceScope } from './shared/vds';
 
 // The preload runs sandboxed: only `require('electron')` is available, so the
 // setup channel names are inlined rather than imported from ./main/setup-ipc.
@@ -150,6 +150,9 @@ const api = {
   ),
   setStartupControllerProfileId: (profileId: string): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setStartupControllerProfileId', profileId)
+  ),
+  setProfileShortcutEnabled: (value: boolean): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setProfileShortcutEnabled', value)
   ),
   setStartMinimizedEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setStartMinimizedEnabled', value)
@@ -401,6 +404,7 @@ const vdsApi = {
   },
   quitApp: (): Promise<void> => ipcRenderer.invoke('vds:quitApp'),
   getDaemonLog: (lines?: number): Promise<VdsDaemonLog> => ipcRenderer.invoke('vds:getDaemonLog', lines),
+  getAudioStats: (): Promise<VdsAudioStats> => ipcRenderer.invoke('vds:getAudioStats'),
   setDaemonTrace: (scope: VdsTraceScope, enabled: boolean): Promise<VdsDaemonLog> => (
     ipcRenderer.invoke('vds:setDaemonTrace', scope, enabled)
   ),

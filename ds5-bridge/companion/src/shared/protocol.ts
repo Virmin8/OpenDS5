@@ -23,7 +23,10 @@ export const SHORTCUT_EVENT = {
   CONTROLLER_VOLUME_UP: 0x02,
   SLEEP_CONTROLLER: 0x03,
   MIC_MUTE_ON: 0x04,
-  MIC_MUTE_OFF: 0x05
+  MIC_MUTE_OFF: 0x05,
+  // Linux-port extension: PS + D-pad left/right (vdsd command 0x42).
+  PROFILE_PREVIOUS: 0x06,
+  PROFILE_NEXT: 0x07
 } as const;
 
 export const AUDIO_DEBUG_EVENT = {
@@ -90,6 +93,8 @@ export const COMMAND_ID = {
   // V2 trigger command lives in the extension namespace next to 0x40 in the
   // daemon (0x21 is already SET_HOST_PERSONA).
   APPLY_ADAPTIVE_TRIGGER_EFFECT_V2: 0x41,
+  // Linux-port extension: PS + D-pad left/right cycles controller profiles.
+  SET_PROFILE_SHORTCUT_ENABLED: 0x42,
   SET_SPEAKER_GAIN: 0x32,
   ENTER_BOOTLOADER: 0x33
 } as const;
@@ -725,7 +730,7 @@ export function parseStatusReport(report: ArrayLike<number>): BridgeStatusPayloa
     hapticsReady: report[12] === 1,
     hapticsGainPercent: readU16(report, 13),
     speakerVolumePercent: readU16(report, 29),
-    speakerGainLevel: Math.max(1, Math.min(7, report[57] || 4)),
+    speakerGainLevel: Math.max(1, Math.min(7, report[57] || 1)),
     lightbarColor: {
       red: report[31],
       green: report[32],

@@ -187,9 +187,26 @@ target_link_libraries(bt_input_report_test PRIVATE vds_protocol)
 add_executable(persona_test tests/persona_test.cc)
 target_link_libraries(persona_test PRIVATE vds_protocol)
 
+add_executable(speaker_resampler_test tests/speaker_resampler_test.cc)
+target_link_libraries(speaker_resampler_test PRIVATE vds_protocol)
+
+add_executable(speaker_enhancer_test tests/speaker_enhancer_test.cc)
+target_link_libraries(speaker_enhancer_test PRIVATE vds_protocol)
+
+add_executable(haptics_resampler_test tests/haptics_resampler_test.cc)
+target_link_libraries(haptics_resampler_test PRIVATE vds_protocol)
+
+add_executable(speaker_mono_test tests/speaker_mono_test.cc)
+target_link_libraries(speaker_mono_test PRIVATE vds_protocol)
+
+add_executable(rumble_mode_test tests/rumble_mode_test.cc)
+target_link_libraries(rumble_mode_test PRIVATE vds_protocol)
+
 enable_testing()
 foreach(vds_test trigger_effect_v2_test speaker_gain_test bt_input_report_test
-                 persona_test)
+                 persona_test speaker_resampler_test
+                 speaker_enhancer_test haptics_resampler_test
+                 speaker_mono_test rumble_mode_test)
   # The tests use assert(); keep them active in Release builds too.
   target_compile_options(${vds_test} PRIVATE -UNDEBUG)
   add_test(NAME ${vds_test} COMMAND ${vds_test})
@@ -327,4 +344,16 @@ else()
       uninstall COMMAND ${CMAKE_COMMAND} -E rm -f ${VDS_INSTALLED_VDSD}
                         ${VDS_INSTALLED_VDSCTL})
   endif()
+endif()
+
+# Bluetooth vs USB audio fidelity measurement (dev tool, not installed).
+add_executable(vds_audio_compare tools/audio_compare.cc)
+target_link_libraries(vds_audio_compare PRIVATE vds_protocol ${VDS_OPUS_TARGET})
+
+if(NOT WIN32)
+  add_executable(controller_shortcut_test tests/controller_shortcut_test.cc)
+  target_link_libraries(controller_shortcut_test PRIVATE vdsd_common vds_protocol jsonl
+                                                 vds_common vds_config vds_log)
+  target_compile_options(controller_shortcut_test PRIVATE -UNDEBUG)
+  add_test(NAME controller_shortcut_test COMMAND controller_shortcut_test)
 endif()

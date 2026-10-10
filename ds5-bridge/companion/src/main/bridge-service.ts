@@ -669,6 +669,8 @@ function parseShortcutEvent(data: Buffer | number[]): InputShortcutEvent | null 
     case SHORTCUT_EVENT.SLEEP_CONTROLLER:
     case SHORTCUT_EVENT.MIC_MUTE_ON:
     case SHORTCUT_EVENT.MIC_MUTE_OFF:
+    case SHORTCUT_EVENT.PROFILE_PREVIOUS:
+    case SHORTCUT_EVENT.PROFILE_NEXT:
       return { kind: 'shortcut', event };
     default:
       return null;
@@ -1412,7 +1414,9 @@ export class BridgeService extends EventEmitter {
     [SHORTCUT_EVENT.CONTROLLER_VOLUME_UP]: () => this.applyControllerVolumeShortcut(10),
     [SHORTCUT_EVENT.SLEEP_CONTROLLER]: () => this.applySleepShortcut(),
     [SHORTCUT_EVENT.MIC_MUTE_ON]: () => this.applyControllerMicMuteEvent(true),
-    [SHORTCUT_EVENT.MIC_MUTE_OFF]: () => this.applyControllerMicMuteEvent(false)
+    [SHORTCUT_EVENT.MIC_MUTE_OFF]: () => this.applyControllerMicMuteEvent(false),
+    [SHORTCUT_EVENT.PROFILE_PREVIOUS]: () => this.cycleControllerProfile(-1),
+    [SHORTCUT_EVENT.PROFILE_NEXT]: () => this.cycleControllerProfile(1)
   };
 
   constructor(private readonly settingsStore: SettingsStore) {
@@ -2834,6 +2838,28 @@ export class BridgeService extends EventEmitter {
     await this.setSpeakerVolume(nextVolume);
   }
 
+  /** Profile shortcut (Mute + D-pad left/right under vdsd): step through the user's own profiles (game-owned excluded), wrapping. */
+  private async cycleControllerProfile(direction: 1 | -1): Promise<void> {
+    const settings = this.settingsStore.get();
+    if (!settings.profileShortcutEnabled) {
+      return;
+    }
+    const profiles = settings.controllerProfiles.filter((profile) => !isGameSettingsProfileId(profile.id));
+    if (profiles.length < 2) {
+      return;
+    }
+    const current = profiles.findIndex((profile) => profile.id === settings.selectedControllerProfileId);
+    const next = current < 0
+      ? (direction > 0 ? 0 : profiles.length - 1)
+      : (current + direction + profiles.length) % profiles.length;
+    const profile = profiles[next]!;
+    await this.selectControllerProfile(profile.id);
+    this.emit('toast', {
+      title: 'OpenDS5',
+      body: `Profile: ${profile.name}`
+    } satisfies BridgeToast);
+  }
+
   private async applySleepShortcut(): Promise<void> {
     if (!this.settingsStore.get().sleepKeybindEnabled) {
       return;
@@ -2933,6 +2959,15 @@ export class BridgeService extends EventEmitter {
       || (!isGameSettingsProfileId(profileId)
         && this.snapshot.settings.controllerProfiles.some((profile) => profile.id === profileId));
     this.snapshot.settings = this.settingsStore.update({ startupControllerProfileId: valid ? profileId : '' });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setProfileShortcutEnabled(enabled: boolean): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ profileShortcutEnabled: enabled });
+    if (this.snapshot.state === 'connected' && process.platform !== 'win32') {
+      await this.sendCommand(COMMAND_ID.SET_PROFILE_SHORTCUT_ENABLED, enabled ? 1 : 0, {});
+    }
     this.emitSnapshot();
     return this.getSnapshot();
   }
@@ -3950,6 +3985,19 @@ export class BridgeService extends EventEmitter {
       settings.speakerVolumeShortcutEnabled ? 1 : 0,
       { expectSettingsRevisionChange }
     );
+    if (process.platform !== 'win32') {
+      try {
+        // Linux-port extension (vdsd only); an older daemon rejects it, which
+        // must not stop the rest of the settings from applying.
+        await this.sendCommand(
+          COMMAND_ID.SET_PROFILE_SHORTCUT_ENABLED,
+          settings.profileShortcutEnabled ? 1 : 0,
+          { expectSettingsRevisionChange }
+        );
+      } catch {
+        // ignored
+      }
+    }
     await this.applyButtonRemapping(settings, expectSettingsRevisionChange);
     await this.applyChordBindings(settings);
     await this.sendCommand(

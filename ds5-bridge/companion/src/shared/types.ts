@@ -31,6 +31,8 @@ export interface CompanionSettings {
   uiThemePreset: UiThemePreset;
   launchAtStartupEnabled: boolean;
   startMinimizedEnabled: boolean;
+  /** PS + D-pad left/right cycles the user's controller profiles (app-wide). */
+  profileShortcutEnabled: boolean;
   /** Controller profile selected when the app starts; empty = keep the last used one. */
   startupControllerProfileId: string;
   /**

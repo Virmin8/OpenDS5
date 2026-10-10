@@ -65,6 +65,10 @@
 !/tests/
 !/tests/*.cc
 
+!/tools/
+!/tools/*.cc
+!/tools/*.py
+
 !/windrv/
 !/windrv/*.ps1
 !/windrv/vds_filter/

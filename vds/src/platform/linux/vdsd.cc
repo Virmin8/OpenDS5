@@ -15,6 +15,7 @@
 #include <iostream>
 #include <optional>
 #include <span>
+#include <iomanip>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -131,18 +132,41 @@ bool g_bluetooth_normal_mode = false;
 // Host persona selected through the companion app; applied to each virtual
 // port when its controller connects and whenever it changes.
 vds::HostPersona g_host_persona = vds::HostPersona::DualSense;
+// Built-in speaker loudness boost (--speaker-boost-db); bypassed while
+// headphones are plugged into the controller.
+float g_speaker_boost_db = vds::kDefaultSpeakerBoostDb;
 
 struct Options {
   std::string socket = kDefaultControlSocket;
   std::string log_path = vds::kDefaultLogPath;
   std::string db_path = vds::kDefaultDbPath;
   std::string bluetooth_override_script = vds::kDefaultBluetoothOverrideScript;
+  float speaker_boost_db = vds::kDefaultSpeakerBoostDb;
 };
 
 struct LatencyTraceStats {
   std::uint64_t count = 0;
   std::uint64_t total_us = 0;
   std::uint64_t max_us = 0;
+};
+
+/*
+ * Always-on audio delivery stats for the companion Diagnostics view. The
+ * controller does not report buffer underruns, so a send gap longer than the
+ * controller's audio buffer is counted as a probable dropout ("late").
+ */
+struct AudioStats {
+  std::uint8_t buffer_length = 64; // 3 kHz samples
+  Clock::time_point last_send{};
+  std::uint64_t packets_total = 0;
+  std::uint64_t late_total = 0;
+  std::uint64_t refills_total = 0;
+  // Since the previous `audio` control request.
+  Clock::time_point window_start{};
+  std::uint64_t window_packets = 0;
+  std::uint64_t window_late = 0;
+  std::uint64_t window_refills = 0;
+  std::int64_t window_max_gap_us = 0;
 };
 
 struct TraceState {
@@ -202,12 +226,26 @@ struct VirtualPort {
   std::uint32_t speaker_waveout_phase = 0;
   std::uint16_t haptics_gain_percent = 100;
   std::uint8_t battery_status = 0xff;
+  bool headphones_plugged = false;
+  // Diagnostic counters: the `audio` control request resets the window part.
+  mutable AudioStats audio_stats;
   vds::CompanionInputState companion_input;
   std::array<std::vector<std::uint8_t>, 256> feature_cache;
   std::array<bool, 256> feature_cached;
   std::vector<std::uint8_t> pending_feature_reports;
   TraceState trace_state;
 };
+
+float speaker_boost_db(const VirtualPort &port) {
+  return port.headphones_plugged ? 0.0f : g_speaker_boost_db;
+}
+
+// The companion speaker volume slider only applies to the built-in speaker.
+std::uint16_t speaker_volume_percent(const VirtualPort &port) {
+  return port.headphones_plugged
+             ? 100
+             : port.output_state.companion_overrides().speaker_volume_percent;
+}
 
 struct ControllerRuntime {
   vds::ControllerConfig config;
@@ -255,7 +293,7 @@ Options parse_platform_args(int argc, char **argv) {
   const std::string platform_options =
       std::string("[--socket ") + kDefaultControlSocket +
       "] [--bluetooth-override-script " +
-      vds::kDefaultBluetoothOverrideScript + "]";
+      vds::kDefaultBluetoothOverrideScript + "] [--speaker-boost-db 0-18]";
   const auto next_value = [&](int &index, std::string_view option) {
     if (index + 1 >= argc) {
       throw std::runtime_error(std::string(option) + " requires a value");
@@ -275,6 +313,17 @@ Options parse_platform_args(int argc, char **argv) {
       options.socket = next_value(i, arg);
     } else if (arg == "--bluetooth-override-script") {
       options.bluetooth_override_script = next_value(i, arg);
+    } else if (arg == "--speaker-boost-db") {
+      const std::string value = next_value(i, arg);
+      try {
+        options.speaker_boost_db = std::stof(value);
+      } catch (const std::exception &) {
+        throw std::runtime_error("--speaker-boost-db needs a number");
+      }
+      if (options.speaker_boost_db < 0.0f ||
+          options.speaker_boost_db > vds::kMaxSpeakerBoostDb) {
+        throw std::runtime_error("--speaker-boost-db must be 0-18");
+      }
     } else {
       throw std::runtime_error("unknown argument: " + std::string(arg));
     }
@@ -618,6 +667,8 @@ void reset_virtual_port(VirtualPort &port) {
   port.speaker_waveout_phase = 0;
   port.haptics_gain_percent = 100;
   port.battery_status = 0xff;
+  port.headphones_plugged = false;
+  port.audio_stats = {};
   port.companion_input = {};
   port.feature_cache = {};
   port.feature_cached = {};
@@ -939,6 +990,10 @@ void handle_frame(const vds_frame_header &header,
   std::size_t dropped_chunks = 0;
   const auto audio_start = Clock::now();
   const auto extract_start = Clock::now();
+  port.extractor.set_speaker_boost_db(speaker_boost_db(port));
+  port.extractor.set_speaker_volume_percent(speaker_volume_percent(port));
+  port.extractor.set_haptics_gain_percent(port.haptics_gain_percent);
+  port.extractor.set_speaker_mono(!port.headphones_plugged);
   const auto chunks = port.extractor.push_usb_audio(payload);
   const auto extract_duration = Clock::now() - extract_start;
   for (const auto &chunk : chunks) {
@@ -1052,6 +1107,16 @@ bool handle_bt_input(VirtualPort &port, vds::BtL2capBackend &bt_backend,
   // USB input payload offset 52 (report byte 53) carries the DualSense
   // power status: low nibble battery capacity 0-10, high nibble state.
   port.battery_status = (*report)[53];
+  // Report byte 54 bit 0: headphones plugged into the controller's jack.
+  const bool headphones = ((*report)[54] & 0x01) != 0;
+  if (headphones != port.headphones_plugged) {
+    port.headphones_plugged = headphones;
+    logger.log("audio", vds::LogLevel::Info,
+               port.path + (headphones ? " headphones plugged in; stereo, "
+                                         "speaker boost off"
+                                       : " headphones unplugged; mono speaker, "
+                                         "boost on"));
+  }
 
   const bool input_trace = trace_enabled(trace_flags, kTraceInput);
   if (input_trace) {
@@ -1623,6 +1688,11 @@ bool flush_pending_audio_chunk(VirtualPort &port,
                                vds::BtL2capBackend &bt_backend,
                                std::uint32_t trace_flags, vds::Logger &logger) {
   if (port.pending_audio_chunks.empty()) {
+    if (port.audio_primed) {
+      // Ran dry mid-stream: the next packets wait for a refill.
+      ++port.audio_stats.refills_total;
+      ++port.audio_stats.window_refills;
+    }
     port.audio_primed = false;
     return true;
   }
@@ -1638,16 +1708,9 @@ bool flush_pending_audio_chunk(VirtualPort &port,
 
   const bool output_trace = trace_enabled(trace_flags, kTraceOutput);
   const auto &chunk = port.pending_audio_chunks.front();
-  vds::HapticsChunk haptics = chunk.haptics;
-  if (port.haptics_gain_percent != 100) {
-    for (auto &sample : haptics) {
-      const int scaled =
-          static_cast<int>(sample) * port.haptics_gain_percent / 100;
-      sample = static_cast<std::int8_t>(std::clamp(scaled, -128, 127));
-    }
-  }
+  // Haptics gain is applied by the extractor before 8-bit quantization.
   const auto packet = port.haptics_builder.build_packet(
-      haptics, chunk.speaker, port.output_state.state());
+      chunk.haptics, chunk.speaker, port.output_state.state());
   const auto send_start = Clock::now();
   if (!bt_backend.try_send_output_report(packet)) {
     ++port.trace_state.dropped_audio_haptics_count;
@@ -1681,6 +1744,26 @@ bool flush_pending_audio_chunk(VirtualPort &port,
   // next wakeup; one more than kMaxAudioCatchup late resyncs to now instead of
   // replaying a backlog.
   const auto sent_at = Clock::now();
+  AudioStats &stats = port.audio_stats;
+  if (stats.last_send != Clock::time_point{}) {
+    const auto gap = sent_at - stats.last_send;
+    // Longer pauses are the stream stopping, not a late packet.
+    if (gap < std::chrono::seconds(1)) {
+      const auto gap_us =
+          std::chrono::duration_cast<std::chrono::microseconds>(gap).count();
+      stats.window_max_gap_us = std::max<std::int64_t>(stats.window_max_gap_us, gap_us);
+      const auto buffer_us =
+          static_cast<std::int64_t>(stats.buffer_length) * 1000000 /
+          VDS_HAPTICS_SAMPLE_RATE;
+      if (gap_us > buffer_us) {
+        ++stats.late_total;
+        ++stats.window_late;
+      }
+    }
+  }
+  stats.last_send = sent_at;
+  ++stats.packets_total;
+  ++stats.window_packets;
   auto next_deadline = port.next_haptics_send_time;
   if (next_deadline == Clock::time_point{}) {
     next_deadline = send_start;
@@ -1726,6 +1809,11 @@ void enqueue_speaker_waveout_chunk(VirtualPort &port, std::uint32_t trace_flags,
     }
   }
 
+  port.waveout_extractor.set_speaker_boost_db(speaker_boost_db(port));
+  port.waveout_extractor.set_speaker_volume_percent(
+      speaker_volume_percent(port));
+  port.waveout_extractor.set_haptics_gain_percent(port.haptics_gain_percent);
+  port.waveout_extractor.set_speaker_mono(!port.headphones_plugged);
   const auto chunks = port.waveout_extractor.push_usb_audio(pcm);
   for (const auto &chunk : chunks) {
     if (port.pending_audio_chunks.size() >= kMaxPendingAudioChunks) {
@@ -2378,6 +2466,85 @@ std::string handle_daemon_log_request(std::span<const vds::JsonlField> fields,
   }
 }
 
+/*
+ * `audio` control command: per-port audio delivery stats for the companion
+ * Diagnostics view. Window counters cover the time since the previous
+ * request and are reset by it.
+ */
+std::string handle_audio_stats_request(std::span<const VirtualPort> ports,
+                                       std::span<const ControllerRuntime> controllers) {
+  const auto now = Clock::now();
+  const auto fixed = [](double value, int decimals) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(decimals) << value;
+    return out.str();
+  };
+  std::string reply = "{";
+  reply += vds::jsonl_bool_field("OK", true);
+  reply += ',';
+  reply += vds::jsonl_string_field("error", "");
+  reply += ",\"ports\":[";
+  bool first = true;
+  for (const auto &port : ports) {
+    const bool connected = std::any_of(
+        controllers.begin(), controllers.end(), [&](const ControllerRuntime &c) {
+          return c.virtual_connected && c.device == port.path;
+        });
+    if (!connected) {
+      continue;
+    }
+    AudioStats &stats = port.audio_stats;
+    const double window_s =
+        stats.window_start == Clock::time_point{}
+            ? 0.0
+            : std::chrono::duration<double>(now - stats.window_start).count();
+    const bool streaming = stats.last_send != Clock::time_point{} &&
+                           now - stats.last_send < std::chrono::milliseconds(250);
+    if (!first) {
+      reply += ',';
+    }
+    first = false;
+    reply += '{';
+    reply += vds::jsonl_string_field("path", port.path);
+    reply += ',';
+    reply += vds::jsonl_bool_field("streaming", streaming);
+    reply += ",\"buffer_length\":" + std::to_string(stats.buffer_length);
+    reply += ",\"buffer_ms\":" +
+             fixed(1000.0 * stats.buffer_length / VDS_HAPTICS_SAMPLE_RATE, 1);
+    reply += ",\"window_seconds\":" + fixed(window_s, 2);
+    reply += ",\"packets_per_second\":" +
+             fixed(window_s > 0.0 ? stats.window_packets / window_s : 0.0, 1);
+    reply += ",\"max_gap_ms\":" + fixed(stats.window_max_gap_us / 1000.0, 1);
+    reply += ",\"late\":" + std::to_string(stats.window_late);
+    reply += ",\"refills\":" + std::to_string(stats.window_refills);
+    reply += ",\"packets_total\":" + std::to_string(stats.packets_total);
+    reply += ",\"late_total\":" + std::to_string(stats.late_total);
+    reply += ",\"refills_total\":" + std::to_string(stats.refills_total);
+    reply += ",\"queue_depth\":" + std::to_string(port.pending_audio_chunks.size());
+    reply += ",\"queue_dropped_total\":" +
+             std::to_string(port.trace_state.queue_dropped_audio_haptics_count);
+    reply += ",\"blocked_total\":" +
+             std::to_string(port.trace_state.blocked_audio_haptics_count);
+    reply += ',';
+    reply += vds::jsonl_bool_field("headphones", port.headphones_plugged);
+    reply += ',';
+    reply += vds::jsonl_bool_field("speaker_mono", !port.headphones_plugged);
+    reply += ",\"speaker_boost_db\":" + fixed(speaker_boost_db(port), 1);
+    reply += ",\"speaker_volume_percent\":" +
+             std::to_string(speaker_volume_percent(port));
+    reply += ",\"haptics_gain_percent\":" +
+             std::to_string(port.haptics_gain_percent);
+    reply += '}';
+    stats.window_start = now;
+    stats.window_packets = 0;
+    stats.window_late = 0;
+    stats.window_refills = 0;
+    stats.window_max_gap_us = 0;
+  }
+  reply += "]}\n";
+  return reply;
+}
+
 std::optional<std::string> parse_bluetooth_mode_command(
     const std::string &command, std::vector<vds::JsonlField> &fields) {
   try {
@@ -2438,6 +2605,16 @@ void handle_control_client(int control_fd, std::span<const VirtualPort> ports,
   std::vector<vds::JsonlField> fields;
   const std::optional<std::string> local_command =
       parse_bluetooth_mode_command(command, fields);
+  if (local_command == "audio") {
+    reply = handle_audio_stats_request(ports, controllers);
+    try {
+      vds::write_full(client_fd.get(), reply);
+    } catch (const std::exception &error) {
+      logger.log("control", vds::LogLevel::Error,
+                 std::string("reply failed: ") + error.what());
+    }
+    return;
+  }
   if (local_command == "bluetooth" || local_command == "log") {
     reply = local_command == "bluetooth"
                 ? handle_bluetooth_mode_request(fields, bt_mode, bt_listening, logger)
@@ -2631,6 +2808,7 @@ void apply_companion_state(std::vector<VirtualPort> &ports,
   overrides.lightbar_brightness_percent = settings.lightbar_brightness_percent;
   overrides.player_led_enabled = settings.player_led_enabled;
   overrides.classic_rumble_gain_percent = settings.classic_rumble_gain_percent;
+  overrides.classic_rumble_v1 = settings.classic_rumble_v1;
   overrides.trigger_intensity_percent =
       settings.trigger_effect_intensity_percent;
   overrides.speaker_volume_percent = settings.speaker_volume_percent;
@@ -2702,6 +2880,8 @@ void apply_companion_state(std::vector<VirtualPort> &ports,
       continue;
     }
     port.haptics_gain_percent = settings.haptics_gain_percent;
+    port.haptics_builder.set_buffer_length(settings.haptics_buffer_length);
+    port.audio_stats.buffer_length = settings.haptics_buffer_length;
     port.output_state.set_companion_overrides(overrides);
     try {
       forward_bt_state_if_changed(port, *controller->backend, trace_flags,
@@ -2797,6 +2977,9 @@ int main(int argc, char **argv) {
     logger.log("daemon", vds::LogLevel::Info,
                "started socket=" + options.socket + " log=" + options.log_path +
                    " db=" + options.db_path);
+    g_speaker_boost_db = options.speaker_boost_db;
+    logger.log("audio", vds::LogLevel::Info,
+               "speaker boost " + std::to_string(g_speaker_boost_db) + " dB");
     if (vds::discover_vds_devices().empty()) {
       logger.log("port", vds::LogLevel::Error,
                  std::string(kVirtualPortProviderUnavailableReason) +
