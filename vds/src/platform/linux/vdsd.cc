@@ -44,6 +44,7 @@
 #include "unique_fd.hh"
 #include "vds/ds5_protocol.h"
 #include "vds_bluez.hh"
+#include "vds_sleep_watch.hh"
 #include "vds_bt.hh"
 #include "vds_bt_mode.hh"
 #include "vds_build_info.hh"
@@ -268,6 +269,7 @@ enum class EventKind : std::uint32_t {
   BtAcceptControl = 5,
   BtAcceptInterrupt = 6,
   Udev = 7,
+  Sleep = 8,
 };
 
 struct EventSource {
@@ -2986,7 +2988,8 @@ vds::UniqueFd rebuild_epoll(int control_fd,
                             const std::optional<vds::BtL2capAcceptor> &bt_acceptor,
                             const vds::VdsDeviceMonitor &vds_monitor,
                             std::span<VirtualPort> ports,
-                            std::span<ControllerRuntime> controllers) {
+                            std::span<ControllerRuntime> controllers,
+                            int sleep_fd) {
   vds::UniqueFd epoll_fd(::epoll_create1(EPOLL_CLOEXEC));
   if (!epoll_fd) {
     throw std::runtime_error("epoll_create1 failed: " +
@@ -2995,6 +2998,9 @@ vds::UniqueFd rebuild_epoll(int control_fd,
 
   add_epoll_fd(epoll_fd.get(), control_fd, EventKind::Control, 0);
   add_epoll_fd(epoll_fd.get(), vds_monitor.fd(), EventKind::Udev, 0);
+  if (sleep_fd >= 0) {
+    add_epoll_fd(epoll_fd.get(), sleep_fd, EventKind::Sleep, 0);
+  }
   if (bt_acceptor) {
     add_epoll_fd(epoll_fd.get(), bt_acceptor->control_listener_fd(),
                  EventKind::BtAcceptControl, 0);
@@ -3058,6 +3064,16 @@ int main(int argc, char **argv) {
     std::optional<vds::BtL2capAcceptor> bt_acceptor;
     vds::VdsDeviceMonitor vds_monitor;
     BluetoothModeState bt_mode;
+    // PC Sleep Disconnect: logind PrepareForSleep + a delay inhibitor held
+    // only while the companion setting is on.
+    std::optional<vds::SleepWatcher> sleep_watcher;
+    bool system_sleeping = false;
+    try {
+      sleep_watcher.emplace();
+    } catch (const std::exception &error) {
+      logger.log("power", vds::LogLevel::Warn,
+                 std::string("PC sleep disconnect unavailable: ") + error.what());
+    }
     bt_mode.script = options.bluetooth_override_script;
     bt_mode.settings_path =
         (std::filesystem::path(options.db_path).parent_path() /
@@ -3100,7 +3116,8 @@ int main(int argc, char **argv) {
 
       if (epoll_dirty || !epoll_fd) {
         epoll_fd = rebuild_epoll(control_fd.get(), bt_acceptor, vds_monitor,
-                                 ports, controllers);
+                                 ports, controllers,
+                                 sleep_watcher ? sleep_watcher->fd() : -1);
         epoll_dirty = false;
       }
 
@@ -3119,6 +3136,25 @@ int main(int argc, char **argv) {
         const int deadline_ms = static_cast<int>(std::max<long long>(until, 0));
         if (timeout_ms < 0 || deadline_ms < timeout_ms) {
           timeout_ms = deadline_ms;
+        }
+      }
+      // Hold logind's sleep delay lock only while PC Sleep Disconnect is on
+      // (and not mid-suspend), so sleep is never delayed otherwise.
+      if (sleep_watcher) {
+        const bool want = companion.settings.usb_suspend_disconnect_enabled &&
+                          !system_sleeping;
+        if (want && !sleep_watcher->inhibitor_held()) {
+          try {
+            sleep_watcher->acquire_inhibitor();
+          } catch (const std::exception &error) {
+            logger.log("power", vds::LogLevel::Warn,
+                       std::string("sleep inhibitor unavailable: ") +
+                           error.what());
+            sleep_watcher.reset();
+            epoll_dirty = true;
+          }
+        } else if (!want && sleep_watcher->inhibitor_held()) {
+          sleep_watcher->release_inhibitor();
         }
       }
       const int ready =
@@ -3176,6 +3212,26 @@ int main(int argc, char **argv) {
           }
           if ((revents & (EPOLLERR | EPOLLHUP)) != 0) {
             throw std::runtime_error("Bluetooth listener epoll error");
+          }
+          continue;
+        }
+
+        if (source.kind == EventKind::Sleep) {
+          if (sleep_watcher) {
+            for (const bool going_to_sleep : sleep_watcher->drain()) {
+              system_sleeping = going_to_sleep;
+              if (!going_to_sleep) {
+                logger.log("power", vds::LogLevel::Info, "system resumed");
+                continue;
+              }
+              if (companion.settings.usb_suspend_disconnect_enabled) {
+                logger.log("power", vds::LogLevel::Info,
+                           "system going to sleep; turning controller off");
+                power_off_controllers(ports, controllers, logger);
+                epoll_dirty = true;
+              }
+              sleep_watcher->release_inhibitor();
+            }
           }
           continue;
         }

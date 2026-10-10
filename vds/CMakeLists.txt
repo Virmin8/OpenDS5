@@ -145,7 +145,8 @@ else()
                                         PkgConfig::UDEV)
 
   add_executable(vdsd src/platform/linux/vdsd.cc
-                      src/platform/linux/vds_bt_mode.cc)
+                      src/platform/linux/vds_bt_mode.cc
+                      src/platform/linux/vds_sleep_watch.cc)
   add_dependencies(vdsd vds_build_info_header)
   target_include_directories(vdsd PRIVATE ${VDS_GENERATED_DIR})
   target_link_libraries(

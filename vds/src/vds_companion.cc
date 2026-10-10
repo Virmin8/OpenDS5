@@ -120,6 +120,7 @@ CompanionReport build_status_report(
   if (settings.sleep_keybind_enabled) {
     status_flags |= 0x40;
   }
+  status_flags |= 0x20; // PC sleep disconnect supported (logind)
   status_flags |= 0x80; // turn off (sleep) controller supported
   report[20] = status_flags;
   write_u32(report, 21, uptime_seconds(runtime));
