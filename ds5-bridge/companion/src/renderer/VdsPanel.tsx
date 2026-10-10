@@ -79,7 +79,9 @@ export function VdsPanel({ active }: { active: boolean }) {
   );
 
   let modeDescription = 'Checking vdsd…';
-  if (status && !status.available) {
+  if (status?.accessHint) {
+    modeDescription = status.accessHint;
+  } else if (status && !status.available) {
     modeDescription = `vdsd is not reachable: ${status.error}`;
   } else if (status && !bluetooth) {
     modeDescription = 'This vdsd does not support Bluetooth mode control. Install the updated vdsd.';

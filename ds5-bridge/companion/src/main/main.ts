@@ -75,6 +75,12 @@ import type {
 } from '../shared/types';
 
 const APP_NAME = 'OpenDS5';
+/**
+ * Set by a distribution package's launcher (the AUR package's /usr/bin/opends5) to the
+ * command that starts the app. The package then owns the driver, vdsd and updates, so the
+ * installer, which only ships inside the AppImage, is never offered.
+ */
+const SYSTEM_PACKAGE_LAUNCHER = process.platform === 'linux' ? process.env.OPENDS5_LAUNCHER ?? '' : '';
 const WINDOWS_APP_USER_MODEL_ID = 'io.github.sundaymoments.ds5bridge';
 const WINDOWS_TOAST_ACTIVATOR_CLSID = '{A8B3700D-4BB5-4E22-BF57-0C43B7C2FDF6}';
 const APP_MARK_PNG = path.join('assets', 'controllers', 'opends5_mark.png');
@@ -425,8 +431,9 @@ function linuxAutostartPath(): string {
 
 /**
  * Linux login item: an XDG autostart entry pointing at the AppImage (the
- * installer's launcher does the same). Start Minimized decides whether the
- * window shows at login. Dev runs have no AppImage path and are left alone.
+ * installer's launcher does the same) or a system package's launcher. Start
+ * Minimized decides whether the window shows at login. Dev runs have neither
+ * and are left alone.
  */
 function applyLinuxAutostart(enabled: boolean): void {
   const file = linuxAutostartPath();
@@ -435,14 +442,14 @@ function applyLinuxAutostart(enabled: boolean): void {
       fs.rmSync(file, { force: true });
       return;
     }
-    const appImage = process.env.APPIMAGE;
-    if (!appImage) return;
+    const launcher = process.env.APPIMAGE || SYSTEM_PACKAGE_LAUNCHER;
+    if (!launcher) return;
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, [
       '[Desktop Entry]',
       'Type=Application',
       `Name=${APP_NAME}`,
-      `Exec="${appImage}"`,
+      `Exec="${launcher}"`,
       'Terminal=false',
       'X-GNOME-Autostart-enabled=true',
       ''
@@ -1643,7 +1650,7 @@ function resolveInstallerScriptPath(): string {
 }
 
 function runSetupWizardIfNeeded(settingsStore: SettingsStore, service: SetupService): Promise<void> {
-  const needed = process.platform === 'linux' ? isSetupNeeded() : false;
+  const needed = process.platform === 'linux' && !SYSTEM_PACKAGE_LAUNCHER ? isSetupNeeded() : false;
   if (
     !shouldShowSetupWizard({
       platform: process.platform,
@@ -1675,7 +1682,7 @@ function runSetupWizardIfNeeded(settingsStore: SettingsStore, service: SetupServ
 function registerUninstallIpc(settingsStore: SettingsStore, setupService: SetupService): void {
   let running = false;
   ipcMain.handle('vds:uninstallSystem', async (event, purge: boolean) => {
-    if (running || process.platform !== 'linux') return 1;
+    if (running || process.platform !== 'linux' || SYSTEM_PACKAGE_LAUNCHER) return 1;
     running = true;
     try {
       const exit = await setupService.uninstall(Boolean(purge), (progress) => {

@@ -425,6 +425,8 @@ const MUTE_KEYBOARD_BEHAVIOR_OPTIONS: Array<[string, MuteKeyboardBehavior]> = [
 // Bluetooth path cannot honour (polling rate, microphone, mute button modes)
 // are hidden there; the Windows DS5 Bridge firmware keeps them.
 const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.platform === 'linux';
+// A distribution package removes the driver and vdsd itself, so the in-app uninstaller is hidden.
+const SYSTEM_UNINSTALL_AVAILABLE = VDS_AVAILABLE && !window.vds.systemPackage;
 const POLLING_RATE_OPTIONS: Array<[string, PollingRateMode]> = [
   ['1000 Hz / Real-time', '1000'],
   ['500 Hz', '500'],
@@ -12474,7 +12476,7 @@ export function App() {
                     <span />
                   </button>
                 </div>
-                {VDS_AVAILABLE && (
+                {SYSTEM_UNINSTALL_AVAILABLE && (
                   <>
                     <div className="settings-menu-section-label">Maintenance</div>
                     <div className="settings-menu-row">

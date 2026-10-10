@@ -1,4 +1,6 @@
+import fs from 'node:fs';
 import { createConnection } from 'node:net';
+import os from 'node:os';
 import type {
   VdsAudioStats,
   VdsBluetoothMode,
@@ -99,6 +101,29 @@ function asString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+/**
+ * vdsd only lets the vds group open its socket. Explains an EACCES: either the user
+ * was added to vds (e.g. by the AUR package) after this session started, which only
+ * a new login picks up, or the user is not in vds at all.
+ */
+export function vdsSocketAccessHint(groupFile: string, user: string, sessionGids: readonly number[]): string {
+  const vds = groupFile.split('\n').map((line) => line.split(':')).find((fields) => fields[0] === 'vds');
+  const gid = vds ? Number(vds[2]) : NaN;
+  const members = vds?.[3]?.split(',').map((member) => member.trim()) ?? [];
+  if (members.includes(user) && !sessionGids.includes(gid)) {
+    return 'You were added to the vds group after logging in. Log out and back in to finish setting up OpenDS5.';
+  }
+  return 'Your user is not allowed to use vdsd. Add it to the vds group with "sudo usermod -aG vds $USER", then log out and back in.';
+}
+
+function socketAccessHint(): string {
+  try {
+    return vdsSocketAccessHint(fs.readFileSync('/etc/group', 'utf8'), os.userInfo().username, process.getgroups?.() ?? []);
+  } catch {
+    return vdsSocketAccessHint('', '', []);
+  }
+}
+
 export async function getVdsStatus(): Promise<VdsStatus> {
   try {
     const bluetooth = await getBluetooth();
@@ -155,9 +180,11 @@ export async function getVdsStatus(): Promise<VdsStatus> {
       controllers: [...controllers.values()].sort((a, b) => a.address.localeCompare(b.address))
     };
   } catch (error) {
+    const denied = (error as NodeJS.ErrnoException).code === 'EACCES';
     return {
       available: false,
       error: error instanceof Error ? error.message : String(error),
+      accessHint: denied ? socketAccessHint() : undefined,
       bluetooth: null,
       controllers: []
     };

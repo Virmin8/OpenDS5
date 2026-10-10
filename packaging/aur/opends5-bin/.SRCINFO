@@ -1,0 +1,46 @@
+pkgbase = opends5-bin
+	pkgdesc = DualSense companion app and Bluetooth-to-USB bridge (haptics, adaptive triggers, speaker)
+	pkgver = 1.9.1
+	pkgrel = 1
+	url = https://github.com/Virmin8/OpenDS5
+	install = opends5.install
+	arch = x86_64
+	license = AGPL-3.0-only
+	license = MIT
+	depends = dkms
+	depends = bluez
+	depends = bluez-libs
+	depends = dbus
+	depends = opus
+	depends = systemd-libs
+	depends = gcc-libs
+	depends = glibc
+	depends = pipewire
+	depends = gtk3
+	depends = nss
+	depends = alsa-lib
+	depends = hicolor-icon-theme
+	optdepends = wireplumber: names the virtual controller audio device and sets its channels
+	provides = opends5=1.9.1
+	provides = opends5-dkms=1.9.1
+	conflicts = opends5
+	conflicts = opends5-dkms
+	noextract = OpenDS5-1.9.1.AppImage
+	options = !strip
+	options = !debug
+	source = OpenDS5-1.9.1.AppImage::https://github.com/Virmin8/OpenDS5/releases/download/v1.9.1/OpenDS5-Companion-Setup-1.9.1.AppImage
+	source = opends5-bin.sh
+	source = opends5.desktop
+	source = opends5.sysusers
+	source = opends5-modules-load.conf
+	source = 95-opends5.hook
+	source = pacman-setup.sh
+	sha256sums = b544c1d7896d586dafbedd45921abd8dc74e66b1d24554d7932e76eee8125c85
+	sha256sums = 3ea5ed7a5469227808b9eec840ff2d3edd2aab530f805c01cc57bd7d80e1b745
+	sha256sums = 186bfa5d777c54add852220c578846a80d242e7cbee6608d4804a1193d9456c8
+	sha256sums = 134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa
+	sha256sums = 5554373b4a2907063636255caf2ebdc4056ae5c9858876a91392a16766eebd9e
+	sha256sums = 41c917458c771ae1803bd20a089d758ba7914e077f976c5b7229e219d993fafe
+	sha256sums = a1d486968076f3a3cd1b24aeae08128cb5ebfbc3fbf013d0c8ebdc9db961eeb9
+
+pkgname = opends5-bin

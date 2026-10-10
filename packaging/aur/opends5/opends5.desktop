@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=OpenDS5
+Comment=DualSense companion app
+Exec=opends5
+Icon=opends5
+Terminal=false
+Categories=Game;Utility;
+StartupWMClass=OpenDS5

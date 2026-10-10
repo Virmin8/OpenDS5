@@ -1,0 +1,127 @@
+# Maintainer: Virmin8 <59330972+Virmin8@users.noreply.github.com>
+
+pkgbase=opends5
+pkgname=(opends5 opends5-dkms)
+pkgver=1.9.1
+pkgrel=1
+pkgdesc='DualSense companion app and Bluetooth-to-USB bridge (haptics, adaptive triggers, speaker)'
+arch=(x86_64)
+url='https://github.com/Virmin8/OpenDS5'
+license=(AGPL-3.0-only MIT)
+# The app is built against this Electron major (package.json "electron").
+_electron=electron39
+makedepends=(cmake nodejs npm pkgconf bluez-libs dbus opus systemd)
+source=("$pkgbase-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
+        opends5.sh
+        opends5.desktop
+        opends5.sysusers
+        opends5-modules-load.conf
+        95-opends5.hook
+        pacman-setup.sh)
+sha256sums=('e17f733efe72acdc91c59f55c677d93c03a9f8726e33591d69eb507e66ac5176'
+            '9aa2ba00141150a9f037893d600bdb11720b8ab9fad6616c0120bad2018755ca'
+            '186bfa5d777c54add852220c578846a80d242e7cbee6608d4804a1193d9456c8'
+            '134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa'
+            '5554373b4a2907063636255caf2ebdc4056ae5c9858876a91392a16766eebd9e'
+            '41c917458c771ae1803bd20a089d758ba7914e077f976c5b7229e219d993fafe'
+            'a1d486968076f3a3cd1b24aeae08128cb5ebfbc3fbf013d0c8ebdc9db961eeb9')
+
+_srcroot() {
+  printf '%s/OpenDS5-%s' "$srcdir" "$pkgver"
+}
+
+prepare() {
+  cd "$(_srcroot)"
+
+  # generate-version.sh reads git, which a release tarball does not have.
+  printf '#!/bin/sh\necho %s\n' "$pkgver" > vds/generate-version.sh
+  chmod +x vds/generate-version.sh
+
+  cd ds5-bridge/companion
+  # Electron comes from the system package; npm only provides the build tools
+  # and node-hid's prebuilt (N-API, so Electron-version independent) binding.
+  ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --cache "$srcdir/npm-cache" --no-audit --no-fund
+}
+
+build() {
+  cd "$(_srcroot)"
+
+  cmake -S vds -B build-vds \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DINSTALL_SERVICE=OFF
+  cmake --build build-vds
+
+  cd ds5-bridge/companion
+  npm run build:app
+}
+
+package_opends5() {
+  pkgdesc='DualSense companion app and vdsd Bluetooth-to-USB bridge daemon'
+  license=(AGPL-3.0-only MIT)
+  depends=("$_electron" "opends5-dkms=$pkgver" bluez bluez-libs dbus opus systemd-libs
+           libusb gcc-libs glibc pipewire hicolor-icon-theme)
+  optdepends=('wireplumber: names the virtual controller audio device and sets its channels')
+  install=opends5.install
+
+  local root companion app
+  root="$(_srcroot)"
+  companion="$root/ds5-bridge/companion"
+  app="$pkgdir/usr/lib/opends5"
+
+  # Companion app, laid out like the Nix package: the app runs as
+  # `electron /usr/lib/opends5` and finds native/ and assets/ beside dist/.
+  install -d "$app/node_modules" "$app/native" "$app/assets"
+  cp -r "$companion/dist" "$app/dist"
+  install -m644 "$companion/package.json" "$app/package.json"
+  cp -r "$companion/node_modules/node-hid" "$companion/node_modules/pkg-prebuilds" "$app/node_modules/"
+  install -m644 "$companion/native/audio-helper-linux.mjs" "$app/native/"
+  install -m644 "$companion/src/renderer/assets/test-speaker-tone-silence-tail.mp3" "$app/native/"
+  cp -r "$root/ds5-bridge/assets/controllers" "$app/assets/controllers"
+
+  sed "s|@ELECTRON@|$_electron|" "$srcdir/opends5.sh" | install -Dm755 /dev/stdin "$pkgdir/usr/bin/opends5"
+  install -Dm644 "$srcdir/opends5.desktop" "$pkgdir/usr/share/applications/opends5.desktop"
+  install -Dm644 "$root/ds5-bridge/assets/controllers/opends5_app-icon.png" \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/opends5.png"
+
+  # vdsd daemon and vdsctl CLI
+  install -Dm755 "$root/build-vds/vdsd" "$pkgdir/usr/bin/vdsd"
+  install -Dm755 "$root/build-vds/vdsctl" "$pkgdir/usr/bin/vdsctl"
+  sed 's|@VDS_SYSTEMD_VDSD@|/usr/bin/vdsd|' "$root/vds/vdsd.service.in" |
+    install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system/vdsd.service"
+  install -Dm644 "$root/vds/99-vds-dualsense-udev.rules" \
+    "$pkgdir/usr/lib/udev/rules.d/99-vds-dualsense.rules"
+  install -Dm644 "$root/vds/99-vds-dualsense-wireplumber.conf" \
+    "$pkgdir/usr/share/wireplumber/wireplumber.conf.d/99-vds-dualsense.conf"
+  # vdsd runs this to switch bluetoothd between OpenDS5 and Normal mode.
+  install -Dm755 "$root/vds/override-bluetoothd.sh" "$pkgdir/usr/share/opends5/override-bluetoothd.sh"
+  # After the DKMS build: add the installing user to vds, load vds_hcd, start vdsd.
+  install -Dm644 "$srcdir/95-opends5.hook" "$pkgdir/usr/share/libalpm/hooks/95-opends5.hook"
+  install -Dm755 "$srcdir/pacman-setup.sh" "$pkgdir/usr/share/opends5/pacman-setup.sh"
+  # vdsd gives the vds group access to its control socket.
+  install -Dm644 "$srcdir/opends5.sysusers" "$pkgdir/usr/lib/sysusers.d/opends5.conf"
+
+  install -Dm644 "$root/ds5-bridge/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$root/vds/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE-vds"
+}
+
+package_opends5-dkms() {
+  pkgdesc='vds_hcd virtual USB host controller kernel module for OpenDS5 (DKMS)'
+  license=(MIT)
+  depends=(dkms)
+
+  local root dest
+  root="$(_srcroot)"
+  dest="$pkgdir/usr/src/vds_hcd-$pkgver"
+
+  # Kbuild adds -I$(src)/include, so the shared headers go inside the module tree.
+  install -d "$dest/include"
+  install -m644 "$root/vds/module/Makefile" "$root/vds/module/Kbuild" \
+    "$root"/vds/module/*.c "$root"/vds/module/*.h "$dest/"
+  cp -a "$root/vds/include/." "$dest/include/"
+  sed "s/^PACKAGE_VERSION=.*/PACKAGE_VERSION=\"$pkgver\"/" "$root/vds/module/dkms.conf" > "$dest/dkms.conf"
+  chmod 644 "$dest/dkms.conf"
+
+  install -Dm644 "$srcdir/opends5-modules-load.conf" "$pkgdir/usr/lib/modules-load.d/opends5.conf"
+  install -Dm644 "$root/vds/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

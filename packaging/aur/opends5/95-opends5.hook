@@ -1,0 +1,13 @@
+# Runs after 20-systemd-sysusers (creates the vds group) and 70-dkms-install
+# (builds vds_hcd), which the package's install scriptlet runs too early for.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Path
+Target = usr/bin/vdsd
+Target = usr/src/vds_hcd-*/dkms.conf
+
+[Action]
+Description = Setting up OpenDS5 (vds_hcd module, vds group, vdsd service)...
+When = PostTransaction
+Exec = /usr/share/opends5/pacman-setup.sh

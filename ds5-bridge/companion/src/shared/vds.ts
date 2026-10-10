@@ -30,6 +30,8 @@ export type VdsController = {
 export type VdsStatus = {
   available: boolean;
   error: string;
+  /** Set when the socket refused us for permissions: what the user has to do about it. */
+  accessHint?: string;
   /** null when the running vdsd does not support Bluetooth mode control. */
   bluetooth: VdsBluetoothStatus | null;
   controllers: VdsController[];

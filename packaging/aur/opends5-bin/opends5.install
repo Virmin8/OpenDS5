@@ -1,0 +1,37 @@
+# Loading vds_hcd, the vds group and starting vdsd happen in 95-opends5.hook, which
+# runs after the DKMS build at the end of the transaction.
+
+_warn_installer_leftovers() {
+  # The AppImage's system installer puts vdsd in /usr/local/bin and its unit in
+  # /etc/systemd/system, which overrides the packaged /usr/lib unit.
+  if [ -e /etc/systemd/system/vdsd.service ] || [ -e /usr/local/bin/vdsd ]; then
+    cat <<'EOF'
+==> WARNING: files from the OpenDS5 AppImage installer were found
+  (/etc/systemd/system/vdsd.service or /usr/local/bin/vdsd). They take priority
+  over this package. Remove them by hand (not with the AppImage's
+  --uninstall-system, which would also delete this package's module source):
+       sudo systemctl disable --now vdsd.service
+       sudo rm -f /etc/systemd/system/vdsd.service /etc/modules-load.d/vds.conf \
+                  /usr/local/bin/vdsd /usr/local/bin/vdsctl
+       sudo systemctl daemon-reload
+  Then remove any other vds_hcd version listed by `dkms status vds_hcd`:
+       sudo dkms remove vds_hcd/<old-version> --all
+EOF
+  fi
+}
+
+post_install() {
+  _warn_installer_leftovers
+  echo '==> Pair the DualSense in your Bluetooth settings, then attach it on the Bluetooth tab of OpenDS5.'
+}
+
+post_upgrade() {
+  _warn_installer_leftovers
+}
+
+pre_remove() {
+  if [ -d /run/systemd/system ]; then
+    systemctl disable --now vdsd.service 2>/dev/null || true
+  fi
+  modprobe -r vds_hcd 2>/dev/null || true
+}
