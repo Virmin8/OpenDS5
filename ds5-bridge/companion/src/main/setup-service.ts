@@ -59,9 +59,25 @@ export class SetupService {
    * Runs the installer unprivileged; it escalates itself once via pkexec.
    * Resolves with the installer's exit code; progress events stream to onEvent.
    */
-  install(onEvent: (e: SetupProgressEvent) => void): Promise<number> {
+  /**
+   * `rebuildModule` forces a fresh DKMS build even when vds_hcd is loaded — used after
+   * an app update ships new module sources (the installer skips a loaded module otherwise).
+   */
+  install(onEvent: (e: SetupProgressEvent) => void, rebuildModule = false): Promise<number> {
+    return this.run(['--yes', '--json-progress', ...(rebuildModule ? ['--rebuild-module'] : [])], onEvent);
+  }
+
+  /**
+   * Removes everything the installer set up (module, vdsd, udev rules, wireplumber
+   * config, BlueZ override, vds group, launcher); `purge` also drops app settings.
+   */
+  uninstall(purge: boolean, onEvent: (e: SetupProgressEvent) => void): Promise<number> {
+    return this.run(['--uninstall', '--yes', '--json-progress', ...(purge ? ['--purge'] : [])], onEvent);
+  }
+
+  private run(args: string[], onEvent: (e: SetupProgressEvent) => void): Promise<number> {
     return new Promise((resolve) => {
-      const child = spawn('bash', [this.installerPath, '--yes', '--json-progress'], {
+      const child = spawn('bash', [this.installerPath, ...args], {
         env: this.env(),
       });
       let buffer = '';

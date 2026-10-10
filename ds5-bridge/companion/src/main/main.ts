@@ -4,7 +4,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BridgeService } from './bridge-service';
-import { resolveInstallerPath, runSystemInstall, shouldRunSystemInstall } from './install-system-cli';
+import {
+  resolveInstallerPath,
+  runSystemInstall,
+  shouldRunSystemInstall,
+  shouldRunSystemUninstall
+} from './install-system-cli';
 import { isSetupNeeded, SetupService } from './setup-service';
 import { openSetupWindow, shouldShowSetupWizard } from './setup-window';
 import {
@@ -48,6 +53,16 @@ import type {
   TriggerTestTarget
 } from '../shared/protocol';
 import type { BridgeToast } from './bridge-service';
+import {
+  attachVdsController,
+  detachVdsController,
+  getVdsDaemonLog,
+  getVdsStatus,
+  setVdsDaemonTrace,
+  setVdsBluetoothAuto,
+  setVdsBluetoothMode
+} from './vds-control';
+import type { VdsBluetoothMode, VdsTraceScope } from '../shared/vds';
 import { DEFAULT_PROFILE_ID, type TriggerProfile } from '../shared/trigger-profiles';
 import type {
   AudioHapticsSession,
@@ -403,7 +418,44 @@ function loginItemArgs(): string[] {
     : [START_IN_TRAY_ARG];
 }
 
+function linuxAutostartPath(): string {
+  return path.join(app.getPath('appData'), 'autostart', 'opends5.desktop');
+}
+
+/**
+ * Linux login item: an XDG autostart entry pointing at the AppImage (the
+ * installer's launcher does the same). Start Minimized decides whether the
+ * window shows at login. Dev runs have no AppImage path and are left alone.
+ */
+function applyLinuxAutostart(enabled: boolean): void {
+  const file = linuxAutostartPath();
+  try {
+    if (!enabled) {
+      fs.rmSync(file, { force: true });
+      return;
+    }
+    const appImage = process.env.APPIMAGE;
+    if (!appImage) return;
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, [
+      '[Desktop Entry]',
+      'Type=Application',
+      `Name=${APP_NAME}`,
+      `Exec="${appImage}"`,
+      'Terminal=false',
+      'X-GNOME-Autostart-enabled=true',
+      ''
+    ].join('\n'));
+  } catch (error) {
+    console.warn('Failed to update autostart entry:', error);
+  }
+}
+
 function applyLaunchAtStartup(enabled: boolean): void {
+  if (process.platform === 'linux') {
+    applyLinuxAutostart(enabled);
+    return;
+  }
   if (process.platform !== 'win32') {
     return;
   }
@@ -433,8 +485,7 @@ function isAppFileUrl(url: string, appIndexPath: string): boolean {
 }
 
 function isAllowedExternalUrl(url: string): boolean {
-  return /^https:\/\/ko-fi\.com\/lordvicky\/?$/i.test(url)
-    || /^https:\/\/github\.com\/LordVicky\/OpenDS5\/?$/i.test(url)
+  return /^https:\/\/github\.com\/LordVicky\/OpenDS5\/?$/i.test(url)
     // Upstream attribution: the companion app is an AGPL-3.0 derivative of
     // SundayMoments/DS5_Bridge, so the credit stays.
     || /^https:\/\/github\.com\/SundayMoments\/?$/i.test(url)
@@ -1110,6 +1161,9 @@ function registerIpc(
     if (deleted) {
       // A deleted game takes its game settings and cover art with it.
       await gameSettingsCoordinator.onProfileDeleted(id);
+      if (service.getSnapshot().settings.gameProfileLinks[id]) {
+        service.setGameProfileLink(id, null);
+      }
       await service.removeGameSettings(id);
       gameArtworkStore.remove(id);
     }
@@ -1133,6 +1187,9 @@ function registerIpc(
     }
     triggerProfileEngine.refreshProfiles();
     await gameSettingsCoordinator.onProfileDeleted(id);
+    if (service.getSnapshot().settings.gameProfileLinks[id]) {
+      service.setGameProfileLink(id, null);
+    }
     await service.removeGameSettings(id);
     gameArtworkStore.remove(id);
     return true;
@@ -1144,6 +1201,11 @@ function registerIpc(
     return gameSettingsCoordinator.enterEditScope(profile.id, profile.name);
   });
   ipcMain.handle('bridge:exitGameSettingsScope', () => gameSettingsCoordinator.exitEditScope());
+  ipcMain.handle('bridge:setGameProfileLink', async (_event, gameId: string, profileId: string | null) => {
+    const snapshot = service.setGameProfileLink(String(gameId), typeof profileId === 'string' ? profileId : null);
+    await gameSettingsCoordinator.refresh();
+    return snapshot;
+  });
   ipcMain.handle('bridge:setSteamGridDbApiKey', (_event, apiKey: string) => (
     service.setSteamGridDbApiKey(typeof apiKey === 'string' ? apiKey : '')
   ));
@@ -1332,6 +1394,19 @@ function registerIpc(
   });
 
   ipcMain.handle('bridge:getStatus', () => service.getSnapshot());
+  ipcMain.handle('vds:getStatus', () => getVdsStatus());
+  ipcMain.handle('vds:getDaemonLog', (_event, lines?: number) => getVdsDaemonLog(Number(lines) || 200));
+  ipcMain.handle('vds:setDaemonTrace', (_event, scope: VdsTraceScope, enabled: boolean) => (
+    setVdsDaemonTrace(scope === 'input' ? 'input' : 'output', Boolean(enabled))
+  ));
+  ipcMain.handle('vds:attach', (_event, address: string) => attachVdsController(String(address)));
+  ipcMain.handle('vds:detach', (_event, address: string) => detachVdsController(String(address)));
+  ipcMain.handle('vds:setBluetoothMode', (_event, mode: VdsBluetoothMode) => (
+    setVdsBluetoothMode(mode === 'normal' ? 'normal' : 'vds')
+  ));
+  ipcMain.handle('vds:setBluetoothAuto', (_event, enabled: boolean, idleSeconds: number) => (
+    setVdsBluetoothAuto(Boolean(enabled), Number(idleSeconds))
+  ));
   ipcMain.handle('bridge:listDevices', () => service.listDevices());
   ipcMain.handle('bridge:listAudioHapticsSessions', async () => (
     addAudioHapticsSessionIcons(await service.listAudioHapticsSessions())
@@ -1435,6 +1510,12 @@ function registerIpc(
     applyLaunchAtStartup(snapshot.settings.launchAtStartupEnabled);
     return snapshot;
   });
+  ipcMain.handle('bridge:setStartupControllerProfileId', (_event, value: string) => (
+    service.setStartupControllerProfileId(typeof value === 'string' ? value : '')
+  ));
+  ipcMain.handle('bridge:setStartMinimizedEnabled', (_event, value: boolean) => (
+    service.setStartMinimizedEnabled(Boolean(value))
+  ));
   ipcMain.handle('bridge:setShowBatteryPercentTrayIcon', (_event, value: boolean) => (
     service.setShowBatteryPercentTrayIcon(Boolean(value))
   ));
@@ -1541,6 +1622,10 @@ function registerIpc(
 if (shouldRunSystemInstall(process.argv)) {
   const extraArgs = process.argv.slice(process.argv.indexOf('--install-system') + 1);
   app.exit(runSystemInstall(process.resourcesPath, app.getVersion(), extraArgs));
+} else if (shouldRunSystemUninstall(process.argv)) {
+  // ./OpenDS5.AppImage --uninstall-system [--purge] [--yes]
+  const extraArgs = process.argv.slice(process.argv.indexOf('--uninstall-system') + 1);
+  app.exit(runSystemInstall(process.resourcesPath, app.getVersion(), ['--uninstall', ...extraArgs]));
 }
 
 function resolveInstallerScriptPath(): string {
@@ -1580,6 +1665,25 @@ function runSetupWizardIfNeeded(settingsStore: SettingsStore, service: SetupServ
       onDismiss: () => resolve()
     });
   });
+}
+
+function registerUninstallIpc(settingsStore: SettingsStore, setupService: SetupService): void {
+  let running = false;
+  ipcMain.handle('vds:uninstallSystem', async (event, purge: boolean) => {
+    if (running || process.platform !== 'linux') return 1;
+    running = true;
+    try {
+      const exit = await setupService.uninstall(Boolean(purge), (progress) => {
+        if (!event.sender.isDestroyed()) event.sender.send('vds:uninstallProgress', progress);
+      });
+      // Next launch must offer the setup wizard again so a reinstall is one click.
+      if (!purge) settingsStore.update({ setupSkipped: false });
+      return exit;
+    } finally {
+      running = false;
+    }
+  });
+  ipcMain.handle('vds:quitApp', () => app.quit());
 }
 
 function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupService): void {
@@ -1659,7 +1763,22 @@ app.whenReady().then(async () => {
   ensureWindowsNotificationShortcut();
   Menu.setApplicationMenu(null);
   const settingsStore = new SettingsStore(app.getPath('userData'));
-  applyLaunchAtStartup(settingsStore.get().launchAtStartupEnabled);
+  if (process.platform === 'linux') {
+    // The autostart file is the source of truth on Linux (the installer or the
+    // user may have created it); mirror it into the setting instead of overwriting it.
+    const autostartPresent = fs.existsSync(linuxAutostartPath());
+    if (settingsStore.get().launchAtStartupEnabled !== autostartPresent) {
+      settingsStore.update({ launchAtStartupEnabled: autostartPresent });
+    }
+  } else {
+    applyLaunchAtStartup(settingsStore.get().launchAtStartupEnabled);
+  }
+  // "Launch with profile": select it before the bridge exists, so the first
+  // connection pushes that profile to the controller.
+  const startupProfileId = settingsStore.get().startupControllerProfileId;
+  if (startupProfileId && settingsStore.get().controllerProfiles.some((profile) => profile.id === startupProfileId)) {
+    settingsStore.selectControllerProfile(startupProfileId);
+  }
   bridgeService = new BridgeService(settingsStore);
   const triggerProfileStore = new TriggerProfileStore(
     path.join(app.getPath('userData'), 'trigger-profiles')
@@ -1732,6 +1851,7 @@ app.whenReady().then(async () => {
   // SetupService.install() is not re-entrant, so they must not be callable
   // while the wizard may be mid-install.
   registerUpdateIpc(settingsStore, setupService);
+  registerUninstallIpc(settingsStore, setupService);
 
   mainWindow.on('maximize', sendWindowMaximizedState);
   mainWindow.on('unmaximize', sendWindowMaximizedState);
@@ -1739,7 +1859,7 @@ app.whenReady().then(async () => {
   mainWindow.on('restore', () => scheduleMainWindowScaleRestore(false));
   mainWindow.on('focus', () => scheduleMainWindowScaleRestore(false));
   mainWindow.once('ready-to-show', () => {
-    if (!shouldStartInTray()) {
+    if (!shouldStartInTray() && !settingsStore.get().startMinimizedEnabled) {
       showMainWindow();
     }
   });

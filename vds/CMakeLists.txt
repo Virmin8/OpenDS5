@@ -44,7 +44,7 @@ add_custom_target(
   COMMENT "Generating vDS build info header"
   VERBATIM)
 
-add_library(vds_protocol OBJECT src/vds_protocol.cc)
+add_library(vds_protocol OBJECT src/vds_protocol.cc src/vds_persona.cc)
 target_include_directories(
   vds_protocol PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
                       ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -144,7 +144,8 @@ else()
   target_link_libraries(vds_udev PUBLIC vds_config vds_common vds_io
                                         PkgConfig::UDEV)
 
-  add_executable(vdsd src/platform/linux/vdsd.cc)
+  add_executable(vdsd src/platform/linux/vdsd.cc
+                      src/platform/linux/vds_bt_mode.cc)
   add_dependencies(vdsd vds_build_info_header)
   target_include_directories(vdsd PRIVATE ${VDS_GENERATED_DIR})
   target_link_libraries(
@@ -176,6 +177,23 @@ endif()
 
 add_executable(trigger_effect_v2_test tests/trigger_effect_v2_test.cc)
 target_link_libraries(trigger_effect_v2_test PRIVATE vds_protocol)
+
+add_executable(speaker_gain_test tests/speaker_gain_test.cc)
+target_link_libraries(speaker_gain_test PRIVATE vds_protocol)
+
+add_executable(bt_input_report_test tests/bt_input_report_test.cc)
+target_link_libraries(bt_input_report_test PRIVATE vds_protocol)
+
+add_executable(persona_test tests/persona_test.cc)
+target_link_libraries(persona_test PRIVATE vds_protocol)
+
+enable_testing()
+foreach(vds_test trigger_effect_v2_test speaker_gain_test bt_input_report_test
+                 persona_test)
+  # The tests use assert(); keep them active in Release builds too.
+  target_compile_options(${vds_test} PRIVATE -UNDEBUG)
+  add_test(NAME ${vds_test} COMMAND ${vds_test})
+endforeach()
 
 if(WIN32)
   set(VDS_RUNTIME_INSTALL_DIR ".")

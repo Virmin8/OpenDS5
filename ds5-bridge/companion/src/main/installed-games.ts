@@ -1,8 +1,8 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 /**
- * Reads installed games from Steam and Heroic Games Launcher on-disk manifests —
+ * Reads installed games from Steam, Heroic Games Launcher and Lutris on-disk data —
  * no store APIs, no logins. See docs/superpowers/specs/2026-07-15-installed-games-
  * import-design.md.
  *
@@ -11,7 +11,7 @@ import path from 'node:path';
  */
 
 export interface InstalledGame {
-  source: 'steam' | 'heroic';
+  source: 'steam' | 'heroic' | 'lutris';
   /** Display name, normalized (trademark marks stripped, whitespace collapsed). */
   name: string;
   /** Steam appid or Heroic app_name — stable key into the session scan cache. */
@@ -37,6 +37,8 @@ export interface ScannerRoots {
   heroic: string[];
   /** legendary config roots (contain installed.json for Epic installs). */
   legendary: string[];
+  /** Lutris data roots (contain pga.db and games/*.yml). */
+  lutris: string[];
 }
 
 export function defaultScannerRoots(home: string): ScannerRoots {
@@ -51,8 +53,15 @@ export function defaultScannerRoots(home: string): ScannerRoots {
       path.join(home, '.var', 'app', 'com.heroicgameslauncher.hgl', 'config', 'heroic')
     ],
     legendary: [
+      // Heroic's bundled legendary keeps its config inside Heroic's own dir.
+      path.join(home, '.config', 'heroic', 'legendaryConfig', 'legendary'),
       path.join(home, '.config', 'legendary'),
+      path.join(home, '.var', 'app', 'com.heroicgameslauncher.hgl', 'config', 'heroic', 'legendaryConfig', 'legendary'),
       path.join(home, '.var', 'app', 'com.heroicgameslauncher.hgl', 'config', 'legendary')
+    ],
+    lutris: [
+      path.join(home, '.local', 'share', 'lutris'),
+      path.join(home, '.var', 'app', 'net.lutris.Lutris', 'data', 'lutris')
     ]
   };
 }
@@ -89,7 +98,11 @@ export function parseVdfPaths(text: string): string[] {
 const JUNK_PATTERNS = [
   /^unins/, /setup/, /redist/, /^vcredist/, /^dxsetup/, /crashreport/,
   /cefsubprocess/, /prereq/, /^dotnet/, /^easyanticheat_setup/,
-  /webengineprocess/, /diagnose/, /^upload_/, /^capturepro/
+  /webengineprocess/, /diagnose/, /^upload_/, /^capturepro/,
+  // Engine/launcher helpers that sit next to the real game binary.
+  /crashhandler/, /crashpad/, /^unitycrash/, /epiconlineservices/, /^eosbootstrapper/,
+  /^ue4prereq/, /^ueprereq/, /^benchmark/, /^gpuburner/, /^vc_redist/, /installer/,
+  /^launcherpatcher/, /^bugreport/, /^errorreporter/, /^cleanup/, /^quicksfv/, /^7za?\b/
 ];
 
 // Steam tooling ships with the same manifests as games; nobody wants a trigger
@@ -115,11 +128,18 @@ function similarName(fileBase: string, dirName: string): boolean {
 }
 
 function isElfExecutable(filePath: string): boolean {
+  // Only the 4-byte magic is needed; reading whole multi-GB binaries here used
+  // to stall the main process for seconds per game.
+  let fd: number | null = null;
   try {
-    const fd = readFileSync(filePath, { encoding: null });
-    return fd.length >= 4 && fd[0] === 0x7f && fd[1] === 0x45 && fd[2] === 0x4c && fd[3] === 0x46;
+    fd = openSync(filePath, 'r');
+    const magic = Buffer.alloc(4);
+    const read = readSync(fd, magic, 0, 4, 0);
+    return read === 4 && magic[0] === 0x7f && magic[1] === 0x45 && magic[2] === 0x4c && magic[3] === 0x46;
   } catch {
     return false;
+  } finally {
+    if (fd !== null) closeSync(fd);
   }
 }
 
@@ -220,6 +240,13 @@ export class InstalledGamesScanner {
         errors.push(`Heroic (${root}): ${err instanceof Error ? err.message : String(err)}`);
       }
     }
+    for (const root of this.roots.lutris ?? []) {
+      try {
+        games.push(...this.scanLutrisRoot(root));
+      } catch (err) {
+        errors.push(`Lutris (${root}): ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
     // The same game can appear under two roots (symlinked Steam dirs, flatpak +
     // native Heroic). First occurrence wins; source order is stable.
     const seen = new Set<string>();
@@ -295,6 +322,56 @@ export class InstalledGamesScanner {
       }
     } catch {
       // No cache directory for this app.
+    }
+    return null;
+  }
+
+  /**
+   * Lutris: titles come from pga.db, the game executable from games/<configpath>.yml.
+   * Without SQLite support the yml files alone still list the games (title from the
+   * config file name).
+   */
+  private scanLutrisRoot(root: string): InstalledGame[] {
+    const gamesDir = path.join(root, 'games');
+    if (!existsSync(gamesDir)) return [];
+    const titles = readLutrisTitles(path.join(root, 'pga.db'));
+    const games: InstalledGame[] = [];
+    let configs: string[];
+    try {
+      configs = readdirSync(gamesDir).filter((entry) => entry.endsWith('.yml'));
+    } catch {
+      return [];
+    }
+    for (const config of configs) {
+      const configPath = config.slice(0, -'.yml'.length);
+      const known = titles.get(configPath);
+      if (titles.size > 0 && !known) continue; // removed from Lutris, config left behind
+      let exe: string | null = null;
+      try {
+        exe = parseLutrisExe(readFileSync(path.join(gamesDir, config), 'utf8'));
+      } catch {
+        continue;
+      }
+      const installDir = exe ? path.dirname(exe) : null;
+      const executable = exe ? path.basename(exe) : null;
+      games.push({
+        source: 'lutris',
+        name: normalizeGameTitle(known?.name ?? lutrisTitleFromConfigPath(configPath)),
+        sourceId: known?.slug ?? configPath,
+        installDir,
+        processCandidates: this.candidatesWithExplicit(executable, installDir),
+        artwork: this.lutrisArtwork(root, known?.slug ?? configPath)
+      });
+    }
+    return games;
+  }
+
+  private lutrisArtwork(root: string, slug: string): InstalledGame['artwork'] {
+    for (const dir of ['coverart', 'banners']) {
+      for (const ext of ['jpg', 'png']) {
+        const file = path.join(root, dir, `${slug}.${ext}`);
+        if (existsSync(file)) return { kind: 'file', path: file };
+      }
     }
     return null;
   }
@@ -450,4 +527,68 @@ export class InstalledGamesScanner {
     if (!executable) return ranked;
     return [executable, ...ranked.filter((name) => name.toLowerCase() !== executable.toLowerCase())];
   }
+}
+
+interface LutrisTitle {
+  name: string;
+  slug: string;
+}
+
+/** configpath -> title/slug for installed Lutris games; empty if pga.db can't be read. */
+function readLutrisTitles(dbPath: string): Map<string, LutrisTitle> {
+  const titles = new Map<string, LutrisTitle>();
+  if (!existsSync(dbPath)) return titles;
+  try {
+    // node:sqlite ships with Electron's Node (22.13+); loaded lazily so a runtime
+    // without it just falls back to config-file names.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
+    const db = new DatabaseSync(dbPath, { readOnly: true });
+    try {
+      const rows = db.prepare(
+        'SELECT name, slug, configpath FROM games WHERE installed = 1 AND configpath IS NOT NULL'
+      ).all() as Array<{ name?: unknown; slug?: unknown; configpath?: unknown }>;
+      for (const row of rows) {
+        if (typeof row.configpath === 'string' && typeof row.name === 'string') {
+          titles.set(row.configpath, {
+            name: row.name,
+            slug: typeof row.slug === 'string' ? row.slug : row.configpath
+          });
+        }
+      }
+    } finally {
+      db.close();
+    }
+  } catch {
+    titles.clear();
+  }
+  return titles;
+}
+
+/** The `exe:` value of the `game:` section in a Lutris game config. */
+export function parseLutrisExe(yml: string): string | null {
+  let inGame = false;
+  for (const line of yml.split(/\r?\n/)) {
+    if (/^\S/.test(line)) {
+      inGame = /^game:\s*$/.test(line);
+      continue;
+    }
+    if (!inGame) continue;
+    const match = /^\s+exe:\s*(.+?)\s*$/.exec(line);
+    if (match) {
+      const value = match[1].replace(/^(['"])(.*)\1$/, '$2');
+      return value.length > 0 ? value : null;
+    }
+  }
+  return null;
+}
+
+/** "final-fantasy-vii-rebirth-1790796165" -> "Final Fantasy Vii Rebirth". */
+export function lutrisTitleFromConfigPath(configPath: string): string {
+  return configPath
+    .replace(/-\d{6,}$/, '')
+    .split('-')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }

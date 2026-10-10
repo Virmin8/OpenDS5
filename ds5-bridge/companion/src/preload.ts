@@ -35,6 +35,7 @@ import type { ImportResult } from './main/trigger-profile-store';
 import type { GameProcessCandidate } from './main/game-watcher';
 import type { SetupProgressEvent } from './main/setup-service';
 import type { UpdateState } from './main/update-service';
+import type { VdsBluetoothMode, VdsDaemonLog, VdsStatus, VdsTraceScope } from './shared/vds';
 
 // The preload runs sandboxed: only `require('electron')` is available, so the
 // setup channel names are inlined rather than imported from ./main/setup-ipc.
@@ -146,6 +147,12 @@ const api = {
   ),
   setControllerPowerSavingEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setControllerPowerSavingEnabled', value)
+  ),
+  setStartupControllerProfileId: (profileId: string): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setStartupControllerProfileId', profileId)
+  ),
+  setStartMinimizedEnabled: (value: boolean): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setStartMinimizedEnabled', value)
   ),
   setLaunchAtStartupEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setLaunchAtStartupEnabled', value)
@@ -310,6 +317,9 @@ const api = {
     ipcRenderer.invoke('bridge:enterGameSettingsScope', id)
   ),
   exitGameSettingsScope: (): Promise<GameSettingsStatus> => ipcRenderer.invoke('bridge:exitGameSettingsScope'),
+  setGameProfileLink: (gameId: string, profileId: string | null): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setGameProfileLink', gameId, profileId)
+  ),
   onGameSettingsStatus: (listener: (status: GameSettingsStatus) => void): (() => void) => {
     const wrapped = (_event: Electron.IpcRendererEvent, status: GameSettingsStatus) => listener(status);
     ipcRenderer.on('bridge:gameSettingsStatus', wrapped);
@@ -374,7 +384,31 @@ const appInfoApi = {
 };
 contextBridge.exposeInMainWorld('appInfo', appInfoApi);
 
+const vdsApi = {
+  platform: process.platform,
+  getStatus: (): Promise<VdsStatus> => ipcRenderer.invoke('vds:getStatus'),
+  attach: (address: string): Promise<VdsStatus> => ipcRenderer.invoke('vds:attach', address),
+  detach: (address: string): Promise<VdsStatus> => ipcRenderer.invoke('vds:detach', address),
+  setBluetoothMode: (mode: VdsBluetoothMode): Promise<VdsStatus> => ipcRenderer.invoke('vds:setBluetoothMode', mode),
+  setBluetoothAuto: (enabled: boolean, idleSeconds: number): Promise<VdsStatus> => (
+    ipcRenderer.invoke('vds:setBluetoothAuto', enabled, idleSeconds)
+  ),
+  uninstallSystem: (purge: boolean): Promise<number> => ipcRenderer.invoke('vds:uninstallSystem', purge),
+  onUninstallProgress: (cb: (e: SetupProgressEvent) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: SetupProgressEvent) => cb(payload);
+    ipcRenderer.on('vds:uninstallProgress', listener);
+    return () => ipcRenderer.removeListener('vds:uninstallProgress', listener);
+  },
+  quitApp: (): Promise<void> => ipcRenderer.invoke('vds:quitApp'),
+  getDaemonLog: (lines?: number): Promise<VdsDaemonLog> => ipcRenderer.invoke('vds:getDaemonLog', lines),
+  setDaemonTrace: (scope: VdsTraceScope, enabled: boolean): Promise<VdsDaemonLog> => (
+    ipcRenderer.invoke('vds:setDaemonTrace', scope, enabled)
+  ),
+};
+contextBridge.exposeInMainWorld('vds', vdsApi);
+
 export type BridgeApi = typeof api;
 export type SetupApi = typeof setupApi;
 export type UpdateApi = typeof updateApi;
 export type AppInfoApi = typeof appInfoApi;
+export type VdsApi = typeof vdsApi;

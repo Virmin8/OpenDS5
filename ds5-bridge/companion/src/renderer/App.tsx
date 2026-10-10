@@ -68,6 +68,8 @@ import {
   IconVolumeOff as VolumeX,
   IconX as X
 } from '@tabler/icons-react';
+import { VdsPanel } from './VdsPanel';
+import type { VdsDaemonLog, VdsStatus, VdsTraceScope } from '../shared/vds';
 import playStationLogoUrl from '../../../assets/brand/playstation-logo.svg';
 import controllerImage from '../../../assets/controllers/dualsense-edge-front.svg';
 import remappingEdgeLayoutImage from '../../../assets/controllers/dualsense-edge-remapping-layout.svg';
@@ -92,7 +94,6 @@ import triangleGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/s
 import testSpeakerToneUrl from './assets/test-speaker-tone-silence-tail.mp3';
 import {
   DEFAULT_UI_THEME_PRESET,
-  UI_THEME_KOFI_BADGES,
   UI_THEME_OPTIONS,
   UI_THEME_PREVIEW_SWATCHES
 } from './ui-themes';
@@ -176,7 +177,7 @@ import { matchGameInLibrary, nativeGameFeatureMap, nativeGameFeatures } from './
 import { TriggerEffectEditor } from './TriggerEffectEditor';
 import { StickWheelEditor, type StickSample } from './StickWheelEditor';
 
-type ControlTab = 'game-profile' | 'overview' | 'haptics' | 'audio' | 'triggers' | 'trigger-profiles' | 'lighting' | 'remapping' | 'chords' | 'system';
+type ControlTab = 'game-profile' | 'overview' | 'haptics' | 'audio' | 'triggers' | 'trigger-profiles' | 'lighting' | 'remapping' | 'chords' | 'system' | 'vds';
 type StartupTutorialStep = 'feature-toggle' | 'done';
 type ControllerType = BridgeStatusPayload['controllerType'];
 type KnownControllerType = Exclude<ControllerType, 'unknown'>;
@@ -363,6 +364,18 @@ const MUTE_MODIFIER_OPTIONS: Array<[string, number]> = [
 // The daemon's short-test/preview commands (0x0D / 0x1F) only understand the
 // three classic V1 arms; the richer modes preview through profile drafts.
 const TRIGGER_LAB_TESTABLE_MODES: TriggerTestMode[] = ['feedback', 'weapon', 'vibration'];
+const TRIGGER_TEST_MODE_OPTIONS: Array<[string, TriggerTestMode]> = [
+  ['Resistance', 'feedback'],
+  ['Weapon', 'weapon'],
+  ['Vibration', 'vibration']
+];
+const TRIGGER_TEST_TARGET_OPTIONS: Array<[string, TriggerTestTarget]> = [
+  ['L2', 'l2'],
+  ['Both', 'both'],
+  ['R2', 'r2']
+];
+// vdsd plays a preview for 2.5 s; keep the button busy a little longer.
+const TRIGGER_PREVIEW_MS = 2600;
 const TRIGGER_PROFILE_SLOTS: Array<[TriggerProfileSlotKey, string]> = [
   ['l2', 'L2'],
   ['r2', 'R2']
@@ -413,6 +426,8 @@ const POLLING_RATE_OPTIONS: Array<[string, PollingRateMode]> = [
   ['500 Hz', '500'],
   ['250 Hz', '250']
 ];
+const GAME_PROFILE_LINK_NONE = '__none__';
+const STARTUP_PROFILE_LAST_USED = '__last__';
 const HOST_PERSONA_OPTIONS: Array<[string, HostPersonaMode]> = [
   ['DualSense', 'dualsense'],
   ['DualShock 4', 'ds4'],
@@ -733,9 +748,12 @@ const REMAP_EDGE_LINE_POINTS: Record<DualSenseEdgeRemapButtonId, [[number, numbe
   lfn: [[227.5, 368.88], [227.68, 296.98]],
   rfn: [[370.46, 368.88], [370.64, 296.98]]
 };
+// vds (the Linux virtual DualSense bridge) only exists on Linux.
+const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.platform === 'linux';
 const CONTROL_TABS: Array<{ id: ControlTab; label: string; Icon: TablerIcon }> = [
   { id: 'game-profile', label: 'Game Profile', Icon: IconLayoutGrid },
   { id: 'overview', label: 'Overview', Icon: IconLayoutDashboard },
+  ...(VDS_AVAILABLE ? [{ id: 'vds' as const, label: 'Bluetooth', Icon: IconBluetooth }] : []),
   { id: 'audio', label: 'Audio', Icon: IconVolume },
   { id: 'haptics', label: 'Haptics', Icon: Sparkles },
   { id: 'triggers', label: 'Triggers', Icon: IconDeviceGamepad2 },
@@ -2497,6 +2515,30 @@ function ChordButtonGlyphOption({ label, value }: { label: string; value: ChordB
   return <RemapGlyphOption label={label} value={value} />;
 }
 
+const HOST_PERSONA_FULL_LABELS: Record<HostPersonaMode, string> = {
+  dualsense: 'DualSense',
+  ds4: 'DualShock 4',
+  xbox: 'Xbox 360'
+};
+
+function HostPersonaBrandIcon({ mode, size }: { mode: HostPersonaMode; size: number }) {
+  if (mode === 'xbox') {
+    return <IconBrandXbox size={size} aria-hidden="true" />;
+  }
+  return (
+    <span
+      className="host-persona-brand-icon"
+      style={{
+        '--host-persona-brand-mask': `url("${playStationLogoUrl}")`,
+        width: size,
+        height: size,
+        flex: `0 0 ${size}px`
+      } as CSSProperties}
+      aria-hidden="true"
+    />
+  );
+}
+
 function HostPersonaOption({ label, value }: { label: string; value: HostPersonaMode }) {
   const sonyPersona = value === 'dualsense' || value === 'ds4';
   return (
@@ -2820,6 +2862,8 @@ export function App() {
   const [openGameProfileId, setOpenGameProfileId] = useState<string | null>(null);
   const [gameCreateOpen, setGameCreateOpen] = useState(false);
   const [gameCreateName, setGameCreateName] = useState('');
+  const [gameCreateLinkedProfileId, setGameCreateLinkedProfileId] = useState(GAME_PROFILE_LINK_NONE);
+  const [gameLibraryFilter, setGameLibraryFilter] = useState('');
   const [gameCreateProcessesInput, setGameCreateProcessesInput] = useState('');
   const [gameCreateBusy, setGameCreateBusy] = useState(false);
   const [gameCreateCandidates, setGameCreateCandidates] = useState<GameProcessCandidate[] | null>(null);
@@ -2943,6 +2987,13 @@ export function App() {
   const [hoveredRemapButton, setHoveredRemapButton] = useState<RemapButtonId | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [showBridgeSettings, setShowBridgeSettings] = useState(false);
+  const [uninstallDialog, setUninstallDialog] = useState<{
+    phase: 'confirm' | 'running' | 'done';
+    purge: boolean;
+    steps: string[];
+    statuses: Record<number, 'start' | 'ok' | 'fail'>;
+    exit: number | null;
+  } | null>(null);
   const [settingsFocusTarget, setSettingsFocusTarget] = useState<SettingsFocusTarget | null>(null);
   const [notificationFocusTarget, setNotificationFocusTarget] = useState<NotificationFocusTarget | null>(null);
   const [showNotificationsMenu, setShowNotificationsMenu] = useState(false);
@@ -2951,6 +3002,15 @@ export function App() {
   const [lastRemapControllerType, setLastRemapControllerType] = useState<KnownControllerType>(storedRemapControllerType);
   const [windowDragging, setWindowDragging] = useState(false);
   const [testLocked, setTestLocked] = useState(false);
+  const [triggerTest, setTriggerTest] = useState<{
+    mode: TriggerTestMode;
+    target: TriggerTestTarget;
+    start: number;
+    end: number;
+    strength: number;
+  }>({ mode: 'feedback', target: 'both', start: 20, end: 70, strength: 80 });
+  const [triggerTestRunning, setTriggerTestRunning] = useState(false);
+  const triggerTestTimerRef = useRef<number | null>(null);
   const [startupTheme, setStartupTheme] = useState<UiThemePreset>(storedUiThemePreset);
   const [speakerTestLocked, setSpeakerTestLocked] = useState(false);
   const [speakerOutputAvailable, setSpeakerOutputAvailable] = useState<boolean | null>(null);
@@ -3176,6 +3236,27 @@ export function App() {
   const gameHasSettings = (profileId: string): boolean => (
     snapshot?.settings.controllerProfiles.some((profile) => profile.id === gameSettingsProfileId(profileId)) ?? false
   );
+  // The user's own profiles (game-owned settings excluded) a game can be linked to.
+  const userControllerProfiles = (snapshot?.settings.controllerProfiles ?? [])
+    .filter((profile) => !isGameSettingsProfileId(profile.id));
+  const gameProfileLinkOptions: Array<[string, string]> = [
+    ['No profile (game settings)', GAME_PROFILE_LINK_NONE],
+    ...userControllerProfiles.map((profile): [string, string] => [profile.name, profile.id])
+  ];
+  const linkedProfileFor = (gameId: string) => {
+    const linkedId = snapshot?.settings.gameProfileLinks?.[gameId];
+    return linkedId ? userControllerProfiles.find((profile) => profile.id === linkedId) ?? null : null;
+  };
+  function setGameProfileLink(gameId: string, profileId: string) {
+    const linking = profileId !== GAME_PROFILE_LINK_NONE;
+    void runAction('game-profile-link', async () => {
+      if (linking && gameSettingsStatus?.editingProfileId === gameId) {
+        setScopeOptimistically(null);
+        setGameSettingsStatus(await window.bridge.exitGameSettingsScope());
+      }
+      return window.bridge.setGameProfileLink(gameId, linking ? profileId : null);
+    });
+  }
   const remappingLayoutAsset = showDualSenseEdgeRemapButtons ? REMAP_EDGE_LAYOUT_ASSET : REMAP_STANDARD_LAYOUT_ASSET;
   const chordFunctions = snapshot?.settings.chordFunctions ?? [];
   const chordAssignments = snapshot?.settings.chordAssignments ?? [];
@@ -4289,6 +4370,41 @@ export function App() {
   const customSwatchSelected = Boolean(customLightbarColor && normalizedLightbarColor === customLightbarColor);
   const customColorPickerDisabled = !connected || !lightbarSupported || !lightbarEnabled;
   const diagnosticsVisible = activeControlTab === 'system' && showDiagnostics;
+  const [vdsDiagnostics, setVdsDiagnostics] = useState<VdsStatus | null>(null);
+  const [vdsDaemonLog, setVdsDaemonLog] = useState<VdsDaemonLog | null>(null);
+  const [vdsTracePending, setVdsTracePending] = useState(false);
+  const vdsDaemonLogRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    // Keep the newest daemon log line in view, like a terminal.
+    const textarea = vdsDaemonLogRef.current;
+    if (textarea) textarea.scrollTop = textarea.scrollHeight;
+  }, [vdsDaemonLog]);
+  async function setVdsTrace(scope: VdsTraceScope, enabled: boolean) {
+    setVdsTracePending(true);
+    try {
+      setVdsDaemonLog(await window.vds.setDaemonTrace(scope, enabled));
+    } finally {
+      setVdsTracePending(false);
+    }
+  }
+  useEffect(() => {
+    if (!diagnosticsVisible || !VDS_AVAILABLE) return undefined;
+    let cancelled = false;
+    const poll = () => {
+      void window.vds.getStatus().then((status) => {
+        if (!cancelled) setVdsDiagnostics(status);
+      }).catch(() => undefined);
+      void window.vds.getDaemonLog(200).then((log) => {
+        if (!cancelled) setVdsDaemonLog(log);
+      }).catch(() => undefined);
+    };
+    poll();
+    const timer = window.setInterval(poll, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [diagnosticsVisible]);
   const ackText = useMemo(() => {
     if (!diagnosticsVisible) return '';
     if (!lastAck) return 'No commands yet';
@@ -6014,10 +6130,70 @@ export function App() {
     }));
   }
 
-  async function openGameProfile(id: string) {
+  async function runTriggerTest() {
+    const { mode, target, start, end, strength } = triggerTest;
+    if (triggerTestTimerRef.current !== null) window.clearTimeout(triggerTestTimerRef.current);
+    setTriggerTestRunning(true);
+    triggerTestTimerRef.current = window.setTimeout(() => {
+      triggerTestTimerRef.current = null;
+      setTriggerTestRunning(false);
+    }, TRIGGER_PREVIEW_MS);
+    await window.bridge.previewAdaptiveTriggerEffect({
+      mode,
+      target,
+      startPercent: start,
+      wallPercent: mode === 'weapon' ? Math.max(end, start + 10) : end,
+      forcePercent: Math.max(1, strength)
+    }).catch(() => undefined);
+  }
+
+  async function stopTriggerTest() {
+    if (triggerTestTimerRef.current !== null) window.clearTimeout(triggerTestTimerRef.current);
+    triggerTestTimerRef.current = null;
+    setTriggerTestRunning(false);
+    // A zero-force preview clears the running test effect in vdsd.
+    await window.bridge.previewAdaptiveTriggerEffect({
+      mode: triggerTest.mode,
+      target: 'both',
+      startPercent: 0,
+      wallPercent: 0,
+      forcePercent: 0
+    }).catch(() => undefined);
+  }
+
+  async function runSystemUninstall() {
+    if (!uninstallDialog || uninstallDialog.phase !== 'confirm') return;
+    const purge = uninstallDialog.purge;
+    setUninstallDialog({ phase: 'running', purge, steps: [], statuses: {}, exit: null });
+    const stopListening = window.vds.onUninstallProgress((event) => {
+      setUninstallDialog((current) => {
+        if (!current) return current;
+        if (event.event === 'plan') return { ...current, steps: event.steps };
+        if (event.event === 'step') {
+          return { ...current, statuses: { ...current.statuses, [event.index]: event.status } };
+        }
+        return current;
+      });
+    });
+    try {
+      const exit = await window.vds.uninstallSystem(purge);
+      setUninstallDialog((current) => current && { ...current, phase: 'done', exit });
+    } finally {
+      stopListening();
+    }
+  }
+
+  async function openGameProfile(id: string, linked = linkedProfileFor(id) !== null) {
     setOpenGameProfileId(id);
-    setScopeOptimistically(id);
     recordNavState('game-profile', id);
+    // A game linked to one of the user's profiles never uses its own settings, so
+    // opening it must not switch the selection into game scope.
+    if (linked) {
+      setScopeOptimistically(null);
+      setGameSettingsStatus(await window.bridge.exitGameSettingsScope());
+      return;
+    }
+    setScopeOptimistically(id);
     const status = await window.bridge.enterGameSettingsScope(id);
     setGameSettingsStatus(status);
   }
@@ -6042,6 +6218,8 @@ export function App() {
 
   function openGameCreateDialog() {
     setGameCreateName('');
+    setGameCreateLinkedProfileId(GAME_PROFILE_LINK_NONE);
+    setGameLibraryFilter('');
     setGameCreateProcessesInput('');
     setGameCreateCandidates(null);
     setSelectedInstalledGame(null);
@@ -6136,6 +6314,9 @@ export function App() {
         });
       }
       await refreshTriggerProfiles(saved.id);
+      if (gameCreateLinkedProfileId !== GAME_PROFILE_LINK_NONE) {
+        await window.bridge.setGameProfileLink(saved.id, gameCreateLinkedProfileId);
+      }
       setGameCreateOpen(false);
       // Cover art is decoration: fetch in the background and never block creation
       // on it. A launcher's own artwork (Steam cache, Heroic art_cover) wins over
@@ -6154,7 +6335,7 @@ export function App() {
       // The scanned list is filtered against existing profiles main-side; drop the
       // renderer cache so the next dialog open re-filters (the scan itself stays cached).
       setInstalledGames(null);
-      await openGameProfile(savedId);
+      await openGameProfile(savedId, gameCreateLinkedProfileId !== GAME_PROFILE_LINK_NONE);
     } finally {
       setGameCreateBusy(false);
     }
@@ -6640,7 +6821,6 @@ export function App() {
     );
   }
 
-  const kofiBadgeUrl = UI_THEME_KOFI_BADGES[activeTheme] ?? UI_THEME_KOFI_BADGES[DEFAULT_UI_THEME_PRESET];
 
   return (
     <div
@@ -6779,7 +6959,29 @@ export function App() {
                 )}
                 <span>{sidebarBatteryLabel}</span>
               </div>
+              {connected && controllerConnected && (
+                <span
+                  className={`host-persona-chip persona-${overviewHostPersonaMode}`}
+                  title={`The PC sees this controller as a ${HOST_PERSONA_FULL_LABELS[overviewHostPersonaMode]}`}
+                >
+                  <HostPersonaBrandIcon mode={overviewHostPersonaMode} size={12} />
+                  {personaTransitionActive ? 'Switching…' : `As ${HOST_PERSONA_FULL_LABELS[overviewHostPersonaMode]}`}
+                </span>
+              )}
             </div>
+          </div>
+          <div className="sidebar-profile-switch">
+            <span className="sidebar-profile-label">Profile</span>
+            <CustomSelect
+              value={selectedControllerProfileId}
+              disabled={!connected || pendingAction !== null}
+              options={controllerProfileOptions}
+              className="sidebar-profile-select"
+              floatingMenu
+              floatingMenuMinWidth={200}
+              ariaLabel="Controller profile"
+              onChange={selectControllerProfile}
+            />
           </div>
           <div className="sidebar-section-label">Controls</div>
           <div className="sidebar-controls">
@@ -6802,16 +7004,6 @@ export function App() {
             </div>
           </div>
           <div className="sidebar-actions">
-            <div className="sidebar-support">
-              <button
-                className="sidebar-kofi-link"
-                type="button"
-                aria-label="Support LordVicky on Ko-fi"
-                onClick={() => void window.bridge.openExternal('https://ko-fi.com/lordvicky')}
-              >
-                <img className="sidebar-kofi-badge" src={kofiBadgeUrl} alt="" />
-              </button>
-            </div>
             <div className="header-settings">
               <button
                 className={`sidebar-action-button ${showBridgeSettings ? 'active' : ''}`}
@@ -6895,18 +7087,13 @@ export function App() {
                     <h2>Game Profile</h2>
                     <p>Everything about a game — triggers, haptics, audio, lighting and remapping — in one place.</p>
                   </div>
-                  <div className="trigger-profiles-status-group game-profile-engine-badge">
-                    <span className="overview-status-heading">
-                      <Activity size={14} />
-                      Auto Switching
-                    </span>
-                    <span className="status-badge">
+                  <div className="game-auto-switch">
+                    <Activity size={14} />
+                    <span className="game-auto-switch-label">Auto Switching</span>
+                    <span className={`game-auto-switch-state ${triggerProfilesEnabled ? 'on' : ''}`}>
                       <span className={`dot ${triggerProfilesEnabled ? 'good' : 'warn'}`} />
-                      <strong>{triggerProfilesEnabled ? 'Running' : 'Off'}</strong>
+                      {triggerProfilesEnabled ? 'Running' : 'Off'}
                     </span>
-                  </div>
-                  <div className="inline-switch">
-                    <span>Auto Switching</span>
                     <button
                       type="button"
                       role="switch"
@@ -7027,9 +7214,15 @@ export function App() {
                               )}
                               {native?.haptics && <span className="game-tile-chip native on">Haptics</span>}
                               {native?.lightbar && <span className="game-tile-chip native on">LED</span>}
-                              <span className={`game-tile-chip ${gameHasSettings(profile.id) ? 'on' : ''}`}>
-                                Settings
-                              </span>
+                              {linkedProfileFor(profile.id) ? (
+                                <span className="game-tile-chip on profile-link">
+                                  {linkedProfileFor(profile.id)?.name}
+                                </span>
+                              ) : (
+                                <span className={`game-tile-chip ${gameHasSettings(profile.id) ? 'on' : ''}`}>
+                                  Settings
+                                </span>
+                              )}
                             </span>
                           </span>
                         </button>
@@ -7102,6 +7295,11 @@ export function App() {
                             Playing now
                             {gameSettingsStatus?.appliedProfileId === openGameProfileEntry.id ? ' — game settings active' : ''}
                           </>
+                        ) : linkedProfileFor(openGameProfileEntry.id) ? (
+                          <>
+                            <span className="dot" />
+                            Switches to your “{linkedProfileFor(openGameProfileEntry.id)?.name}” profile when the game is detected
+                          </>
                         ) : gameHasSettings(openGameProfileEntry.id) ? (
                           <>
                             <span className="dot" />
@@ -7114,6 +7312,26 @@ export function App() {
                           </>
                         )}
                       </span>
+                      <div className="game-profile-link-row">
+                        <span>Profile when playing</span>
+                        <CustomSelect
+                          value={linkedProfileFor(openGameProfileEntry.id)?.id ?? GAME_PROFILE_LINK_NONE}
+                          options={gameProfileLinkOptions}
+                          floatingMenu
+                          floatingMenuMinWidth={220}
+                          disabled={pendingAction !== null}
+                          ariaLabel="Profile when playing"
+                          onChange={(profileId) => setGameProfileLink(openGameProfileEntry.id, profileId)}
+                        />
+                      </div>
+                      {linkedProfileFor(openGameProfileEntry.id) ? (
+                        <p className="game-scope-hint">
+                          While this game runs, your “{linkedProfileFor(openGameProfileEntry.id)?.name}” profile
+                          is selected and your previous profile comes back when it closes. To change what that
+                          profile does, pick it in the sidebar and edit it from any tab.
+                        </p>
+                      ) : (
+                        <>
                       <div className="game-scope-toggle" role="group" aria-label="Settings scope">
                         <button
                           type="button"
@@ -7137,6 +7355,8 @@ export function App() {
                           ? 'Every tab now edits this game’s own settings. Your global settings stay untouched and come back when the game exits.'
                           : 'Every tab edits your global settings. Switch to Game Settings to tune this game without touching them.'}
                       </p>
+                        </>
+                      )}
                     </div>
                     <div className="game-detail-actions">
                       <button
@@ -7367,14 +7587,26 @@ export function App() {
                     <Volume2 size={15} />
                     Test Speaker
                   </button>
-                  <button
-                    type="button"
-                    disabled={testMicUnavailable}
-                    onClick={runTestMic}
-                  >
-                    <Mic size={15} />
-                    Listen Mic
-                  </button>
+                  {VDS_AVAILABLE ? (
+                    // vds has no microphone path; the slot tests the triggers instead.
+                    <button
+                      type="button"
+                      disabled={!connected || !controllerConnected || !adaptiveTriggersSupported || !snapshot.settings.adaptiveTriggersEnabled}
+                      onClick={() => void runTriggerTest()}
+                    >
+                      <IconDeviceGamepad2 size={15} />
+                      {triggerTestRunning ? 'Testing…' : 'Test Triggers'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={testMicUnavailable}
+                      onClick={runTestMic}
+                    >
+                      <Mic size={15} />
+                      Listen Mic
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={overviewSleepConfirmVisible ? 'confirm' : undefined}
@@ -7522,6 +7754,7 @@ export function App() {
                     </div>
                     <strong>{speakerVolumeValue}%</strong>
                   </label>
+                  {!VDS_AVAILABLE && (
                   <label className={`overview-slider-row ${(!connected || !duplexMicEnabled || micVolumeCommitPending) ? 'disabled' : ''}`}>
                     <span>Mic</span>
                     <div className="overview-range-control">
@@ -7558,6 +7791,7 @@ export function App() {
                     </div>
                     <strong>{micVolumeValue}%</strong>
                   </label>
+                  )}
                   <label className={`overview-slider-row ${(!connected || !lightbarSupported || !snapshot.settings.lightbarEnabled || lightbarCommitPending) ? 'disabled' : ''}`}>
                     <span>Lightbar</span>
                     <div className="overview-range-control">
@@ -8182,7 +8416,7 @@ export function App() {
               <div className="feature-heading">
                 <div>
                   <h2>Audio</h2>
-                  <p>{`Adjust controller ${outputControlLower} and microphone levels.`}</p>
+                  <p>{VDS_AVAILABLE ? `Adjust the controller ${outputControlLower}.` : `Adjust controller ${outputControlLower} and microphone levels.`}</p>
                 </div>
                 <div className="audio-heading-actions">
                   <div className="chords-field chords-inline-field audio-speaker-gain-field">
@@ -8257,6 +8491,7 @@ export function App() {
                           : `${outputControlLabel} level`}
                       </p>
                     </div>
+                    {!VDS_AVAILABLE && (
                     <div className="dual-selector audio-mode-selector" role="tablist" aria-label="Audio control mode">
                       <button
                         type="button"
@@ -8277,6 +8512,7 @@ export function App() {
                         Mic
                       </button>
                     </div>
+                    )}
                   </div>
                   <div className="framed-slider">
                     <label className="slider-row">
@@ -8633,6 +8869,106 @@ export function App() {
                     ))}
                   </div>
                 </section>
+                <section className="feature-card test-card trigger-test-card">
+                  <div className="feature-card-title">
+                    <span className="feature-icon"><IconTestPipe size={20} /></span>
+                    <div className="title-copy">
+                      <h3>Testing</h3>
+                      <p>Feel an effect on the triggers for a few seconds.</p>
+                    </div>
+                  </div>
+                  {(() => {
+                    const testDisabled = !connected || !controllerConnected || !adaptiveTriggersSupported
+                      || !snapshot.settings.adaptiveTriggersEnabled;
+                    const sliders: Array<[string, 'start' | 'end' | 'strength', boolean]> = [
+                      ['Start', 'start', true],
+                      [triggerTest.mode === 'weapon' ? 'Break' : 'End', 'end', triggerTest.mode !== 'feedback'],
+                      [triggerTest.mode === 'vibration' ? 'Amplitude' : 'Strength', 'strength', true]
+                    ];
+                    const statusTone = testDisabled ? 'warn' : 'good';
+                    const statusLabel = !connected || !controllerConnected
+                      ? 'Controller not connected'
+                      : !snapshot.settings.adaptiveTriggersEnabled
+                        ? 'Adaptive triggers are off'
+                        : triggerTestRunning ? 'Testing' : 'Ready';
+                    return (
+                      <>
+                        <div className="trigger-test-options">
+                          <div className="trigger-test-row">
+                            <span>Effect</span>
+                            <div className="segmented-row compact">
+                              {TRIGGER_TEST_MODE_OPTIONS.map(([label, mode]) => (
+                                <button
+                                  key={mode}
+                                  type="button"
+                                  className={triggerTest.mode === mode ? 'active' : ''}
+                                  disabled={testDisabled}
+                                  onClick={() => setTriggerTest((current) => ({ ...current, mode }))}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="trigger-test-row">
+                            <span>Trigger</span>
+                            <div className="segmented-row compact">
+                              {TRIGGER_TEST_TARGET_OPTIONS.map(([label, target]) => (
+                                <button
+                                  key={target}
+                                  type="button"
+                                  className={triggerTest.target === target ? 'active' : ''}
+                                  disabled={testDisabled}
+                                  onClick={() => setTriggerTest((current) => ({ ...current, target }))}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          {sliders.filter(([, , shown]) => shown).map(([label, key]) => (
+                            <label key={key} className="trigger-test-slider">
+                              <span>{label}</span>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="5"
+                                value={triggerTest[key]}
+                                disabled={testDisabled}
+                                style={{ '--range-fill': `${triggerTest[key]}%` } as CSSProperties}
+                                onChange={(event) => {
+                                  const value = Number(event.currentTarget.value);
+                                  setTriggerTest((current) => ({ ...current, [key]: value }));
+                                }}
+                              />
+                              <strong>{triggerTest[key]}%</strong>
+                            </label>
+                          ))}
+                        </div>
+                        <button className="primary-action" type="button" disabled={testDisabled} onClick={() => void runTriggerTest()}>
+                          <Play size={15} />
+                          {triggerTestRunning ? 'Testing' : 'Test Triggers'}
+                        </button>
+                        <button
+                          className="secondary-action"
+                          type="button"
+                          disabled={testDisabled || !triggerTestRunning}
+                          onClick={() => void stopTriggerTest()}
+                        >
+                          <span className="stop-glyph" aria-hidden="true" />
+                          Stop Test
+                        </button>
+                        <div className={`feature-status test-status ${statusTone}`}>
+                          <span className="status-badge">
+                            <span className={`dot ${statusTone}`} />
+                            <strong>{statusLabel}</strong>
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </section>
               </div>
               <FeatureTipsPanel
                 tab="triggers"
@@ -8710,7 +9046,7 @@ export function App() {
                     <span className="feature-icon"><Pencil size={20} /></span>
                     <div className="title-copy">
                       <h3>Editor</h3>
-                      <p>Edit the selected profile's match rules and trigger effects.</p>
+                      <p>Shape the selected profile's trigger effects.</p>
                       {triggerProfileDraft.meta?.source ? (
                         <p className="trigger-profiles-provenance">
                           {triggerProfileDraft.meta.source === 'library' ? 'From library' : 'Imported'}
@@ -9077,68 +9413,8 @@ export function App() {
                   })}
                   </div>
 
-                  <div className="trigger-profiles-group">
-                    <h4 className="trigger-profiles-group-title">Identity &amp; Matching</h4>
-                    <label className="trigger-profiles-name-field">
-                      <span>Name</span>
-                      <input
-                        value={triggerProfileDraft.name}
-                        maxLength={48}
-                        onChange={(event) => {
-                          const name = event.target.value;
-                          setTriggerProfileDraft((draft) => (draft ? { ...draft, name } : draft));
-                        }}
-                      />
-                    </label>
-
-                    <label className="trigger-profiles-process-field">
-                      <span>Process Names (comma-separated)</span>
-                      <input
-                        value={triggerProfileProcessNamesInput}
-                        placeholder="game.exe, other.exe"
-                        onChange={(event) => setTriggerProfileProcessNamesInput(event.target.value)}
-                      />
-                    </label>
-
-                    <div className="game-detect-anchor" ref={gameDetectPopoverRef}>
-                      <button
-                        type="button"
-                        className="secondary-action game-detect-button"
-                        disabled={gameDetectLoading}
-                        onClick={() => void detectRunningGame()}
-                      >
-                        <SearchIcon size={14} />
-                        Detect running game
-                      </button>
-
-                      {gameDetectPopoverOpen && (
-                        <div className="game-detect-popover" role="dialog" aria-label="Detected running games">
-                          {gameDetectCandidates.length === 0 ? (
-                            <p className="game-detect-empty">No game detected — is it running?</p>
-                          ) : (
-                            <ul className="game-detect-list">
-                              {gameDetectCandidates.map((candidate) => (
-                                <li key={candidate.name}>
-                                  <button
-                                    type="button"
-                                    className="game-detect-candidate"
-                                    onClick={() => pickDetectedGameProcess(candidate.name)}
-                                  >
-                                    <span className="game-detect-candidate-name">{candidate.name}</span>
-                                    {candidate.kind !== 'other' && (
-                                      <span className="game-detect-candidate-kind">
-                                        {candidate.kind === 'proton' ? 'Proton' : 'game path'}
-                                      </span>
-                                    )}
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {/* Name and process matching live in Game Profiles now: a game is
+                      added (and matched) there, so the editor only shapes the feel. */}
 
                   {triggerProfileDraft.states && triggerProfileDraft.states.length > 1 && (
                     <div className="trigger-profiles-group">
@@ -9343,7 +9619,7 @@ export function App() {
                     <span className="feature-icon"><Pencil size={20} /></span>
                     <div className="title-copy">
                       <h3>Editor</h3>
-                      <p>Edit the selected profile's match rules and trigger effects.</p>
+                      <p>Shape the selected profile's trigger effects.</p>
                     </div>
                     <div className="trigger-profiles-status-group trigger-profiles-editor-match-source">
                       <span className="overview-status-heading">
@@ -10410,6 +10686,8 @@ export function App() {
               </div>
           </div>
 
+          {VDS_AVAILABLE && <VdsPanel active={activeControlTab === 'vds'} />}
+
           <div
             className={`control-page system-page ${activeControlTab === 'system' ? 'active' : ''}`}
             role="tabpanel"
@@ -10609,7 +10887,78 @@ export function App() {
                           <dd><span className="diagnostic-number">{snapshot.diagnostics.settingsRevision ?? '--'}</span></dd>
                         </div>
                         <div><dt>Last ACK</dt><dd>{ackText}</dd></div>
-                        <div><dt>HID Path</dt><dd>{snapshot.diagnostics.hidPath ?? '--'}</dd></div>
+                        <div><dt>{VDS_AVAILABLE ? 'Daemon Socket' : 'HID Path'}</dt><dd>{snapshot.diagnostics.hidPath ?? '--'}</dd></div>
+                        {VDS_AVAILABLE && (
+                          <>
+                            <div>
+                              <dt>Bluetooth</dt>
+                              <dd>
+                                {vdsDiagnostics?.bluetooth
+                                  ? `${vdsDiagnostics.bluetooth.mode === 'normal' ? 'Normal' : 'OpenDS5'}${vdsDiagnostics.bluetooth.listening ? ' · listening' : ''}${vdsDiagnostics.bluetooth.auto ? ' · auto' : ''}`
+                                  : vdsDiagnostics?.error || '--'}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Host Mode</dt>
+                              <dd>{HOST_PERSONA_FULL_LABELS[overviewHostPersonaMode]}</dd>
+                            </div>
+                            {(vdsDiagnostics?.controllers ?? []).filter((controller) => controller.registered).map((controller) => (
+                              <div key={controller.address}>
+                                <dt>Controller</dt>
+                                <dd title={controller.address}>
+                                  {controller.connected
+                                    ? `${controller.path || 'bridged'} · ${controller.profile || 'auto'}`
+                                    : controller.online ? 'on system Bluetooth' : 'disconnected'}
+                                  {` · ${controller.address}`}
+                                </dd>
+                              </div>
+                            ))}
+                            {vdsDiagnostics?.bluetooth?.lastError && (
+                              <div><dt>Last Error</dt><dd title={vdsDiagnostics.bluetooth.lastError}>{vdsDiagnostics.bluetooth.lastError}</dd></div>
+                            )}
+                            <div>
+                              <dt>vdsd Trace</dt>
+                              <dd className="vds-trace-toggles">
+                                {(['output', 'input'] as VdsTraceScope[]).map((scope) => {
+                                  const on = scope === 'output' ? vdsDaemonLog?.traceOutput : vdsDaemonLog?.traceInput;
+                                  return (
+                                    <span key={scope} className="vds-trace-toggle">
+                                      <span>{scope === 'output' ? 'Output' : 'Input'}</span>
+                                      <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={Boolean(on)}
+                                        aria-label={`vdsd ${scope} trace`}
+                                        className={`switch ${on ? 'on' : ''}`}
+                                        disabled={!vdsDaemonLog?.available || vdsTracePending}
+                                        onClick={() => void setVdsTrace(scope, !on)}
+                                      >
+                                        <span />
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                              </dd>
+                            </div>
+                            <div className="debug-entry">
+                              <dt>Daemon Log</dt>
+                              <dd>
+                                <textarea
+                                  ref={vdsDaemonLogRef}
+                                  readOnly
+                                  aria-label="vdsd log"
+                                  value={vdsDaemonLog
+                                    ? vdsDaemonLog.available
+                                      ? vdsDaemonLog.lines.join('\n')
+                                      : vdsDaemonLog.error
+                                    : 'Loading…'}
+                                />
+                              </dd>
+                            </div>
+                          </>
+                        )}
+                        {!VDS_AVAILABLE && (
+                          <>
                         <div>
                           <dt>Audio Log</dt>
                           <dd title={snapshot.diagnostics.audioDebugLogPath ?? undefined}>
@@ -10652,6 +11001,8 @@ export function App() {
                             <textarea readOnly value={feedbackTraceText} aria-label="Feedback trace text" />
                           </dd>
                         </div>
+                          </>
+                        )}
                       </dl>
                     </div>
                   ) : (
@@ -10975,6 +11326,14 @@ export function App() {
             <div className="game-create-library">
               <div className="game-create-library-head">
                 <span>From your libraries</span>
+                <input
+                  className="game-create-library-filter"
+                  type="search"
+                  value={gameLibraryFilter}
+                  placeholder="Search games"
+                  aria-label="Search installed games"
+                  onChange={(event) => setGameLibraryFilter(event.target.value)}
+                />
                 <button
                   type="button"
                   className="secondary-action"
@@ -10985,15 +11344,17 @@ export function App() {
                 </button>
               </div>
               {installedGamesLoading && installedGames === null ? (
-                <p className="game-create-library-empty">Looking for Steam and Heroic games…</p>
+                <p className="game-create-library-empty">Looking for Steam, Heroic and Lutris games…</p>
               ) : installedGames === null || installedGames.games.length === 0 ? (
                 <p className="game-create-library-empty">
-                  No new Steam or Heroic games found — every installed game may already
+                  No new Steam, Heroic or Lutris games found — every installed game may already
                   have a profile, or the launchers aren't installed.
                 </p>
               ) : (
                 <div className="game-create-library-grid" role="listbox" aria-label="Installed games">
-                  {installedGames.games.map((game) => (
+                  {installedGames.games
+                    .filter((game) => game.name.toLowerCase().includes(gameLibraryFilter.trim().toLowerCase()))
+                    .map((game) => (
                     <button
                       key={`${game.source}:${game.sourceId}`}
                       type="button"
@@ -11011,7 +11372,7 @@ export function App() {
                       </span>
                       <span className="game-create-library-name">{game.name}</span>
                       <span className={`game-create-library-badge ${game.source}`}>
-                        {game.source === 'steam' ? 'Steam' : 'Heroic'}
+                        {game.source === 'steam' ? 'Steam' : game.source === 'lutris' ? 'Lutris' : 'Heroic'}
                       </span>
                     </button>
                   ))}
@@ -11090,8 +11451,20 @@ export function App() {
                 )
               )}
             </div>
+            <div className="remap-profile-name-field game-create-profile-field">
+              <span>Profile When Playing</span>
+              <CustomSelect
+                value={gameCreateLinkedProfileId}
+                options={gameProfileLinkOptions}
+                floatingMenu
+                ariaLabel="Profile when playing"
+                onChange={setGameCreateLinkedProfileId}
+              />
+            </div>
             <p className="remap-profile-dialog-copy">
-              Trigger effects, per-game settings and cover art are added from the game's page afterwards.
+              With auto switching on, this profile is selected while the game runs and your
+              previous profile comes back when it closes. Games you haven't added keep whatever
+              profile is selected.
             </p>
             <div className="remap-profile-dialog-actions">
               <button type="button" className="secondary-action" onClick={() => setGameCreateOpen(false)}>
@@ -11106,6 +11479,106 @@ export function App() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {uninstallDialog && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={() => {
+            if (uninstallDialog.phase === 'confirm') setUninstallDialog(null);
+          }}
+        >
+          <div
+            className="settings-menu bridge-settings-modal remap-profile-modal uninstall-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Uninstall OpenDS5"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="settings-menu-heading bridge-settings-modal-heading">
+              <div className="modal-heading-copy">
+                <Trash2 size={16} />
+                <span>Uninstall OpenDS5</span>
+              </div>
+              {uninstallDialog.phase !== 'running' && (
+                <button
+                  className="modal-close-button"
+                  type="button"
+                  aria-label="Close uninstall dialog"
+                  onClick={() => setUninstallDialog(null)}
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            {uninstallDialog.phase === 'confirm' && (
+              <>
+                <p className="remap-profile-dialog-copy">
+                  This removes everything the installer set up: the vds_hcd kernel module (DKMS),
+                  vdsd and vdsctl, the systemd service, udev rules, the WirePlumber config, the
+                  vds group, the Bluetooth override (other Bluetooth input devices work again),
+                  and the OpenDS5 AppImage, menu entry and autostart entry. You will be asked for
+                  your password once.
+                </p>
+                <label className="uninstall-purge-option">
+                  <input
+                    type="checkbox"
+                    checked={uninstallDialog.purge}
+                    onChange={(event) => setUninstallDialog({ ...uninstallDialog, purge: event.target.checked })}
+                  />
+                  <span>Also remove app settings, profiles and game list</span>
+                </label>
+                <div className="remap-profile-dialog-actions">
+                  <button type="button" className="secondary-action" onClick={() => setUninstallDialog(null)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="primary-action danger" onClick={() => void runSystemUninstall()}>
+                    Uninstall
+                  </button>
+                </div>
+              </>
+            )}
+            {uninstallDialog.phase !== 'confirm' && (
+              <>
+                <ol className="uninstall-steps">
+                  {uninstallDialog.steps.length === 0 && <li className="pending">Waiting for authentication…</li>}
+                  {uninstallDialog.steps.map((step, index) => (
+                    <li key={step} className={uninstallDialog.statuses[index] ?? 'pending'}>
+                      <span className="uninstall-step-mark" aria-hidden="true">
+                        {uninstallDialog.statuses[index] === 'ok'
+                          ? '✓'
+                          : uninstallDialog.statuses[index] === 'fail'
+                            ? '!'
+                            : uninstallDialog.statuses[index] === 'start' ? '…' : ''}
+                      </span>
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+                {uninstallDialog.phase === 'done' && (
+                  <>
+                    <p className="remap-profile-dialog-copy">
+                      {uninstallDialog.exit === 0
+                        ? 'OpenDS5 has been removed. Log out and back in to drop the vds group from your session. Run the AppImage again any time to reinstall.'
+                        : uninstallDialog.exit === 126 || uninstallDialog.exit === 127
+                          ? 'Uninstall was cancelled before anything was changed.'
+                          : 'Some steps failed — see /var/log/opends5/uninstall.log. Everything else was removed.'}
+                    </p>
+                    <div className="remap-profile-dialog-actions">
+                      <button type="button" className="secondary-action" onClick={() => setUninstallDialog(null)}>
+                        Close
+                      </button>
+                      <button type="button" className="primary-action" onClick={() => void window.vds.quitApp()}>
+                        Quit OpenDS5
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -11777,7 +12250,7 @@ export function App() {
                 <div className="settings-menu-row">
                   <div className="settings-menu-copy">
                     <strong>Launch at Startup</strong>
-                    <span>Start in the tray when Windows starts</span>
+                    <span>{VDS_AVAILABLE ? 'Start OpenDS5 when you log in' : 'Start in the tray when Windows starts'}</span>
                   </div>
                   <button
                     type="button"
@@ -11787,6 +12260,45 @@ export function App() {
                     disabled={pendingAction !== null}
                     onClick={() => void runAction('launch-at-startup', () => (
                       window.bridge.setLaunchAtStartupEnabled(!snapshot.settings.launchAtStartupEnabled)
+                    ))}
+                  >
+                    <span />
+                  </button>
+                </div>
+                <div className="settings-menu-row">
+                  <div className="settings-menu-copy">
+                    <strong>Launch with Profile</strong>
+                    <span>Profile selected when OpenDS5 starts</span>
+                  </div>
+                  <CustomSelect
+                    value={snapshot.settings.startupControllerProfileId || STARTUP_PROFILE_LAST_USED}
+                    options={[
+                      ['Last used', STARTUP_PROFILE_LAST_USED],
+                      ...userControllerProfiles.map((profile): [string, string] => [profile.name, profile.id])
+                    ]}
+                    className="settings-startup-profile-select"
+                    floatingMenu
+                    floatingMenuMinWidth={180}
+                    ariaLabel="Launch with profile"
+                    disabled={pendingAction !== null}
+                    onChange={(value) => void runAction('startup-profile', () => (
+                      window.bridge.setStartupControllerProfileId(value === STARTUP_PROFILE_LAST_USED ? '' : value)
+                    ))}
+                  />
+                </div>
+                <div className="settings-menu-row">
+                  <div className="settings-menu-copy">
+                    <strong>Start Minimized</strong>
+                    <span>Open in the tray instead of showing the window</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={snapshot.settings.startMinimizedEnabled}
+                    className={`switch ${snapshot.settings.startMinimizedEnabled ? 'on' : ''}`}
+                    disabled={pendingAction !== null}
+                    onClick={() => void runAction('start-minimized', () => (
+                      window.bridge.setStartMinimizedEnabled(!snapshot.settings.startMinimizedEnabled)
                     ))}
                   >
                     <span />
@@ -11858,6 +12370,28 @@ export function App() {
                     <span />
                   </button>
                 </div>
+                {VDS_AVAILABLE && (
+                  <>
+                    <div className="settings-menu-section-label">Maintenance</div>
+                    <div className="settings-menu-row">
+                      <div className="settings-menu-copy">
+                        <strong>Uninstall OpenDS5</strong>
+                        <span>Remove the driver, daemon and launcher</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary-action danger settings-uninstall-button"
+                        onClick={() => {
+                          setShowBridgeSettings(false);
+                          setUninstallDialog({ phase: 'confirm', purge: false, steps: [], statuses: {}, exit: null });
+                        }}
+                      >
+                        <Trash2 size={14} />
+                        Uninstall…
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
               <div className="bridge-settings-column">
                 <div className="settings-menu-section-label">Power & Controller</div>

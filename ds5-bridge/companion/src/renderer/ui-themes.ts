@@ -1,7 +1,3 @@
-import kofiBadgeBeigeUrl from '../../../assets/brand/support_me_on_kofi_beige.png';
-import kofiBadgeBlueUrl from '../../../assets/brand/support_me_on_kofi_blue.png';
-import kofiBadgeDarkUrl from '../../../assets/brand/support_me_on_kofi_dark.png';
-import kofiBadgeRedUrl from '../../../assets/brand/support_me_on_kofi_red.png';
 import type { UiThemePreset } from '../shared/types';
 
 export const DEFAULT_UI_THEME_PRESET: UiThemePreset = 'dark';
@@ -47,10 +43,3 @@ export const UI_THEME_PREVIEW_SWATCHES: Record<UiThemePreset, readonly UiThemePr
   ]
 };
 
-export const UI_THEME_KOFI_BADGES: Record<UiThemePreset, string> = {
-  light: kofiBadgeBeigeUrl,
-  dark: kofiBadgeDarkUrl,
-  'bubble-gum': kofiBadgeBlueUrl,
-  pomegranate: kofiBadgeRedUrl,
-  kiwi: kofiBadgeDarkUrl
-};

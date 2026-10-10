@@ -27,6 +27,7 @@ its native features unlocked, even though you're playing over Bluetooth.
 - [Features](#-features)
 - [Screenshots](#-screenshots)
 - [Why the "wired" part matters](#-why-the-wired-part-matters)
+- [What's new in this fork](#-whats-new-in-this-fork)
 - [Supported distros](#-supported-distros)
 - [Getting started](#-getting-started)
 - [How it works](#%EF%B8%8F-how-it-works)
@@ -43,9 +44,14 @@ its native features unlocked, even though you're playing over Bluetooth.
   DualSense effect surface: constant resistance, weapon-style breaks,
   vibration, resistance ramps, and 10-zone custom curves. Live-preview
   everything on your controller.
+- 🎭 **Controller personas** — present your DualSense to the PC as a
+  **DualShock 4** or an **Xbox 360** controller for games that don't support
+  the DualSense, switchable from the app without dropping the Bluetooth link.
 - 🎯 **Per-game trigger profiles** — OpenDS5 detects the game you're running and
   applies your saved trigger effects automatically. Great for games with no
-  native DualSense support.
+  native DualSense support. Games from **Steam, Heroic and Lutris** are found
+  automatically, and any game can be linked to one of your own controller
+  profiles.
 - 📚 **Profile library** — browse and install community-made game profiles from
   inside the app. The library lives in its own repo
   ([OpenDS5-Profiles](https://github.com/LordVicky/OpenDS5-Profiles)), so new
@@ -56,9 +62,15 @@ its native features unlocked, even though you're playing over Bluetooth.
 - 💡 **Lighting** — control the lightbar and player LEDs.
 - 🎛️ **Button remapping, personas & chords** — remap buttons, save setups as
   switchable personas, and trigger actions with button combinations.
-- 📦 **Painless install** — one AppImage. A first-launch setup wizard installs
-  the kernel module and background service for you (one password prompt),
-  with Secure Boot handled. See [Supported distros](#-supported-distros).
+- 📶 **Bluetooth mode switching** — flip between *OpenDS5 mode* (vds owns the
+  controller) and *normal mode* (your Bluetooth keyboards, mice and other
+  pads work again) from the app, or let it switch automatically when no
+  controller has been connected for a while.
+- 📦 **Painless install — and uninstall** — one AppImage. A first-launch setup
+  wizard installs the kernel module and background service for you (one
+  password prompt), with Secure Boot handled. App updates rebuild the kernel
+  module automatically, and a one-click uninstaller removes everything again.
+  See [Supported distros](#-supported-distros).
 
 ## 📸 Screenshots
 
@@ -87,6 +99,71 @@ in over USB. Over plain Bluetooth you get a basic gamepad and nothing else.
 With vds running under OpenDS5, your controller stays wireless but games see
 a USB-connected DualSense. Native trigger effects, haptics, and speaker audio
 in supported games just work — no cable.
+
+## 🆕 What's new in this fork
+
+This fork builds on [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5)
+1.8.1 with the following additions:
+
+### Controller personas (DualShock 4 / Xbox 360)
+- The `vds_hcd` kernel module gains two new virtual USB profiles: a
+  **DualShock 4** (`054c:09cc`, HID) and an **Xbox 360 wired controller**
+  (`045e:028e`, XUSB, bound by the kernel's `xpad` driver).
+- `vdsd` translates DualSense input into DS4 / XInput reports and maps
+  rumble and lightbar output back onto the DualSense. DS4 feature reports
+  (calibration, MAC) are answered from the real controller's data.
+- Pick the persona in the app (`SET_HOST_PERSONA`); the virtual controller
+  re-enumerates with the new identity while the Bluetooth link stays up.
+
+### Bluetooth mode and controller management
+- New **Bluetooth** panel: switch between OpenDS5 mode and normal mode
+  (BlueZ input plugin back on, so other Bluetooth input devices work).
+- Optional **auto switching**: drop to normal mode after a configurable idle
+  time (10 s – 1 h) with no controller connected, and return to OpenDS5 mode
+  as soon as a registered DualSense connects.
+- See every paired controller's state (paired / connected / attached /
+  bridged) and attach or detach controllers from vds.
+
+### Audio fixes
+- Speaker packets are now paced to the 512-frame extraction window
+  (~10.67 ms) with a small priming buffer, fixing periodic crackles and
+  underruns over Bluetooth.
+- Sending audio no longer un-mutes the microphone, and the speaker volume
+  set by the game or app is kept instead of being forced to max.
+- New `SET_SPEAKER_GAIN` command (preamp levels 1–7).
+- The WirePlumber config now forces a plain 4.0 sink (speaker + haptics) for
+  the virtual DualSense / DualSense Edge, and the installer restarts
+  WirePlumber so it applies without logging out.
+
+### Companion app
+- **Game library**: installed games are detected from Steam, **Heroic Games
+  Launcher** and **Lutris**, with a search box; scanning no longer stalls on
+  large game binaries.
+- **Profile when playing**: link a game to one of your own controller
+  profiles; auto switching selects it whenever that game is running.
+- **Launch with profile** and **Start minimized** (open in the tray) settings,
+  plus a proper login item (XDG autostart entry) for the AppImage.
+- **Diagnostics**: view the `vdsd` log and toggle input/output tracing from
+  the app.
+- **Test Triggers**: vds has no microphone path, so the Overview's microphone
+  quick action is replaced with a button that plays a test effect on the
+  triggers.
+- **Uninstall** from the settings menu, optionally purging app settings.
+
+### Installer
+- `opends5-install --uninstall [--purge]` (or
+  `./OpenDS5.AppImage --uninstall-system`) removes the module, `vdsd`, udev
+  rules, WirePlumber config, BlueZ override, `vds` group and launcher. Every
+  step runs even if an earlier one fails, and is logged.
+- `--rebuild-module` forces a fresh DKMS build; app updates use it so a newly
+  shipped module replaces the loaded one.
+- The BlueZ override script is always installed, so `vdsd` can switch
+  Bluetooth modes at runtime.
+
+### Tests
+- New C++ tests for personas, Bluetooth input reports and speaker gain
+  (`ctest` in `vds/`), an installer uninstall test, and updated companion
+  tests.
 
 ## 🐧 Supported distros
 
@@ -124,15 +201,16 @@ see [docs/PORTING.md](docs/PORTING.md) for manual steps.
 3. Pair your DualSense over Bluetooth and you're done.
 
 > [!NOTE]
-> Setup disables BlueZ's input plugin so vds can own the controller's
-> Bluetooth HID channels — without this the system grabs the DualSense as a
-> plain gamepad and OpenDS5 never sees it. The trade-off (an upstream vds
-> limitation): **other Bluetooth input devices like keyboards and mice won't
-> work while OpenDS5's driver stack is installed.** Revert anytime with
-> `sudo /usr/share/opends5/override-bluetoothd.sh enable-input --restart`.
+> vds needs to own the controller's Bluetooth HID channels, so setup disables
+> BlueZ's input plugin — without this the system grabs the DualSense as a
+> plain gamepad and OpenDS5 never sees it. While that's in effect, other
+> Bluetooth keyboards and mice don't work. Use the **Bluetooth** panel in the
+> app to switch to *normal mode* when you need them (or enable automatic
+> switching), and back to *OpenDS5 mode* to play.
 
 Prefer the terminal? `./OpenDS5.AppImage --install-system` does the same
-setup. See [docs/INSTALLER.md](docs/INSTALLER.md) for per-platform details,
+setup, and `./OpenDS5.AppImage --uninstall-system [--purge]` removes it all
+again (also available in the app's settings menu). See [docs/INSTALLER.md](docs/INSTALLER.md) for per-platform details,
 exit codes, and logs.
 
 ## ⚙️ How it works

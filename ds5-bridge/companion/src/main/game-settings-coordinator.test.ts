@@ -9,6 +9,7 @@ class FakeService implements GameSettingsService {
   controllerProfileId = 'default';
   buttonRemappingProfileId = 'default';
   gameSettings = new Set<string>();
+  links = new Map<string, string>();
   ensured: Array<{ id: string; name: string }> = [];
   selections: string[] = [];
 
@@ -21,6 +22,10 @@ class FakeService implements GameSettingsService {
 
   hasGameSettings(id: string): boolean {
     return this.gameSettings.has(id);
+  }
+
+  linkedControllerProfileId(id: string): string | null {
+    return this.links.get(id) ?? null;
   }
 
   async ensureGameSettings(id: string, name: string): Promise<void> {
@@ -82,6 +87,42 @@ describe('GameSettingsCoordinator', () => {
     expect(service.controllerProfileId).toBe('my-profile');
     expect(service.buttonRemappingProfileId).toBe('my-remap');
     expect(coordinator.getStatus().appliedProfileId).toBeNull();
+  });
+
+  it('selects a linked user profile while the game runs and restores on exit', async () => {
+    service.controllerProfileId = 'my-profile';
+    service.buttonRemappingProfileId = 'my-remap';
+    service.gameSettings.add('ff7');
+    service.links.set('ff7', 'ps4-profile');
+    const coordinator = new GameSettingsCoordinator(service, dir);
+
+    coordinator.onEngineStatus(engineStatus('ff7'));
+    await settle(coordinator);
+    // The link wins over the game's own settings and leaves the remap alone.
+    expect(service.controllerProfileId).toBe('ps4-profile');
+    expect(service.buttonRemappingProfileId).toBe('my-remap');
+    expect(coordinator.getStatus().appliedProfileId).toBe('ff7');
+
+    coordinator.onEngineStatus(engineStatus('default', true));
+    await settle(coordinator);
+    expect(service.controllerProfileId).toBe('my-profile');
+    expect(coordinator.getStatus().appliedProfileId).toBeNull();
+  });
+
+  it('applies a link added while the game is already running', async () => {
+    service.controllerProfileId = 'my-profile';
+    const coordinator = new GameSettingsCoordinator(service, dir);
+    coordinator.onEngineStatus(engineStatus('ff7'));
+    await settle(coordinator);
+    expect(service.selections).toEqual([]);
+
+    service.links.set('ff7', 'ps4-profile');
+    await coordinator.refresh();
+    expect(service.controllerProfileId).toBe('ps4-profile');
+
+    service.links.delete('ff7');
+    await coordinator.refresh();
+    expect(service.controllerProfileId).toBe('my-profile');
   });
 
   it('leaves selections alone for a game without game settings', async () => {

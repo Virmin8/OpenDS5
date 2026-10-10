@@ -5,6 +5,10 @@ export function shouldRunSystemInstall(argv: string[]): boolean {
   return argv.includes('--install-system');
 }
 
+export function shouldRunSystemUninstall(argv: string[]): boolean {
+  return argv.includes('--uninstall-system');
+}
+
 export function resolveInstallerPath(resourcesPath: string): string {
   return path.join(resourcesPath, 'installer', 'opends5-install');
 }

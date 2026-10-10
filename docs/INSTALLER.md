@@ -14,7 +14,23 @@ bash installer/opends5-install           # from a checkout
 It shows a numbered plan of exactly what it will do on your system and asks
 once before proceeding. Flags: `--yes` (no prompt), `--dry-run` (print the plan
 and exact commands, change nothing), `--json-progress` (machine-readable event
-stream; used by the wizard).
+stream; used by the wizard), `--rebuild-module` (force a fresh DKMS build and
+reload of `vds_hcd` even when it is already loaded; used after app updates).
+
+## Uninstall
+
+```bash
+./OpenDS5.AppImage --uninstall-system [--purge] [--yes]
+bash installer/opends5-install --uninstall [--purge] [--yes] [--dry-run]
+```
+
+Removes everything the installer set up: the `vdsd` service and binaries, the
+`vds_hcd` DKMS module and autoload entry, udev rules, the `vds` group, `vdsd`
+state and logs, the WirePlumber config, and the app launcher/autostart entry.
+It also re-enables BlueZ's input plugin. Every step runs even if an earlier
+one fails; the result is logged to `uninstall.log` in the root log directory.
+`--purge` additionally removes the app's settings (`~/.config/OpenDS5`) and
+installer logs. The same action is available from the app's settings menu.
 
 ## What it does per platform
 

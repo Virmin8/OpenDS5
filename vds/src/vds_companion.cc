@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "vds_config.hh"
+#include "vds_persona.hh"
 #include "vds_log.hh"
 
 namespace vds {
@@ -148,7 +149,7 @@ CompanionReport build_status_report(
   }
   report[47] = 0; // Adaptive trigger output recent.
   report[48] = settings.host_persona_mode;
-  report[49] = 0x01; // Supported personas: DualSense only for now.
+  report[49] = kSupportedHostPersonaMask; // DualSense, Xbox 360, DS4.
   report[51] = settings.mic_muted ? 1 : 0;
   report[57] = settings.speaker_gain_level;
   report[59] = settings.lightbar_override_enabled ? 1 : 0;
@@ -211,6 +212,12 @@ std::uint8_t apply_command(CompanionRuntime &runtime,
   case 0x07: // SET_SPEAKER_VOLUME
     settings.speaker_volume_percent = std::min<std::uint16_t>(value, 100);
     return kAckOk;
+  case 0x32: // SET_SPEAKER_GAIN
+    if (value < 1 || value > 7) {
+      return kAckErrInvalidValue;
+    }
+    settings.speaker_gain_level = static_cast<std::uint8_t>(value);
+    return kAckOk;
   case 0x08: // SET_LIGHTBAR_COLOR (value: brightness percent; payload: r,g,b)
     settings.lightbar_red = report[11];
     settings.lightbar_green = report[12];
@@ -246,11 +253,12 @@ std::uint8_t apply_command(CompanionRuntime &runtime,
     }
     settings.idle_disconnect_timeout_minutes = value;
     return kAckOk;
-  case 0x21: // SET_HOST_PERSONA (only DualSense supported)
-    if (value != 0) {
+  case 0x21: // SET_HOST_PERSONA (0 DualSense, 1 Xbox 360, 2 DualShock 4)
+    if (!host_persona_from_value(static_cast<std::uint8_t>(value)) ||
+        value > 0xff) {
       return kAckErrInvalidValue;
     }
-    settings.host_persona_mode = 0;
+    settings.host_persona_mode = static_cast<std::uint8_t>(value);
     return kAckOk;
   case 0x0C: // SET_TRIGGER_EFFECT_INTENSITY
     if (value > 100) {
@@ -309,7 +317,6 @@ std::uint8_t apply_command(CompanionRuntime &runtime,
   case 0x1D: // SET_SPEAKER_VOLUME_SHORTCUT_ENABLED
   case 0x22: // SET_AUDIO_REACTIVE_HAPTICS
   case 0x25: // SET_CLASSIC_RUMBLE_V1
-  case 0x32: // SET_SPEAKER_GAIN
     return kAckOk;
   case 0x04:   // TEST_HAPTICS
   case 0x14: { // TEST_CLASSIC_RUMBLE

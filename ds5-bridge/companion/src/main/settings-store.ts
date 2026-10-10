@@ -141,6 +141,9 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   uiScalePercent: 100,
   uiThemePreset: 'dark',
   launchAtStartupEnabled: false,
+  startMinimizedEnabled: false,
+  startupControllerProfileId: '',
+  gameProfileLinks: {},
   setupSkipped: false,
   steamGridDbApiKey: '',
   showBatteryPercentTrayIcon: false,
@@ -871,6 +874,14 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     launchAtStartupEnabled: typeof value?.launchAtStartupEnabled === 'boolean'
       ? value.launchAtStartupEnabled
       : DEFAULT_SETTINGS.launchAtStartupEnabled,
+    startMinimizedEnabled: typeof value?.startMinimizedEnabled === 'boolean'
+      ? value.startMinimizedEnabled
+      : DEFAULT_SETTINGS.startMinimizedEnabled,
+    gameProfileLinks: normalizeGameProfileLinks(value?.gameProfileLinks),
+    startupControllerProfileId: typeof value?.startupControllerProfileId === 'string'
+      && value.startupControllerProfileId.length <= 200
+      ? value.startupControllerProfileId
+      : DEFAULT_SETTINGS.startupControllerProfileId,
     setupSkipped: typeof value?.setupSkipped === 'boolean'
       ? value.setupSkipped
       : DEFAULT_SETTINGS.setupSkipped,
@@ -1403,4 +1414,18 @@ export class SettingsStore {
       customProfile: this.customSettings
     }, null, 2)}\n`, 'utf8');
   }
+}
+
+function normalizeGameProfileLinks(value: unknown): Record<string, string> {
+  const links: Record<string, string> = {};
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return links;
+  }
+  for (const [gameId, profileId] of Object.entries(value as Record<string, unknown>)) {
+    if (gameId.length > 0 && gameId.length <= 200 && typeof profileId === 'string'
+      && profileId.length > 0 && profileId.length <= 200) {
+      links[gameId] = profileId;
+    }
+  }
+  return links;
 }

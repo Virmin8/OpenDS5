@@ -1,4 +1,4 @@
-import type { AppInfoApi, BridgeApi, SetupApi, UpdateApi } from '../preload';
+import type { AppInfoApi, BridgeApi, SetupApi, UpdateApi, VdsApi } from '../preload';
 
 declare global {
   interface Window {
@@ -6,6 +6,7 @@ declare global {
     setup: SetupApi;
     update: UpdateApi;
     appInfo: AppInfoApi;
+    vds: VdsApi;
   }
 }
 

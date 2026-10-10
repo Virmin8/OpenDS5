@@ -30,6 +30,14 @@ export interface CompanionSettings {
   uiScalePercent: UiScalePercent;
   uiThemePreset: UiThemePreset;
   launchAtStartupEnabled: boolean;
+  startMinimizedEnabled: boolean;
+  /** Controller profile selected when the app starts; empty = keep the last used one. */
+  startupControllerProfileId: string;
+  /**
+   * Game (trigger profile id) -> controller profile id. When auto switching sees a
+   * linked game running, that profile is selected instead of the game's own settings.
+   */
+  gameProfileLinks: Record<string, string>;
   setupSkipped: boolean;
   steamGridDbApiKey: string;
   showBatteryPercentTrayIcon: boolean;

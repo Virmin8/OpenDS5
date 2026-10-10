@@ -31,7 +31,7 @@ struct CompanionSettings {
   bool idle_disconnect_enabled = false;
   std::uint16_t idle_disconnect_timeout_minutes = 10;
   std::uint16_t speaker_volume_percent = 100;
-  std::uint8_t speaker_gain_level = 4;
+  std::uint8_t speaker_gain_level = 2;
   std::uint8_t lightbar_red = 0;
   std::uint8_t lightbar_green = 0;
   std::uint8_t lightbar_blue = 255;

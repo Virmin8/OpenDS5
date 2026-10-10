@@ -35,7 +35,7 @@ import {
   normalizeBridgePresetId,
   pollingRateModeValue
 } from '../shared/protocol';
-import { gameSettingsProfileId } from '../shared/game-settings';
+import { gameSettingsProfileId, isGameSettingsProfileId } from '../shared/game-settings';
 import type {
   AdaptiveTriggerEffectV2Targeted,
   AdaptiveTriggerPreviewEffect,
@@ -2928,6 +2928,23 @@ export class BridgeService extends EventEmitter {
     return this.getSnapshot();
   }
 
+  setStartupControllerProfileId(profileId: string): BridgeSnapshot {
+    const valid = profileId === ''
+      || (!isGameSettingsProfileId(profileId)
+        && this.snapshot.settings.controllerProfiles.some((profile) => profile.id === profileId));
+    this.snapshot.settings = this.settingsStore.update({ startupControllerProfileId: valid ? profileId : '' });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  setStartMinimizedEnabled(enabled: boolean): BridgeSnapshot {
+    this.snapshot.settings = this.settingsStore.update({
+      startMinimizedEnabled: enabled
+    });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   setShowBatteryPercentTrayIcon(enabled: boolean): BridgeSnapshot {
     this.snapshot.settings = this.settingsStore.update({
       showBatteryPercentTrayIcon: enabled
@@ -3154,6 +3171,31 @@ export class BridgeService extends EventEmitter {
    * profile that share the id `game:<triggerProfileId>`. These helpers manage that pair;
    * the GameSettingsCoordinator decides when they get selected.
    */
+  /** The user profile linked to a game, if it still exists. */
+  linkedControllerProfileId(triggerProfileId: string): string | null {
+    const linked = this.snapshot.settings.gameProfileLinks[triggerProfileId];
+    if (!linked) return null;
+    return this.snapshot.settings.controllerProfiles.some((profile) => profile.id === linked)
+      ? linked
+      : null;
+  }
+
+  /** Links a game to one of the user's controller profiles, or clears the link. */
+  setGameProfileLink(triggerProfileId: string, controllerProfileId: string | null): BridgeSnapshot {
+    const links = { ...this.snapshot.settings.gameProfileLinks };
+    const valid = controllerProfileId !== null
+      && !isGameSettingsProfileId(controllerProfileId)
+      && this.snapshot.settings.controllerProfiles.some((profile) => profile.id === controllerProfileId);
+    if (valid) {
+      links[triggerProfileId] = controllerProfileId;
+    } else {
+      delete links[triggerProfileId];
+    }
+    this.snapshot.settings = this.settingsStore.update({ gameProfileLinks: links });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   hasGameSettings(triggerProfileId: string): boolean {
     const id = gameSettingsProfileId(triggerProfileId);
     return this.snapshot.settings.controllerProfiles.some((profile) => profile.id === id);

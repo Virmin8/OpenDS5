@@ -696,7 +696,7 @@ describe('shared trigger effect editor', () => {
   it('is used by the profile editor slot cards (base + modifiers) and the Trigger Lab card', () => {
     const slotStart = appSource.indexOf('trigger-profiles-slot-card');
     expect(slotStart).toBeGreaterThanOrEqual(0);
-    const slotEnd = appSource.indexOf('Identity &amp; Matching', slotStart);
+    const slotEnd = appSource.indexOf('State Switching', slotStart);
     const slotRegion = appSource.slice(slotStart, slotEnd);
     expect(slotRegion).toContain('<TriggerEffectEditor');
     const modifiersStart = slotRegion.indexOf('trigger-profiles-modifiers');
@@ -731,13 +731,16 @@ describe('shared trigger effect editor', () => {
     expect(select).toContain('pinSelectedTriggerProfile');
   });
 
-  it('drops the adaptive-trigger test card, keeping only enable and intensity', () => {
-    // The Triggers page is enable/disable plus intensity now. No effect picker, no target
-    // selector, no test playback.
-    expect(appSource).not.toContain('trigger-test-card');
-    expect(appSource).not.toContain('runTestAdaptiveTriggers');
-    expect(appSource).not.toContain('TRIGGER_TARGET_OPTIONS');
-    expect(appSource).not.toContain('previewAdaptiveTriggerEffect');
+  it('offers a trigger Testing card that previews an effect and can stop it', () => {
+    // Testing uses the timed preview command, so a test never sticks on the triggers;
+    // a zero-force preview stops it early.
+    expect(appSource).toContain('trigger-test-card');
+    expect(appSource).toContain('TRIGGER_TEST_MODE_OPTIONS');
+    expect(appSource).toContain('TRIGGER_TEST_TARGET_OPTIONS');
+    const run = appSource.slice(appSource.indexOf('async function runTriggerTest()'));
+    expect(run).toContain('window.bridge.previewAdaptiveTriggerEffect');
+    const stop = appSource.slice(appSource.indexOf('async function stopTriggerTest()'));
+    expect(stop).toContain('forcePercent: 0');
   });
 
   it('keeps Reset Triggers, beside the enable toggle', () => {
@@ -752,8 +755,8 @@ describe('shared trigger effect editor', () => {
   });
 
   it('keeps every trigger effect available to game trigger profiles', () => {
-    // Removing the test card must not narrow what a profile can do: the profile editor still
-    // offers the full effect set.
+    // The quick Testing card covers three effects; the profile editor still offers the
+    // full effect set.
     for (const mode of ['feedback', 'weapon', 'vibration', 'multi-feedback', 'slope', 'multi-vibration']) {
       expect(sharedSource).toContain(`'${mode}'`);
     }

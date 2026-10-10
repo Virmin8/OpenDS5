@@ -1,16 +1,21 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   InstalledGamesScanner,
   isLikelyJunkCandidate,
+  lutrisTitleFromConfigPath,
   normalizeGameTitle,
+  parseLutrisExe,
   parseVdfPairs,
   parseVdfPaths,
   rankProcessCandidates,
   type ScannerRoots
 } from './installed-games';
+
+const require = createRequire(import.meta.url);
 
 const ELF_MAGIC = Buffer.from([0x7f, 0x45, 0x4c, 0x46]);
 
@@ -116,7 +121,7 @@ describe('InstalledGamesScanner', () => {
   });
 
   function roots(overrides: Partial<ScannerRoots> = {}): ScannerRoots {
-    return { steam: [], heroic: [], legendary: [], ...overrides };
+    return { steam: [], heroic: [], legendary: [], lutris: [], ...overrides };
   }
 
   function makeSteamRoot(root: string, libraries: string[]): void {
@@ -253,6 +258,45 @@ describe('InstalledGamesScanner', () => {
       roots({ steam: [rootA, rootB], heroic: [heroic] })
     ).scan();
     expect(result.games.filter((game) => game.name === 'Same Game')).toHaveLength(1);
+  });
+
+  it('reads Lutris games from games/*.yml with titles from pga.db', () => {
+    const lutris = path.join(dir, 'lutris');
+    const install = path.join(dir, 'Games', 'Rebirth');
+    mkdirSync(path.join(lutris, 'games'), { recursive: true });
+    mkdirSync(install, { recursive: true });
+    writeFileSync(path.join(install, 'ff7rebirth.exe'), Buffer.alloc(8 * 1024 * 1024));
+    writeFileSync(path.join(lutris, 'games', 'final-fantasy-vii-rebirth-1790796165.yml'), [
+      'game:',
+      '  args: \'\'',
+      `  exe: ${path.join(install, 'ff7rebirth.exe')}`,
+      'wine:',
+      '  version: Proton',
+      ''
+    ].join('\n'));
+    const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
+    const db = new DatabaseSync(path.join(lutris, 'pga.db'));
+    db.exec('CREATE TABLE games (name TEXT, slug TEXT, installed INTEGER, configpath TEXT)');
+    db.prepare('INSERT INTO games VALUES (?, ?, 1, ?)').run(
+      'FINAL FANTASY VII REBIRTH', 'final-fantasy-vii-rebirth', 'final-fantasy-vii-rebirth-1790796165'
+    );
+    db.close();
+
+    const result = new InstalledGamesScanner(roots({ lutris: [lutris] })).scan();
+    expect(result.games).toHaveLength(1);
+    expect(result.games[0]).toMatchObject({
+      source: 'lutris',
+      name: 'FINAL FANTASY VII REBIRTH',
+      sourceId: 'final-fantasy-vii-rebirth',
+      installDir: install
+    });
+    expect(result.games[0].processCandidates[0]).toBe('ff7rebirth.exe');
+  });
+
+  it('parses the Lutris game exe and derives a title from the config name', () => {
+    expect(parseLutrisExe('game:\n  exe: "/a b/c.exe"\nwine:\n  exe: nope\n')).toBe('/a b/c.exe');
+    expect(parseLutrisExe('wine:\n  exe: nope\n')).toBeNull();
+    expect(lutrisTitleFromConfigPath('black-myth-wukong-1791480196')).toBe('Black Myth Wukong');
   });
 
   it('returns empty for missing roots without errors', () => {

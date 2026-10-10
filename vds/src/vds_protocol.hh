@@ -67,6 +67,13 @@ private:
   std::uint8_t packet_sequence_ = 0;
 };
 
+// The state the controller holds after a 0x36 audio packet built from `state`:
+// 0x36 packets omit the mic/power-save fields, so those stay as they were in
+// `previous` (the last state actually sent). Use this when tracking what has
+// been delivered so a pending mic mute/unmute is not treated as already sent.
+DsState state_after_audio_packet(const std::optional<DsState> &previous,
+                                 const DsState &state);
+
 constexpr std::size_t kTriggerEffectSize = 11;
 
 // DS5 Bridge companion adjustments layered on top of the game-driven output
@@ -86,6 +93,7 @@ struct DsCompanionOverrides {
   bool test_rumble_active = false;
   std::uint8_t test_rumble_power = 0;
   std::uint16_t speaker_volume_percent = 100;
+  std::uint8_t speaker_gain_level = 2;
 };
 
 // Encodes a DS5 Bridge companion trigger effect (mode 0=feedback, 1=weapon,
@@ -132,6 +140,7 @@ private:
   std::array<std::uint8_t, 3> light_color_{};
   std::uint8_t light_brightness_ = 0;
   bool emulate_light_brightness_ = false;
+  bool audio_out_stream_active_ = false;
   std::uint8_t report_sequence_ = 0;
 };
 

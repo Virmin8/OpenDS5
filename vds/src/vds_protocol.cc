@@ -44,7 +44,10 @@ constexpr std::size_t kOutputFlag0Offset = 0;
 constexpr std::size_t kOutputFlag1Offset = 1;
 constexpr std::size_t kOutputHeadphoneVolumeOffset = 4;
 constexpr std::size_t kOutputSpeakerVolumeOffset = 5;
+constexpr std::size_t kOutputMicVolumeOffset = 6;
 constexpr std::size_t kOutputAudioControlOffset = 7;
+constexpr std::size_t kOutputMuteLightModeOffset = 8;
+constexpr std::size_t kOutputPowerSaveControlOffset = 9;
 constexpr std::size_t kOutputAudioControl2Offset = 37;
 constexpr std::size_t kOutputLightBrightnessOffset =
     offsetof(vds_set_state_data, light_brightness);
@@ -56,12 +59,17 @@ constexpr std::uint8_t kBtHidpFeaturePrefix = 0xa3;
 constexpr std::uint8_t kBtHidpGetFeaturePrefix = 0x43;
 constexpr std::uint8_t kBtHidpSetFeaturePrefix = 0x53;
 constexpr std::size_t kBtInputReportIdOffset = 1;
+constexpr std::size_t kBtInputFlagsOffset = 2;
 constexpr std::size_t kBtInputUsbPayloadOffset = 3;
 constexpr std::size_t kBtInputMinimumSize =
     kBtInputUsbPayloadOffset + VDS_USB_INPUT_PAYLOAD_SIZE;
+constexpr std::uint8_t kBtInputFlagMicrophoneAudio = 0x02;
 constexpr std::uint8_t kOutputFlag0HeadphoneVolumeEnable = 0x10;
 constexpr std::uint8_t kOutputFlag0SpeakerVolumeEnable = 0x20;
+constexpr std::uint8_t kOutputFlag0MicVolumeEnable = 0x40;
 constexpr std::uint8_t kOutputFlag0AudioControlEnable = 0x80;
+constexpr std::uint8_t kOutputFlag1MicMuteLedControlEnable = 0x01;
+constexpr std::uint8_t kOutputFlag1PowerSaveControlEnable = 0x02;
 constexpr std::uint8_t kOutputFlag1AudioControl2Enable = 0x80;
 constexpr std::uint8_t kOutputHeadphoneVolumeMax = 0x7f;
 constexpr std::uint8_t kOutputSpeakerVolumeMax = 0x64;
@@ -355,6 +363,9 @@ std::optional<UsbInputReport>
 bt_input_to_usb_input(std::span<const std::uint8_t> packet) {
   if (packet.size() < kBtInputMinimumSize || packet[0] != kBtHidpInputPrefix ||
       packet[kBtInputReportIdOffset] != VDS_BT_STATE_REPORT_ID) {
+    return std::nullopt;
+  }
+  if ((packet[kBtInputFlagsOffset] & kBtInputFlagMicrophoneAudio) != 0) {
     return std::nullopt;
   }
 
@@ -738,6 +749,18 @@ void DsOutputState::recompute_effective_state() {
         scale_byte(effective_state_[kOutputSpeakerVolumeOffset],
                    companion_.speaker_volume_percent);
   }
+  // Like the DS5 Bridge firmware, only own the speaker path and preamp gain
+  // while the speaker stream is active; otherwise leave the game's values.
+  if (audio_out_stream_active_) {
+    effective_state_[kOutputFlag0Offset] |=
+        kOutputFlag0AudioControlEnable | kOutputFlag0SpeakerVolumeEnable;
+    effective_state_[kOutputAudioControlOffset] = kOutputPathSpeaker;
+    effective_state_[kOutputFlag1Offset] |= kOutputFlag1AudioControl2Enable;
+    effective_state_[kOutputAudioControl2Offset] =
+        static_cast<std::uint8_t>(
+            (effective_state_[kOutputAudioControl2Offset] & 0xf8) |
+            std::clamp<std::uint8_t>(companion_.speaker_gain_level, 1, 7));
+  }
 }
 
 BtInitReport DsOutputState::build_bt_init_report() {
@@ -853,6 +876,7 @@ bool DsOutputState::apply_usb_output_report(
 }
 
 void DsOutputState::set_audio_out_stream_active(bool active) {
+  audio_out_stream_active_ = active;
   state_[kOutputFlag0Offset] |= kOutputFlag0AudioControlEnable;
   state_[kOutputHeadphoneVolumeOffset] = kOutputHeadphoneVolumeMax;
 
@@ -887,6 +911,25 @@ BtStateReport DsOutputState::build_bt_state_report() {
   return report;
 }
 
+DsState state_after_audio_packet(const std::optional<DsState> &previous,
+                                 const DsState &state) {
+  constexpr std::uint8_t kFlag0MicMask = kOutputFlag0MicVolumeEnable;
+  constexpr std::uint8_t kFlag1MicMask = kOutputFlag1MicMuteLedControlEnable |
+                                         kOutputFlag1PowerSaveControlEnable;
+  const DsState prior = previous.value_or(DsState{});
+  DsState result = state;
+  result[kOutputFlag0Offset] = static_cast<std::uint8_t>(
+      (state[kOutputFlag0Offset] & ~kFlag0MicMask) |
+      (prior[kOutputFlag0Offset] & kFlag0MicMask));
+  result[kOutputFlag1Offset] = static_cast<std::uint8_t>(
+      (state[kOutputFlag1Offset] & ~kFlag1MicMask) |
+      (prior[kOutputFlag1Offset] & kFlag1MicMask));
+  result[kOutputMicVolumeOffset] = prior[kOutputMicVolumeOffset];
+  result[kOutputMuteLightModeOffset] = prior[kOutputMuteLightModeOffset];
+  result[kOutputPowerSaveControlOffset] = prior[kOutputPowerSaveControlOffset];
+  return result;
+}
+
 BtReport HapticsPacketBuilder::build_packet(
     std::span<const std::int8_t, kHapticsSampleSize> haptics,
     std::span<const std::uint8_t, kSpeakerOpusSize> speaker,
@@ -906,7 +949,29 @@ BtReport HapticsPacketBuilder::build_packet(
   packet[10] = packet_sequence_++;
   packet[11] = 0x10 | (1 << 7);
   packet[12] = kDsStateSize;
-  std::copy(state.begin(), state.end(), packet.begin() + 13);
+  DsState audio_state;
+  std::copy(state.begin(), state.end(), audio_state.begin());
+  audio_state[kOutputFlag0Offset] &= ~kOutputFlag0MicVolumeEnable;
+  // Leave power-save (including mic mute) untouched: writing it here with the
+  // mic-mute bit cleared would unmute the mic on every audio packet.
+  audio_state[kOutputFlag1Offset] &=
+      ~(kOutputFlag1MicMuteLedControlEnable |
+        kOutputFlag1PowerSaveControlEnable);
+  audio_state[kOutputPowerSaveControlOffset] = 0;
+  audio_state[kOutputMicVolumeOffset] = 0;
+  audio_state[kOutputMuteLightModeOffset] = 0;
+  // Keep the companion/game speaker volume; only default to max when nothing
+  // has set it.
+  if ((audio_state[kOutputFlag0Offset] & kOutputFlag0SpeakerVolumeEnable) ==
+      0) {
+    audio_state[kOutputSpeakerVolumeOffset] = kOutputSpeakerVolumeMax;
+  }
+  audio_state[kOutputFlag0Offset] |=
+      kOutputFlag0AudioControlEnable | kOutputFlag0SpeakerVolumeEnable;
+  audio_state[kOutputFlag1Offset] |= kOutputFlag1AudioControl2Enable;
+  audio_state[kOutputHeadphoneVolumeOffset] = kOutputHeadphoneVolumeMax;
+  audio_state[kOutputAudioControlOffset] = kOutputPathSpeaker;
+  std::copy(audio_state.begin(), audio_state.end(), packet.begin() + 13);
   packet[76] = 0x12 | (1 << 7);
   packet[77] = kHapticsSampleSize;
   std::memcpy(packet.data() + 78, haptics.data(), haptics.size());

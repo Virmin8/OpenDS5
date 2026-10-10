@@ -321,7 +321,7 @@ export class UpdateService {
           total: steps.length || 1,
         });
       }
-    });
+    }, true);
 
     if (exit !== 0) {
       this.set({

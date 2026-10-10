@@ -41,6 +41,8 @@ export interface GameSettingsSelections {
 export interface GameSettingsService {
   getSelections(): GameSettingsSelections;
   hasGameSettings(triggerProfileId: string): boolean;
+  /** A user profile linked to the game; wins over the game's own settings. */
+  linkedControllerProfileId(triggerProfileId: string): string | null;
   ensureGameSettings(triggerProfileId: string, name: string): Promise<unknown>;
   selectControllerProfile(profileId: string): Promise<unknown>;
   selectButtonRemappingProfile(profileId: string): Promise<unknown>;
@@ -65,6 +67,8 @@ export class GameSettingsCoordinator extends EventEmitter {
   private activeGameProfileId: string | null = null;
   private editingProfileId: string | null = null;
   private appliedProfileId: string | null = null;
+  /** Controller profile selected for appliedProfileId (game-owned or linked). */
+  private appliedControllerProfileId: string | null = null;
   private restore: RestorePoint | null = null;
   private chain: Promise<void> = Promise.resolve();
 
@@ -169,6 +173,11 @@ export class GameSettingsCoordinator extends EventEmitter {
     };
   }
 
+  /** Re-evaluates after a game's profile link changed. */
+  refresh(): Promise<void> {
+    return this.sync();
+  }
+
   private sync(): Promise<void> {
     return this.enqueue(async () => {
       await this.applyTarget();
@@ -177,14 +186,29 @@ export class GameSettingsCoordinator extends EventEmitter {
   }
 
   private async applyTarget(): Promise<void> {
-    const activeWithSettings = this.activeGameProfileId !== null
-      && this.service.hasGameSettings(this.activeGameProfileId)
-      ? this.activeGameProfileId
-      : null;
-    const target = this.editingProfileId ?? activeWithSettings;
-    if (target === this.appliedProfileId) return;
+    // Editing always works on the game's own settings. A running game uses its
+    // linked user profile when it has one, otherwise its own settings; a game
+    // with neither leaves the current selection alone.
+    const active = this.activeGameProfileId;
+    const linked = active !== null ? this.service.linkedControllerProfileId(active) : null;
+    let target: string | null = null;
+    let controllerProfileId: string | null = null;
+    let ownsRemap = false;
+    if (this.editingProfileId !== null) {
+      target = this.editingProfileId;
+      controllerProfileId = gameSettingsProfileId(target);
+      ownsRemap = true;
+    } else if (active !== null && linked !== null) {
+      target = active;
+      controllerProfileId = linked;
+    } else if (active !== null && this.service.hasGameSettings(active)) {
+      target = active;
+      controllerProfileId = gameSettingsProfileId(active);
+      ownsRemap = true;
+    }
+    if (target === this.appliedProfileId && controllerProfileId === this.appliedControllerProfileId) return;
 
-    if (target !== null) {
+    if (target !== null && controllerProfileId !== null) {
       if (this.appliedProfileId === null) {
         const selections = this.service.getSelections();
         this.restore = {
@@ -193,9 +217,16 @@ export class GameSettingsCoordinator extends EventEmitter {
         };
         this.persistRestore();
       }
-      await this.service.selectControllerProfile(gameSettingsProfileId(target));
-      await this.service.selectButtonRemappingProfile(gameSettingsProfileId(target));
+      await this.service.selectControllerProfile(controllerProfileId);
+      if (ownsRemap) {
+        await this.service.selectButtonRemappingProfile(gameSettingsProfileId(target));
+      } else if (this.restore && isGameSettingsProfileId(this.service.getSelections().buttonRemappingProfileId)) {
+        // Switching from a game-owned set to a linked profile: the remap goes back
+        // to the user's own choice.
+        await this.service.selectButtonRemappingProfile(this.restore.buttonRemappingProfileId);
+      }
       this.appliedProfileId = target;
+      this.appliedControllerProfileId = controllerProfileId;
       return;
     }
 
@@ -208,7 +239,8 @@ export class GameSettingsCoordinator extends EventEmitter {
       const selections = this.service.getSelections();
       // Only put a selection back if it still points at game settings. If the user
       // manually picked another profile mid-game, that choice wins over the restore.
-      if (isGameSettingsProfileId(selections.controllerProfileId)) {
+      if (isGameSettingsProfileId(selections.controllerProfileId)
+        || selections.controllerProfileId === this.appliedControllerProfileId) {
         await this.service.selectControllerProfile(restore.controllerProfileId);
       }
       if (isGameSettingsProfileId(selections.buttonRemappingProfileId)) {
@@ -218,6 +250,7 @@ export class GameSettingsCoordinator extends EventEmitter {
     this.restore = null;
     this.persistRestore();
     this.appliedProfileId = null;
+    this.appliedControllerProfileId = null;
   }
 
   /**
