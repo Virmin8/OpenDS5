@@ -3239,7 +3239,13 @@ export function App() {
   ), [snapshot?.settings.controllerProfiles, snapshot?.settings.selectedControllerProfileId]);
   const selectedControllerProfileIsDefault = selectedControllerProfileId === DEFAULT_CONTROLLER_PROFILE_ID;
   const selectedControllerProfileIsGameOwned = isGameSettingsProfileId(selectedControllerProfileId);
-  const canDeleteControllerProfile = !selectedControllerProfileIsDefault && !selectedControllerProfileIsGameOwned;
+  // Default can go once another user profile exists to fall back to.
+  const canDeleteControllerProfile = !selectedControllerProfileIsGameOwned && (
+    !selectedControllerProfileIsDefault
+    || Boolean(snapshot?.settings.controllerProfiles.some((profile) => (
+      profile.id !== DEFAULT_CONTROLLER_PROFILE_ID && !isGameSettingsProfileId(profile.id)
+    )))
+  );
   const selectedRemapProfile = snapshot?.settings.buttonRemappingProfiles.find((profile) => (
     profile.id === snapshot.settings.selectedButtonRemappingProfileId
   ));

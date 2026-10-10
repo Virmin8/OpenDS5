@@ -38,6 +38,7 @@ import type {
   RemapButtonId
 } from '../shared/protocol';
 import type { CompanionSettings, UiScalePercent, UiThemePreset } from '../shared/types';
+import { isGameSettingsProfileId } from '../shared/game-settings';
 
 const DEFAULT_CONTROLLER_PROFILE_SETTINGS: ControllerProfileSettings = {
   hapticsEnabled: true,
@@ -199,6 +200,7 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   controllerPowerSavingEnabled: DEFAULT_CONTROLLER_PROFILE_SETTINGS.controllerPowerSavingEnabled,
   selectedControllerProfileId: DEFAULT_CONTROLLER_PROFILE_ID,
   controllerProfiles: [DEFAULT_CONTROLLER_PROFILE],
+  defaultControllerProfileDeleted: false,
   selectedButtonRemappingProfileId: DEFAULT_BUTTON_REMAP_PROFILE_ID,
   buttonRemappingProfiles: [DEFAULT_BUTTON_REMAP_PROFILE],
   buttonRemappingDraft: { ...DEFAULT_BUTTON_REMAP_PROFILE.mappings },
@@ -506,28 +508,48 @@ function normalizeControllerProfile(value: unknown): ControllerProfile | null {
   };
 }
 
-function normalizeControllerProfiles(value: unknown): ControllerProfile[] {
+/** Profiles the user picks from the sidebar; game settings profiles are owned by their game. */
+function isUserControllerProfile(profile: ControllerProfile): boolean {
+  return !isGameSettingsProfileId(profile.id);
+}
+
+function hasOtherUserControllerProfile(profiles: ControllerProfile[]): boolean {
+  return profiles.some((profile) => profile.id !== DEFAULT_CONTROLLER_PROFILE_ID && isUserControllerProfile(profile));
+}
+
+function normalizeControllerProfiles(value: unknown, defaultDeleted: boolean): ControllerProfile[] {
   const profiles = Array.isArray(value)
     ? value.map(normalizeControllerProfile).filter((profile): profile is ControllerProfile => profile !== null)
     : [];
   const uniqueProfiles = new Map<string, ControllerProfile>();
-  uniqueProfiles.set(DEFAULT_CONTROLLER_PROFILE_ID, {
-    ...DEFAULT_CONTROLLER_PROFILE,
-    settings: cloneControllerProfileSettings(DEFAULT_CONTROLLER_PROFILE.settings)
-  });
   for (const profile of profiles) {
     if (profile.id === DEFAULT_CONTROLLER_PROFILE_ID) {
       continue;
     }
     uniqueProfiles.set(profile.id, profile);
   }
-  return Array.from(uniqueProfiles.values());
+  const otherProfiles = Array.from(uniqueProfiles.values());
+  // Default stays deleted only while another user profile remains to fall back to.
+  if (defaultDeleted && hasOtherUserControllerProfile(otherProfiles)) {
+    return otherProfiles;
+  }
+  return [
+    {
+      ...DEFAULT_CONTROLLER_PROFILE,
+      settings: cloneControllerProfileSettings(DEFAULT_CONTROLLER_PROFILE.settings)
+    },
+    ...otherProfiles
+  ];
+}
+
+function firstUserControllerProfile(profiles: ControllerProfile[]): ControllerProfile | undefined {
+  return profiles.find(isUserControllerProfile) ?? profiles[0];
 }
 
 function normalizeSelectedControllerProfileId(value: unknown, profiles: ControllerProfile[]): string {
   return typeof value === 'string' && profiles.some((profile) => profile.id === value)
     ? value
-    : profiles[0]?.id ?? DEFAULT_CONTROLLER_PROFILE_ID;
+    : firstUserControllerProfile(profiles)?.id ?? DEFAULT_CONTROLLER_PROFILE_ID;
 }
 
 function restoreDefaultControllerProfile(profiles: ControllerProfile[]): ControllerProfile[] {
@@ -861,7 +883,10 @@ function migratePersistedSettings(value: PersistedSettings): PersistedSettings {
 
 function normalizeSettings(value: Partial<CompanionSettings> | null | undefined): CompanionSettings {
   const selectedPresetId = normalizePresetId(value?.selectedPresetId);
-  const controllerProfiles = normalizeControllerProfiles(value?.controllerProfiles);
+  const controllerProfiles = normalizeControllerProfiles(
+    value?.controllerProfiles,
+    value?.defaultControllerProfileDeleted === true
+  );
   const selectedControllerProfileId = normalizeSelectedControllerProfileId(
     value?.selectedControllerProfileId,
     controllerProfiles
@@ -1030,6 +1055,7 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
       : DEFAULT_SETTINGS.controllerPowerSavingEnabled,
     selectedControllerProfileId,
     controllerProfiles,
+    defaultControllerProfileDeleted: !controllerProfiles.some((profile) => profile.id === DEFAULT_CONTROLLER_PROFILE_ID),
     selectedButtonRemappingProfileId,
     buttonRemappingProfiles,
     buttonRemappingDraft: normalizeRemapMap(value?.buttonRemappingDraft),
@@ -1103,7 +1129,7 @@ export class SettingsStore {
 
   selectControllerProfile(profileId: string): CompanionSettings {
     const profile = this.settings.controllerProfiles.find((candidate) => candidate.id === profileId)
-      ?? this.settings.controllerProfiles[0]
+      ?? firstUserControllerProfile(this.settings.controllerProfiles)
       ?? DEFAULT_CONTROLLER_PROFILE;
     return this.update({
       selectedControllerProfileId: profile.id,
@@ -1201,15 +1227,21 @@ export class SettingsStore {
   }
 
   deleteControllerProfile(profileId: string): CompanionSettings {
-    if (profileId === DEFAULT_CONTROLLER_PROFILE_ID) {
+    const deletingDefault = profileId === DEFAULT_CONTROLLER_PROFILE_ID;
+    if (deletingDefault && !hasOtherUserControllerProfile(this.settings.controllerProfiles)) {
       return this.get();
     }
     const profiles = this.settings.controllerProfiles.filter((profile) => profile.id !== profileId);
-    const fallback = profiles[0]
+    const fallback = profiles.find(isUserControllerProfile)
       ?? DEFAULT_CONTROLLER_PROFILE;
     return this.update({
       selectedControllerProfileId: fallback.id,
       controllerProfiles: profiles,
+      defaultControllerProfileDeleted: deletingDefault || this.settings.defaultControllerProfileDeleted,
+      // A deleted "Launch with profile" choice moves to the profile that replaces it.
+      startupControllerProfileId: this.settings.startupControllerProfileId === profileId
+        ? fallback.id
+        : this.settings.startupControllerProfileId,
       ...fallback.settings
     });
   }

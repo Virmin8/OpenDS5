@@ -94,6 +94,8 @@ export interface CompanionSettings {
   controllerPowerSavingEnabled: boolean;
   selectedControllerProfileId: string;
   controllerProfiles: ControllerProfile[];
+  /** The user deleted the built-in Default profile; it returns once no other user profile remains. */
+  defaultControllerProfileDeleted: boolean;
   selectedButtonRemappingProfileId: string;
   buttonRemappingProfiles: ButtonRemapProfile[];
   buttonRemappingDraft: ButtonRemapMap;

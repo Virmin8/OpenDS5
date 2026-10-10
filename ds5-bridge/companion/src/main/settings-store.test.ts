@@ -169,12 +169,46 @@ describe('SettingsStore', () => {
     const savedProfile = store.updateControllerProfile(profileId);
     expect(savedProfile.controllerProfiles.find((profile) => profile.id === profileId)?.settings.speakerVolumePercent).toBe(42);
 
-    const deletedDefault = store.deleteControllerProfile(DEFAULT_CONTROLLER_PROFILE_ID);
-    expect(deletedDefault.controllerProfiles.some((profile) => profile.id === DEFAULT_CONTROLLER_PROFILE_ID)).toBe(true);
-
     const deleted = store.deleteControllerProfile(profileId);
     expect(deleted.selectedControllerProfileId).toBe(DEFAULT_CONTROLLER_PROFILE_ID);
     expect(deleted.controllerProfiles.map((profile) => profile.id)).toEqual([DEFAULT_CONTROLLER_PROFILE_ID]);
+
+    const deletedOnlyDefault = store.deleteControllerProfile(DEFAULT_CONTROLLER_PROFILE_ID);
+    expect(deletedOnlyDefault.controllerProfiles.map((profile) => profile.id)).toEqual([DEFAULT_CONTROLLER_PROFILE_ID]);
+  });
+
+  it('deletes the default profile once another user profile exists and keeps it deleted', () => {
+    vi.spyOn(Date, 'now').mockReturnValueOnce(0x12345);
+    const userDataPath = tempUserDataPath();
+    const store = new SettingsStore(userDataPath);
+    store.ensureControllerProfile('game:some-game', 'Some Game');
+
+    // A game settings profile is not a user profile, so Default is still protected.
+    expect(store.deleteControllerProfile(DEFAULT_CONTROLLER_PROFILE_ID).controllerProfiles
+      .some((profile) => profile.id === DEFAULT_CONTROLLER_PROFILE_ID)).toBe(true);
+
+    const profileId = store.saveControllerProfile('Couch').selectedControllerProfileId;
+    store.update({ speakerVolumePercent: 37 });
+    store.updateControllerProfile(profileId);
+    store.selectControllerProfile(DEFAULT_CONTROLLER_PROFILE_ID);
+    store.update({ startupControllerProfileId: DEFAULT_CONTROLLER_PROFILE_ID });
+
+    const deleted = store.deleteControllerProfile(DEFAULT_CONTROLLER_PROFILE_ID);
+    expect(deleted.controllerProfiles.map((profile) => profile.id)).toEqual(['game:some-game', profileId]);
+    expect(deleted.selectedControllerProfileId).toBe(profileId);
+    expect(deleted.startupControllerProfileId).toBe(profileId);
+    expect(deleted.speakerVolumePercent).toBe(37);
+    expect(deleted.defaultControllerProfileDeleted).toBe(true);
+
+    const reloaded = new SettingsStore(userDataPath).get();
+    expect(reloaded.controllerProfiles.some((profile) => profile.id === DEFAULT_CONTROLLER_PROFILE_ID)).toBe(false);
+    expect(reloaded.selectedControllerProfileId).toBe(profileId);
+
+    // Removing the last user profile brings Default back rather than selecting a game profile.
+    const lastDeleted = store.deleteControllerProfile(profileId);
+    expect(lastDeleted.controllerProfiles[0]?.id).toBe(DEFAULT_CONTROLLER_PROFILE_ID);
+    expect(lastDeleted.selectedControllerProfileId).toBe(DEFAULT_CONTROLLER_PROFILE_ID);
+    expect(lastDeleted.defaultControllerProfileDeleted).toBe(false);
   });
 
   it('restores the default profile to base settings without discarding custom profiles', () => {
