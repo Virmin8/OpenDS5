@@ -37,22 +37,6 @@ Machines that used the AppImage's system installer must remove its files first
 and `/usr/src/vds_hcd-*`), otherwise pacman reports file conflicts or the old unit
 overrides the packaged one.
 
-## Publish (first time)
-
-1. Create an account on <https://aur.archlinux.org> and add your SSH public key in
-   *My Account*.
-2. For each package, clone its (empty) AUR repository and copy the folder in:
-
-   ```bash
-   git clone ssh://aur@aur.archlinux.org/opends5-bin.git aur-opends5-bin
-   cp -r packaging/aur/opends5-bin/. aur-opends5-bin/
-   cd aur-opends5-bin
-   git add . && git commit -m "Initial import: opends5-bin 1.9.1" && git push
-   ```
-
-   Do the same with `opends5` if you also publish the source package; its AUR
-   repository is named after `pkgbase` and lists `opends5-dkms` automatically.
-
 ## Update for a new release
 
 After the `vX.Y.Z` release (with its AppImage) is published on GitHub, in each folder:
