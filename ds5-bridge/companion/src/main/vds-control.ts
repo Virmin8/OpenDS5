@@ -267,6 +267,8 @@ export async function getVdsAudioStats(): Promise<VdsAudioStats> {
           queueDepth: asNumber(port.queue_depth),
           queueDroppedTotal: asNumber(port.queue_dropped_total),
           trimsTotal: asNumber(port.trims_total),
+          hapticsOnly: port.haptics_only === true,
+          hapticsOnlyTotal: asNumber(port.haptics_only_total),
           blockedTotal: asNumber(port.blocked_total),
           bufferAuto: port.buffer_auto === true,
           headphones: port.headphones === true,

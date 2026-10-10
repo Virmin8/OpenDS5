@@ -1256,12 +1256,11 @@ std::uint8_t HapticsBufferTuner::on_send(std::int64_t gap_us) {
   return length_;
 }
 
-BtReport HapticsPacketBuilder::build_packet(
+void HapticsPacketBuilder::write_audio_blocks(
+    std::span<std::uint8_t> packet, std::uint8_t report_id,
     std::span<const std::int8_t, kHapticsSampleSize> haptics,
-    std::span<const std::uint8_t, kSpeakerOpusSize> speaker,
     std::span<const std::uint8_t, kDsStateSize> state) {
-  BtReport packet{};
-  packet[0] = VDS_BT_HAPTICS_REPORT_ID;
+  packet[0] = report_id;
   packet[1] = report_sequence_ << 4;
   report_sequence_ = (report_sequence_ + 1) & 0x0f;
   packet[2] = 0x11 | (1 << 7);
@@ -1301,10 +1300,29 @@ BtReport HapticsPacketBuilder::build_packet(
   packet[76] = 0x12 | (1 << 7);
   packet[77] = kHapticsSampleSize;
   std::memcpy(packet.data() + 78, haptics.data(), haptics.size());
+}
+
+BtReport HapticsPacketBuilder::build_packet(
+    std::span<const std::int8_t, kHapticsSampleSize> haptics,
+    std::span<const std::uint8_t, kSpeakerOpusSize> speaker,
+    std::span<const std::uint8_t, kDsStateSize> state) {
+  BtReport packet{};
+  write_audio_blocks(packet, VDS_BT_HAPTICS_REPORT_ID, haptics, state);
   packet[kSpeakerBlockOffset] = 0x13 | (1 << 7);
   packet[kSpeakerBlockOffset + 1] = static_cast<std::uint8_t>(kSpeakerOpusSize);
   std::memcpy(packet.data() + kSpeakerDataOffset, speaker.data(),
               speaker.size());
+  fill_output_report_checksum(packet);
+  return packet;
+}
+
+BtHapticsOnlyReport HapticsPacketBuilder::build_haptics_only_packet(
+    std::span<const std::int8_t, kHapticsSampleSize> haptics,
+    std::span<const std::uint8_t, kDsStateSize> state) {
+  static_assert(kSpeakerBlockOffset + sizeof(std::uint32_t) <=
+                kBtHapticsOnlyReportSize);
+  BtHapticsOnlyReport packet{};
+  write_audio_blocks(packet, kBtHapticsOnlyReportId, haptics, state);
   fill_output_report_checksum(packet);
   return packet;
 }
@@ -1327,6 +1345,7 @@ PcmAudioExtractor::push_usb_audio(std::span<const std::uint8_t> pcm_bytes) {
     haptics_input_[speaker_frame_pos_ * kSpeakerChannels + 0] = samples[2];
     haptics_input_[speaker_frame_pos_ * kSpeakerChannels + 1] = samples[3];
     chunk_has_haptics_signal_ |= samples[2] != 0 || samples[3] != 0;
+    chunk_has_speaker_signal_ |= samples[0] != 0 || samples[1] != 0;
     ++speaker_frame_pos_;
 
     if (speaker_frame_pos_ != speaker_input_frames_) {
@@ -1341,9 +1360,11 @@ PcmAudioExtractor::push_usb_audio(std::span<const std::uint8_t> pcm_bytes) {
         speaker_input_.data(), speaker_input_frames_ * kSpeakerChannels));
     chunk.has_signal = chunk_has_signal_;
     chunk.has_haptics_signal = chunk_has_haptics_signal_;
+    chunk.has_speaker_signal = chunk_has_speaker_signal_;
     chunks.push_back(chunk);
     chunk_has_signal_ = false;
     chunk_has_haptics_signal_ = false;
+    chunk_has_speaker_signal_ = false;
   };
 
   while (!pcm_bytes.empty()) {

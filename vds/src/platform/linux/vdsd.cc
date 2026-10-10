@@ -117,6 +117,13 @@ constexpr auto kBluetoothPreemptWait = std::chrono::milliseconds(2000);
 constexpr auto kBluetoothPreemptPoll = std::chrono::milliseconds(100);
 constexpr int kInitialFeatureReportPollMs = 5000;
 constexpr std::size_t kMaxPendingAudioChunks = 8;
+/*
+ * Speaker-silent packets (~1 s) before switching to haptics-only 0x33 reports:
+ * the same haptics and state in about half the airtime of 0x36. Speaker audio
+ * switches back to 0x36 on its first packet; the Opus encoder keeps running on
+ * the silence, so it resumes cleanly.
+ */
+constexpr std::size_t kHapticsOnlyAfterSilentPackets = 94;
 constexpr std::uint8_t kTestCommandReportId = 0x80;
 constexpr std::uint8_t kTestCommandResultReportId = 0x81;
 constexpr std::uint8_t kTestCommandCompleteStatus = 0x02;
@@ -167,6 +174,8 @@ struct AudioStats {
   std::uint8_t buffer_length = 64; // 3 kHz samples
   bool buffer_auto = false;
   std::uint64_t trims_total = 0;
+  bool haptics_only = false;
+  std::uint64_t haptics_only_total = 0;
   Clock::time_point last_send{};
   std::uint64_t packets_total = 0;
   std::uint64_t late_total = 0;
@@ -231,6 +240,7 @@ struct VirtualPort {
   bool audio_primed = false;
   vds::AudioQueueTrimmer queue_trimmer;
   vds::HapticsBufferTuner buffer_tuner;
+  std::size_t silent_speaker_packets = 0;
   vds::HostPersona persona = vds::HostPersona::DualSense;
   vds::PersonaState persona_state;
   bool speaker_waveout_selected = true;
@@ -1773,10 +1783,19 @@ bool flush_pending_audio_chunk(VirtualPort &port,
   const bool output_trace = trace_enabled(trace_flags, kTraceOutput);
   const auto &chunk = port.pending_audio_chunks.front();
   // Haptics gain is applied by the extractor before 8-bit quantization.
-  const auto packet = port.haptics_builder.build_packet(
-      chunk.haptics, chunk.speaker, port.output_state.state());
+  const bool haptics_only =
+      !port.speaker_waveout_active &&
+      port.silent_speaker_packets >= kHapticsOnlyAfterSilentPackets &&
+      !chunk.has_speaker_signal;
   const auto send_start = Clock::now();
-  if (!bt_backend.try_send_output_report(packet)) {
+  const bool sent =
+      haptics_only
+          ? bt_backend.try_send_output_report(
+                port.haptics_builder.build_haptics_only_packet(
+                    chunk.haptics, port.output_state.state()))
+          : bt_backend.try_send_output_report(port.haptics_builder.build_packet(
+                chunk.haptics, chunk.speaker, port.output_state.state()));
+  if (!sent) {
     ++port.trace_state.dropped_audio_haptics_count;
     ++port.trace_state.blocked_audio_haptics_count;
     port.next_haptics_send_time = Clock::now() + kHapticsOutputBlockedRetry;
@@ -1792,6 +1811,15 @@ bool flush_pending_audio_chunk(VirtualPort &port,
   }
 
   const auto send_duration = Clock::now() - send_start;
+  port.silent_speaker_packets =
+      chunk.has_speaker_signal
+          ? 0
+          : std::min(port.silent_speaker_packets + 1,
+                     kHapticsOnlyAfterSilentPackets);
+  port.audio_stats.haptics_only = haptics_only;
+  if (haptics_only) {
+    ++port.audio_stats.haptics_only_total;
+  }
   port.pending_audio_chunks.pop_front();
   port.audio_primed = true;
   // 0x36 packets omit mic fields, so a pending mic mute/unmute still needs
@@ -2581,6 +2609,8 @@ std::string handle_audio_stats_request(std::span<const VirtualPort> ports,
              fixed(1000.0 * stats.buffer_length / VDS_HAPTICS_SAMPLE_RATE, 1);
     reply += std::string(",\"buffer_auto\":") + (stats.buffer_auto ? "true" : "false");
     reply += ",\"trims_total\":" + std::to_string(stats.trims_total);
+    reply += std::string(",\"haptics_only\":") + (stats.haptics_only ? "true" : "false");
+    reply += ",\"haptics_only_total\":" + std::to_string(stats.haptics_only_total);
     reply += ",\"window_seconds\":" + fixed(window_s, 2);
     reply += ",\"packets_per_second\":" +
              fixed(window_s > 0.0 ? stats.window_packets / window_s : 0.0, 1);

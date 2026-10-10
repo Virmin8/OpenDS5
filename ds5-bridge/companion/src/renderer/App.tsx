@@ -4153,8 +4153,7 @@ export function App() {
   const audioBufferLengthControlDisabled = !connected
     || !audioBufferLengthControlSupported
     || pendingAction !== null
-    || audioBufferLengthCommitPending
-    || audioBufferAuto;
+    || audioBufferLengthCommitPending;
   const audioReactiveHapticsRouteSupported = audioReactiveHapticsSupported;
   const audioReactiveHapticsBlocked = !connected
     || !audioReactiveHapticsSupported
@@ -8695,7 +8694,7 @@ export function App() {
                           className={`audio-buffer-control framed-slider ${audioBufferLengthControlDisabled ? 'disabled' : ''}`}
                           style={{ '--range-fill': `${audioBufferPercent(audioBufferLengthValue)}%` } as CSSProperties}
                         >
-                          <div className="audio-buffer-header">
+                          <div className={`audio-buffer-header ${VDS_AVAILABLE ? 'with-auto-switch' : ''}`}>
                             <AudioHapticsConfigLabel
                               id="audio-buffer-length-tooltip"
                               label="Audio Buffer Length"
@@ -8712,6 +8711,7 @@ export function App() {
                                 </>
                               )}
                             </div>
+                            {audioBufferAuto && <span aria-hidden="true" />}
                             {!audioBufferAuto && (
                               <div
                                 className={`audio-buffer-status-icon ${audioBufferZoneTone(audioBufferLengthValue)}`}
@@ -8737,15 +8737,13 @@ export function App() {
                                 </span>
                               </div>
                             )}
-                          </div>
-                          {VDS_AVAILABLE && (
-                            <div className="audio-buffer-auto-row">
-                              <span>Automatic: lowest buffer your Bluetooth link can keep smooth</span>
+                            {VDS_AVAILABLE && (
                               <button
                                 type="button"
                                 role="switch"
                                 aria-checked={audioBufferAuto}
                                 aria-label="Automatic audio buffer length"
+                                title="Automatic: the lowest buffer your Bluetooth link can keep smooth"
                                 className={`switch ${audioBufferAuto ? 'on' : ''}`}
                                 disabled={!connected || !audioBufferLengthControlSupported || pendingAction !== null}
                                 onClick={() => void runAction('audio-buffer-auto', () => (
@@ -8754,8 +8752,9 @@ export function App() {
                               >
                                 <span />
                               </button>
-                            </div>
-                          )}
+                            )}
+                          </div>
+                          {!audioBufferAuto && (
                           <label className="audio-slider-row audio-buffer-slider-row">
                             <div className="range-control audio-buffer-range-control">
                               <input
@@ -8790,6 +8789,7 @@ export function App() {
                               />
                             </div>
                           </label>
+                          )}
                         </div>
                       </div>
                     </>
@@ -11011,6 +11011,7 @@ export function App() {
                                   <dt>Audio</dt>
                                   <dd>
                                     {audio.streaming ? 'Streaming' : 'Idle'}
+                                    {audio.streaming && audio.hapticsOnly ? ' (haptics only)' : ''}
                                     {' · '}
                                     {audio.headphones
                                       ? 'headphones, stereo'

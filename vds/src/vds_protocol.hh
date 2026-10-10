@@ -27,6 +27,11 @@ constexpr std::size_t kSpeakerOpusFrames = 480;
 constexpr std::size_t kSpeakerOpusSize = 200;
 
 using BtReport = std::array<std::uint8_t, kBtHapticsReportSize>;
+// 0x33: the 0x36 layout without the speaker block, for when the speaker is
+// silent; about half the Bluetooth airtime per packet.
+constexpr std::uint8_t kBtHapticsOnlyReportId = 0x33;
+constexpr std::size_t kBtHapticsOnlyReportSize = 206;
+using BtHapticsOnlyReport = std::array<std::uint8_t, kBtHapticsOnlyReportSize>;
 using BtInitReport = std::array<std::uint8_t, kBtInitReportSize>;
 using BtStateReport = std::array<std::uint8_t, kBtStateReportSize>;
 using HapticsChunk = std::array<std::int8_t, kHapticsSampleSize>;
@@ -152,6 +157,7 @@ struct AudioChunk {
   SpeakerChunk speaker;
   bool has_signal = false;
   bool has_haptics_signal = false;
+  bool has_speaker_signal = false;
 };
 
 void fill_output_report_checksum(std::span<std::uint8_t> report);
@@ -176,8 +182,18 @@ public:
   build_packet(std::span<const std::int8_t, kHapticsSampleSize> haptics,
                std::span<const std::uint8_t, kSpeakerOpusSize> speaker,
                std::span<const std::uint8_t, kDsStateSize> state);
+  // Same haptics and state, no speaker audio (report 0x33).
+  BtHapticsOnlyReport build_haptics_only_packet(
+      std::span<const std::int8_t, kHapticsSampleSize> haptics,
+      std::span<const std::uint8_t, kDsStateSize> state);
 
 private:
+  // Report ID, sequence, the 0x11 control, 0x10 state and 0x12 haptics blocks
+  // shared by both report sizes.
+  void write_audio_blocks(std::span<std::uint8_t> packet, std::uint8_t report_id,
+                          std::span<const std::int8_t, kHapticsSampleSize> haptics,
+                          std::span<const std::uint8_t, kDsStateSize> state);
+
   std::uint8_t report_sequence_ = 0;
   std::uint8_t packet_sequence_ = 0;
   std::uint8_t buffer_length_ = 64;
@@ -375,6 +391,7 @@ private:
   std::size_t speaker_frame_pos_ = 0;
   bool chunk_has_signal_ = false;
   bool chunk_has_haptics_signal_ = false;
+  bool chunk_has_speaker_signal_ = false;
 };
 
 std::vector<std::uint8_t> frame_bytes(std::uint16_t type,

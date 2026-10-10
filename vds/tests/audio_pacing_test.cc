@@ -77,10 +77,44 @@ void buffer_tuner() {
   assert(tuner.buffer_length() == Tuner::kMaxLength);
 }
 
+void haptics_only_packet() {
+  vds::HapticsChunk haptics{};
+  for (std::size_t i = 0; i < haptics.size(); ++i) {
+    haptics[i] = static_cast<std::int8_t>(i - 32);
+  }
+  vds::SpeakerChunk speaker{};
+  speaker.fill(0x5a);
+  vds::DsState state{};
+  state[0] = 0x02;
+
+  vds::HapticsPacketBuilder full_builder;
+  vds::HapticsPacketBuilder short_builder;
+  full_builder.set_buffer_length(48);
+  short_builder.set_buffer_length(48);
+  const auto full = full_builder.build_packet(haptics, speaker, state);
+  const auto only = short_builder.build_haptics_only_packet(haptics, state);
+
+  assert(only.size() == vds::kBtHapticsOnlyReportSize);
+  assert(only[0] == vds::kBtHapticsOnlyReportId);
+  // Same control, state and haptics blocks as the full 0x36 report...
+  for (std::size_t i = 1; i < 142; ++i) {
+    assert(only[i] == full[i]);
+  }
+  assert(only[76] == (0x12 | 0x80));
+  // ...and no speaker block, just padding before the checksum.
+  for (std::size_t i = 142; i + 4 < only.size(); ++i) {
+    assert(only[i] == 0);
+  }
+  auto check = only;
+  vds::fill_output_report_checksum(check);
+  assert(check == only);
+}
+
 } // namespace
 
 int main() {
   queue_trimmer();
   buffer_tuner();
+  haptics_only_packet();
   return 0;
 }

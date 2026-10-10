@@ -72,6 +72,9 @@ export type VdsAudioPortStats = {
   queueDroppedTotal: number;
   /** Chunks skipped to drain a standing queue backlog. */
   trimsTotal: number;
+  /** The speaker is silent, so packets carry only haptics (report 0x33). */
+  hapticsOnly: boolean;
+  hapticsOnlyTotal: number;
   blockedTotal: number;
   headphones: boolean;
   speakerMono: boolean;
