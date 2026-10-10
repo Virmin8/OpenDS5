@@ -3,6 +3,47 @@
 Each release's GitHub notes are taken from its section below. Add a new
 `## [x.y.z]` section at the top before tagging `vx.y.z`.
 
+## [1.9.2] - 2026-10-10
+
+OpenDS5 is now on the Arch User Repository, and profiles are easier to manage.
+
+The changes in this release were made by
+[Claude](https://claude.com/claude-code), Anthropic's AI assistant, using
+Claude Code, working with the fork's maintainer.
+
+### Added
+- **AUR packages for Arch Linux and CachyOS.** `opends5-bin` repackages the
+  release AppImage, so there is nothing to compile; `opends5` builds the app
+  and vdsd from source. Both install vdsd, the kernel module (rebuilt by DKMS
+  on kernel updates), the udev rules and the WirePlumber config. When the
+  install finishes, the module is loaded, vdsd is started and you are added
+  to the `vds` group; log out and back in once. Updates come through your AUR
+  helper.
+- **Delete the Default profile** once you have another profile. The app
+  switches to your remaining profile, and so does "Launch with profile" if it
+  was set to Default. Default comes back if you delete all your own profiles,
+  or with Restore Defaults.
+- **Clear message when the app cannot reach vdsd because of permissions.**
+  The Bluetooth tab now says to log out and back in (just added to the `vds`
+  group) or shows the command to add yourself, instead of "EACCES".
+
+### Fixed
+- **Bluetooth tab:** turning on Auto switch no longer makes the card overlap
+  the rest of the page, and the five idle-time buttons fit on one row.
+- **Launch at startup** now works when OpenDS5 is installed as a package, not
+  only from the AppImage.
+
+### Changed
+- The System tab no longer has its own profile dropdown; switch profiles from
+  the sidebar.
+- When OpenDS5 is installed by a package, the setup wizard and the in-app
+  uninstaller are hidden, since the package manager handles both.
+
+### Developer
+- The nix-flake CI job now updates `npmDepsHash` itself when
+  `package-lock.json` changes, and the stale hash that failed every run since
+  1.9.0 is fixed.
+
 ## [1.9.1] - 2026-10-10
 
 Better sound and HD haptics over Bluetooth, new controller shortcuts, and

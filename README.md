@@ -185,7 +185,7 @@ platform:
 | Distro | How the module is installed |
 | --- | --- |
 | **Fedora** | `dnf` installs `dkms` + `kernel-devel` (or `kernel-cachyos-devel` on COPR kernels), then DKMS builds the module |
-| **Arch / CachyOS** | `pacman` installs `dkms` + headers matched to your kernel flavor (`linux-cachyos-headers`, `linux-zen-headers`, …); Clang/LTO kernels build with `LLVM=1` |
+| **Arch / CachyOS** | Install from the AUR (see below), or let the wizard use `pacman` to install `dkms` + headers matched to your kernel flavor (`linux-cachyos-headers`, `linux-zen-headers`, …); Clang/LTO kernels build with `LLVM=1` |
 | **Debian / Ubuntu** | `apt` installs `dkms` + `linux-headers-$(uname -r)` |
 | **openSUSE** | `zypper` installs `dkms` + `kernel-default-devel` |
 | **Bazzite / Silverblue** | `rpm-ostree install dkms kernel-devel` layers the packages; one reboot, then re-run the wizard |
@@ -202,11 +202,45 @@ see [docs/PORTING.md](docs/PORTING.md) for manual steps.
 
 ## 🚀 Getting started
 
-1. Download the latest `OpenDS5.AppImage` from
+Pick one way to install, then pair your controller as described below.
+
+### AppImage (any distro)
+
+1. Download the latest `OpenDS5-Companion-Setup-x.y.z.AppImage` from
    [Releases](../../releases) and make it executable.
 2. Run it. The setup wizard shows exactly what it will install (DKMS kernel
    module, `vdsd` service, udev rules) and does it after one password prompt.
-3. Pair your DualSense as described below, and you're done.
+3. Updates are offered inside the app.
+
+### Arch Linux / CachyOS (AUR)
+
+```bash
+yay -S opends5-bin     # repackages the release AppImage; nothing to compile
+yay -S opends5         # or: builds the app and vdsd from source (uses the system electron39)
+```
+
+Any AUR helper works (`paru`, …). The package installs everything the setup
+wizard would, and DKMS builds the kernel module for each installed kernel. When
+the install finishes it loads the module, starts `vdsd`, and adds you to the
+`vds` group: **log out and back in once** so the app can reach `vdsd`. Updates
+come through your AUR helper instead of the app. If you used the AppImage's
+setup wizard before, remove that install first (see
+[packaging/aur/README.md](packaging/aur/README.md)).
+
+### NixOS
+
+Add the flake and enable the service; the module, `vdsd`, the group and the app
+are all declarative:
+
+```nix
+inputs.opends5.url = "github:Virmin8/OpenDS5";
+# in your nixosConfigurations.<host> modules:
+inputs.opends5.nixosModules.default
+{ services.opends5 = { enable = true; users = [ "YOURNAME" ]; }; }
+```
+
+Then `sudo nixos-rebuild switch`. Full options are in
+[docs/INSTALLER.md](docs/INSTALLER.md#nixos).
 
 ### 🎮 Pairing your controller
 
@@ -233,7 +267,7 @@ controller straight to OpenDS5.
 > app to switch to *normal mode* when you need them (or enable automatic
 > switching), and back to *OpenDS5 mode* to play.
 
-Prefer the terminal? `./OpenDS5.AppImage --install-system` does the same
+Using the AppImage and prefer the terminal? `./OpenDS5.AppImage --install-system` does the same
 setup, and `./OpenDS5.AppImage --uninstall-system [--purge]` removes it all
 again (also available in the app's settings menu). See [docs/INSTALLER.md](docs/INSTALLER.md) for per-platform details,
 exit codes, and logs.
