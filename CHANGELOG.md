@@ -68,31 +68,31 @@ OpenDS5 now installs on Arch and CachyOS as a real pacman package.
 
 ---
 
-## [1.9.1] - 2026-10-10 — clearer Bluetooth audio and HD haptics; controller shortcuts
+## [1.9.1] - 2026-10-10 — speaker and haptics tuning; controller shortcuts
 
-Better sound and haptics over Bluetooth, new controller shortcuts, and every Linux setting now works or is gone.
+Speaker and haptics tuning for Bluetooth, controller shortcuts, and more settings supported over vds.
 **Update from inside the app.**
 
 ### 🔊 Audio
-- **Clearer sound** — band-limited resampler and full-quality Opus.
-- **Louder speaker** — bass filter plus up to +18 dB boost with a limiter.
+- **Speaker encoding** — band-limited resampler and full-quality Opus.
+- **Speaker boost** — bass filter plus up to +18 dB with a limiter.
 - **Mono for the built-in speaker**; headphones stay stereo.
-- **Smooth volume slider**; default preamp gain is now 1.
+- **Even volume steps** on the speaker slider; default preamp gain is 1.
 
 ### 📳 HD haptics
-- **More accurate vibration** — a proper filter replaces simple averaging.
+- **Haptics filter** — a band-limited filter tuned to the actuator range.
 
 ### ✨ Added
 - **Mute-button shortcuts**: Mute + D-pad Up/Down (volume), Left/Right (profile), Triangle (turn off).
-- **Turn Off Controller** (renamed from Sleep) now really turns it off.
-- **Lights restored** after a native DualSense game exits.
+- **Turn Off Controller** (renamed from Sleep) powers the controller off.
+- **Lights restored** when a native DualSense game exits.
+- **More settings over vds**: Audio Buffer Length, Classic Rumble V1, Volume Shortcut, Idle Disconnect, PC Sleep Disconnect.
 - **Audio diagnostics** under System → Diagnostics.
 - **More Idle Disconnect timeouts**: 1 minute, 1 hour, 2 hours.
 
-### 🐛 Fixed
-- **Settings that did nothing over vds now work**: Audio Buffer Length, Classic Rumble V1, Volume Shortcut, Idle Disconnect, PC Sleep Disconnect.
-- **Mute light** no longer comes on.
-- **Settings dialog** no longer overflows.
+### 🔧 Changed
+- **Mute light** stays off, as there's no microphone over vds.
+- **Settings dialog** layout fits its frame.
 
 ### 🗑️ Removed (Linux)
 - **Settings vds can't support** are hidden: Polling Rate, microphone controls, Mute Button Behavior, Emergency Device Repair.
@@ -106,7 +106,7 @@ Better sound and haptics over Bluetooth, new controller shortcuts, and every Lin
 ## [1.9.0] - 2026-10-10 — first fork release: DualShock 4 and Xbox 360 personas, Bluetooth tab
 
 First release of this fork of [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5), based on 1.8.1.
-**Coming from upstream: install this AppImage and run it once.**
+**Switching from LordVicky/OpenDS5:** install this AppImage and run it once.
 
 ### ✨ Added
 - **Controller personas** — appear as a DualShock 4 or Xbox 360 controller.
@@ -119,16 +119,14 @@ First release of this fork of [LordVicky/OpenDS5](https://github.com/LordVicky/O
 - **Full uninstall** from Settings or `--uninstall-system [--purge]`.
 - **Speaker gain** setting (1–7).
 
-### 🐛 Fixed
-- **Speaker crackling and dropouts** over Bluetooth*.
-- **Audio no longer un-mutes** the controller mic*.
-- **Game speaker volume is kept**, not forced to max*.
-- **Plain 4-channel output** in PipeWire/WirePlumber*.
-- **Game scan** no longer freezes on large folders.
-- **App updates rebuild** the kernel module.
-
-<sub>* From [djanice1980/DS5_Bridge](https://github.com/djanice1980/DS5_Bridge).</sub>
-
 ### 🔧 Changed
+- **Speaker pacing and buffering** for Bluetooth*.
+- **Controller mic stays muted** while audio plays*.
+- **Game speaker volume** is kept as set*.
+- **Plain 4-channel output** in PipeWire/WirePlumber*.
+- **Faster game scan** on large folders.
+- **Kernel module rebuilt** on app updates.
 - **Update checks** follow this fork ([Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5)).
 - **Ko-fi badges** removed.
+
+<sub>* From [djanice1980/DS5_Bridge](https://github.com/djanice1980/DS5_Bridge).</sub>
