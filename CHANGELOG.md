@@ -17,9 +17,9 @@ OpenDS5 now installs on Arch Linux and CachyOS as a real pacman package, and
 profiles are easier to manage. **Arch/CachyOS users can switch from the AppImage
 to the package**: download the `opends5-bin-1.9.2-….pkg.tar.zst` file below and
 run `sudo pacman -U` on the downloaded file (not the link; the package is
-unsigned), or use the install script in the README, which also removes the
-AppImage's earlier setup. **Log out and back in once** after the
-first install. AppImage users on other distributions update as usual.
+unsigned). If you set up the AppImage's driver before, remove that setup first,
+as described in the README. **Log out and back in once** after the first
+install. AppImage users on other distributions update as usual.
 
 The changes in this release were made by
 [Claude](https://claude.com/claude-code), Anthropic's AI assistant, using
@@ -34,7 +34,7 @@ Claude Code, working with the fork's maintainer.
   and the `vds_hcd` module source, which DKMS rebuilds on every kernel update.
   A pacman hook then loads the module, starts `vdsd` and adds the installing
   user to `vds`. `packaging/aur/` also has `opends5-bin` and a build-from-source
-  `opends5` for the AUR, and `install.sh` for installing without an AUR helper.
+  `opends5` for the AUR.
 - **The Default profile can be deleted once you have another profile.** Default
   was a protected built-in that the app always put back. It can now go as long
   as one of your own profiles remains; the app switches to that profile, and so

@@ -220,15 +220,8 @@ yay -S opends5         # or: builds the app and vdsd from source (uses the syste
 ```
 
 Any AUR helper works (`paru`, …). Without one, every release also has a ready
-pacman package (`opends5-bin-x.y.z-1-x86_64.pkg.tar.zst`). This script installs
-the latest one and offers to clean up an earlier AppImage setup first (run it
-again to update):
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Virmin8/OpenDS5/main/packaging/aur/install.sh)
-```
-
-Or download a release's `.pkg.tar.zst` and install it with
+pacman package: download `opends5-bin-x.y.z-1-x86_64.pkg.tar.zst` from
+[Releases](../../releases) and install it with
 `sudo pacman -U ./opends5-bin-x.y.z-1-x86_64.pkg.tar.zst`. (Give pacman the
 downloaded file, not the link: the package is unsigned, and pacman only accepts
 unsigned packages from local files.)

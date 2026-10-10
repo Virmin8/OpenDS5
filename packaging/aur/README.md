@@ -23,15 +23,7 @@ an AUR helper. (This needs a release newer than 1.9.1; on 1.9.1 the in-app
 The release workflow builds `opends5-bin` from the release AppImage and attaches it to
 every GitHub release. Download it and run `sudo pacman -U ./opends5-bin-….pkg.tar.zst`;
 pacman refuses it as a URL because the package is unsigned (`RemoteFileSigLevel`
-requires a signature, `LocalFileSigLevel` does not). `install.sh` finds the latest
-one, offers to remove an earlier AppImage installer setup, downloads it and runs
-`pacman -U` on the file:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Virmin8/OpenDS5/main/packaging/aur/install.sh)
-```
-
-Use `bash <(…)` rather than `curl … | bash`, so pacman's prompts can read the keyboard.
+requires a signature, `LocalFileSigLevel` does not).
 
 ## Test a package locally
 
