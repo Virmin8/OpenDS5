@@ -279,6 +279,35 @@ setup, and `./OpenDS5.AppImage --uninstall-system [--purge]` removes it all
 again (also available in the app's settings menu). See [docs/INSTALLER.md](docs/INSTALLER.md) for per-platform details,
 exit codes, and logs.
 
+### 🔊 If controller audio crackles
+
+To keep HD haptics tight, OpenDS5 runs the controller's audio in small 2.7 ms
+blocks. A slower or busy PC may not keep up, which sounds like crackling from
+the controller speaker or feels like stuttering haptics. Go back to PipeWire's
+usual, larger blocks by creating
+`~/.config/wireplumber/wireplumber.conf.d/99-opends5-latency.conf`:
+
+```
+monitor.alsa.rules = [
+  {
+    matches = [
+      { node.name = "~alsa_output.usb-Sony_Interactive_Entertainment_DualSense.*" }
+    ]
+    actions = {
+      update-props = {
+        node.latency = "256/48000"
+        api.alsa.period-size = 256
+        api.alsa.period-num = 3
+      }
+    }
+  }
+]
+```
+
+Then run `systemctl --user restart wireplumber pipewire pipewire-pulse` (this
+briefly cuts all sound) and reconnect the controller. Delete the file to go back
+to the low-latency default.
+
 ## 🕹️ Controller shortcuts
 
 Turn each shortcut on in **Settings → Shortcuts**. They all use the **Mute**

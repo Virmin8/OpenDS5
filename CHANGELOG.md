@@ -42,6 +42,14 @@ controller or machine.
   Automatic is off, instead of an extra row that pushed the slider out of the
   card and dimmed the whole control.
 
+### Changed
+- **Lower PipeWire latency on the controller's audio.** PipeWire used 5.3 ms
+  blocks and a 3 x 256-frame device buffer for the virtual DualSense, about
+  5-16 ms before vdsd even saw the haptics. The shipped WirePlumber rule now asks
+  for 2.7 ms blocks and a 2 x 128-frame buffer on that output only. **If
+  controller audio crackles on your PC**, the README shows how to go back to the
+  larger blocks.
+
 ### Verified on hardware
 - HD haptics in Final Fantasy VII Rebirth over Bluetooth on CachyOS: the
   automatic buffer tracked the link and felt tighter than the fixed 64, and
@@ -50,6 +58,9 @@ controller or machine.
   rejected: sending with no spare chunk (the queue kept running dry) and
   16-sample haptics packets every 5.3 ms (haptics felt broken; the DualSense
   needs 32 samples per packet).
+- The lower PipeWire latency in the same game: haptics felt cleaner and tighter,
+  with no PipeWire xruns, no warnings in its log and no vdsd refills over a
+  4-minute session.
 
 ## [1.9.2] - 2026-10-10 — pacman and AUR packages; delete the Default profile
 
