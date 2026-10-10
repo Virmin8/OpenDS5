@@ -97,7 +97,8 @@ in supported games just work — no cable.
 ## 🆕 What's new in this fork
 
 This fork builds on [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5)
-1.8.1 with the following additions:
+1.8.1, the original OpenDS5 by [LordVicky](https://github.com/LordVicky),
+with the following additions:
 
 ### Controller personas (DualShock 4 / Xbox 360)
 - The `vds_hcd` kernel module gains two new virtual USB profiles: a
@@ -119,6 +120,9 @@ This fork builds on [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5)
   bridged) and attach or detach controllers from vds.
 
 ### Audio fixes
+Credit for these goes to
+[djanice1980/DS5_Bridge](https://github.com/djanice1980/DS5_Bridge).
+
 - Speaker packets are now paced to the 512-frame extraction window
   (~10.67 ms) with a small priming buffer, fixing periodic crackles and
   underruns over Bluetooth.
@@ -275,6 +279,13 @@ and can't do:
 
 OpenDS5 wouldn't exist without these projects — thank you:
 
+- [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5) — the original
+  OpenDS5 by [LordVicky](https://github.com/LordVicky), which this fork is
+  built on: the Linux port, Trigger Lab, game profiles, the installer and
+  the app itself.
+- [djanice1980/DS5_Bridge](https://github.com/djanice1980/DS5_Bridge) — the
+  source of the audio fixes in this fork: speaker packet pacing, buffering,
+  mic mute handling and speaker gain.
 - [hurryman2212/vds](https://github.com/hurryman2212/vds) — the virtual
   DualSense kernel module and daemon that make the wireless-to-wired bridge
   possible on Linux in the first place (MIT).
