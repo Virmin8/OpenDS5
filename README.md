@@ -32,7 +32,6 @@ its native features unlocked, even though you're playing over Bluetooth.
 - [Getting started](#-getting-started)
 - [How it works](#%EF%B8%8F-how-it-works)
 - [Limitations of custom trigger profiles](#%EF%B8%8F-honest-limitations-of-custom-trigger-profiles)
-- [Contributing game profiles](#-contributing-game-profiles)
 - [Credits & license](#-credits--license)
 
 ## ✨ Features
@@ -47,16 +46,10 @@ its native features unlocked, even though you're playing over Bluetooth.
 - 🎭 **Controller personas** — present your DualSense to the PC as a
   **DualShock 4** or an **Xbox 360** controller for games that don't support
   the DualSense, switchable from the app without dropping the Bluetooth link.
-- 🎯 **Per-game trigger profiles** — OpenDS5 detects the game you're running and
-  applies your saved trigger effects automatically. Great for games with no
-  native DualSense support. Games from **Steam, Heroic and Lutris** are found
-  automatically, and any game can be linked to one of your own controller
-  profiles.
-- 📚 **Profile library** — browse and install community-made game profiles from
-  inside the app. The library lives in its own repo
-  ([OpenDS5-Profiles](https://github.com/LordVicky/OpenDS5-Profiles)), so new
-  game profiles arrive without waiting for an app update. Import/export lets
-  you share profiles as plain JSON files.
+- 🎯 **Game-linked profiles** — link any installed game to one of your own
+  controller profiles and OpenDS5 switches to it automatically while that game
+  is running. Games from **Steam, Heroic and Lutris** are detected
+  automatically.
 - 🔊 **Haptics & controller audio** — route sound to the controller's speaker
   and headphone jack, with haptic feedback support.
 - 💡 **Lighting** — control the lightbar and player LEDs.
@@ -239,8 +232,7 @@ OpenDS5 stands on the shoulders of some great projects:
   [SundayMoments](https://github.com/SundayMoments) built a Windows companion
   GUI on top of DS5Dongle, and it's where OpenDS5 began. We ported it to
   Linux, swapped the Pico hardware for vds, and then kept building on that
-  foundation — a trigger effect designer, per-game profiles, a community
-  profile library, and a one-click installer.
+  foundation — a trigger effect designer and a one-click installer.
 - [**vds**](https://github.com/hurryman2212/vds) by
   [hurryman2212](https://github.com/hurryman2212) is the breakthrough that
   brought all of this to Linux. Where DS5Dongle needed a Pico plugged into
@@ -277,14 +269,6 @@ and can't do:
   (`multi-feedback`, `slope`, `multi-vibration`, frequency-controlled
   `vibration`) use the V2 trigger command. If they do nothing, update the
   daemon with `./update-vdsd.sh`.
-
-## 🤝 Contributing game profiles
-
-Made a trigger profile you like? Export it from the app and open a PR against
-[OpenDS5-Profiles](https://github.com/LordVicky/OpenDS5-Profiles) — one game
-per PR, branch named after the game. CI validates profiles with the same
-rules the app enforces, and merged profiles appear in everyone's in-app
-library automatically.
 
 ## 🙏 Credits & license
 
