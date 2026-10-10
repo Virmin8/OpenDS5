@@ -117,10 +117,26 @@ jobs:
           case "${GITHUB_REF_NAME}" in
             *-*) prerelease="--prerelease" ;;
           esac
+          # Notes come from the tag's "## [x.y.z]" section of CHANGELOG.md;
+          # without one, fall back to GitHub's generated notes.
+          awk -v v="${GITHUB_REF_NAME#v}" '
+            /^## / {
+              if (found) exit
+              h = $0; sub(/^## \[?/, "", h); split(h, part, /[] ]/)
+              if (part[1] == v) { found = 1; next }
+            }
+            found
+          ' CHANGELOG.md > /tmp/release-notes.md
+          if [ -s /tmp/release-notes.md ]; then
+            notes=(--notes-file /tmp/release-notes.md)
+          else
+            echo "no CHANGELOG.md section for ${GITHUB_REF_NAME}; generating notes"
+            notes=(--generate-notes)
+          fi
           gh release create "${GITHUB_REF_NAME}" \
             --title "OpenDS5 ${GITHUB_REF_NAME}" \
             --target "${GITHUB_SHA}" \
-            --generate-notes \
+            "${notes[@]}" \
             ${prerelease} \
             ds5-bridge/companion/artifacts/installer/*.AppImage \
             ds5-bridge/companion/artifacts/installer/*.AppImage.sha256
