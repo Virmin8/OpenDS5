@@ -46,7 +46,15 @@ if [ ${#leftovers[@]} -gt 0 ]; then
   sudo systemctl daemon-reload
 fi
 
+# pacman requires a signature for packages given as a URL (RemoteFileSigLevel), but
+# not for local files, and the release package is unsigned: download it first.
+work=$(mktemp -d)
+trap 'rm -rf -- "$work"' EXIT
+package="$work/${url##*/}"
+echo "==> Downloading ${url##*/}"
+curl -fL --progress-bar -o "$package" "$url"
+
 echo "==> Installing ${url##*/}"
-sudo pacman -U --needed "$url"
+sudo pacman -U --needed "$package"
 
 echo "==> Done. If you were just added to the vds group, log out and back in, then start OpenDS5."

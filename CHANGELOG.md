@@ -15,9 +15,10 @@ controller or machine.
 
 OpenDS5 now installs on Arch Linux and CachyOS as a real pacman package, and
 profiles are easier to manage. **Arch/CachyOS users can switch from the AppImage
-to the package**: download `opends5-bin-1.9.2-1-x86_64.pkg.tar.zst` below and
-run `sudo pacman -U` on it, or use the install script in the README, which also
-removes the AppImage's earlier setup. **Log out and back in once** after the
+to the package**: download the `opends5-bin-1.9.2-….pkg.tar.zst` file below and
+run `sudo pacman -U` on the downloaded file (not the link; the package is
+unsigned), or use the install script in the README, which also removes the
+AppImage's earlier setup. **Log out and back in once** after the
 first install. AppImage users on other distributions update as usual.
 
 The changes in this release were made by

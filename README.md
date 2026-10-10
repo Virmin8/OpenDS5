@@ -228,8 +228,10 @@ again to update):
 bash <(curl -fsSL https://raw.githubusercontent.com/Virmin8/OpenDS5/main/packaging/aur/install.sh)
 ```
 
-Or install a release's package directly with
-`sudo pacman -U <link to the .pkg.tar.zst on the Releases page>`.
+Or download a release's `.pkg.tar.zst` and install it with
+`sudo pacman -U ./opends5-bin-x.y.z-1-x86_64.pkg.tar.zst`. (Give pacman the
+downloaded file, not the link: the package is unsigned, and pacman only accepts
+unsigned packages from local files.)
 
 The package installs everything the setup
 wizard would, and DKMS builds the kernel module for each installed kernel. When
