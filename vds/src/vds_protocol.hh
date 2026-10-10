@@ -183,6 +183,63 @@ private:
   std::uint8_t buffer_length_ = 64;
 };
 
+// Keeps the queue between USB audio and Bluetooth sends at one spare chunk.
+// Input and output run at the same rate, so a backlog left by a burst would
+// otherwise add its latency for the rest of the stream.
+class AudioQueueTrimmer {
+public:
+  // Packets per window (~2 s); trims at most once per window.
+  static constexpr std::size_t kWindowPackets = 188;
+  // The chunk being sent plus one spare: with none, USB bursts that do not
+  // line up with the send times keep running the queue dry.
+  static constexpr std::size_t kTargetMinDepth = 2;
+
+  // Call before each send with the queue depth, including the chunk about to
+  // be sent. True when the queue never fell to the target over the window, so
+  // one chunk should be dropped.
+  bool should_trim(std::size_t depth);
+  // The queue ran dry and will re-prime.
+  void reset();
+
+private:
+  std::size_t window_packets_ = 0;
+  std::size_t window_min_depth_ = SIZE_MAX;
+};
+
+// Picks the controller's audio buffer (packet buffer_length, 3 kHz samples)
+// from the gaps between Bluetooth sends, re-checked after every packet: the
+// buffer covers the 3rd-longest gap of the last ~3 s plus headroom. It rises on
+// the packet that brings a third spike into the window and falls as soon as
+// spikes age out, allowing at most ~2 late packets per window.
+class HapticsBufferTuner {
+public:
+  // 13.3 ms: one packet interval (10.7 ms) plus a little jitter.
+  static constexpr std::uint8_t kMinLength = 40;
+  static constexpr std::uint8_t kMaxLength = 128;
+  static constexpr std::int64_t kHeadroomUs = 2000;
+  // ~3 s of packets.
+  static constexpr std::size_t kWindowPackets = 282;
+  // The buffer covers the window's Nth-longest gap, so N - 1 may be late.
+  static constexpr std::size_t kCoveredRank = 3;
+
+  HapticsBufferTuner() = default;
+  explicit HapticsBufferTuner(std::uint8_t initial);
+
+  // Call after each send with the gap since the previous one. Returns the
+  // buffer length to use from now on.
+  std::uint8_t on_send(std::int64_t gap_us);
+  std::uint8_t buffer_length() const { return length_; }
+
+private:
+  std::uint8_t length_ = 64;
+  // Buffer length each packet in the window needed, oldest at next_.
+  std::array<std::uint8_t, kWindowPackets> needed_{};
+  std::size_t next_ = 0;
+  std::size_t filled_ = 0;
+  // How many packets in the window needed each length.
+  std::array<std::uint16_t, 256> counts_{};
+};
+
 // The state the controller holds after a 0x36 audio packet built from `state`:
 // 0x36 packets omit the mic/power-save fields, so those stay as they were in
 // `previous` (the last state actually sent). Use this when tracking what has

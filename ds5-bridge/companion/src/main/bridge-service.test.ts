@@ -79,7 +79,7 @@ vi.mock('./audio-helper', async (importOriginal) => {
   };
 });
 
-import { BridgeService } from './bridge-service';
+import { BridgeService, hapticsBufferCommandValue } from './bridge-service';
 import { SettingsStore } from './settings-store';
 
 type StatusOverrides = {
@@ -2835,5 +2835,16 @@ describe('BridgeService', () => {
     await poll(service);
 
     await expect(service.setHapticsGain(80)).rejects.toThrow('did not advance settings_revision');
+  });
+});
+
+describe('hapticsBufferCommandValue', () => {
+  it('asks vdsd on Linux to tune the buffer while automatic is on', () => {
+    expect(hapticsBufferCommandValue({ hapticsBufferAuto: true, hapticsBufferLength: 64 }, 'linux')).toBe(0);
+    expect(hapticsBufferCommandValue({ hapticsBufferAuto: false, hapticsBufferLength: 48 }, 'linux')).toBe(48);
+  });
+
+  it('always sends the fixed length to the Windows firmware, which rejects 0', () => {
+    expect(hapticsBufferCommandValue({ hapticsBufferAuto: true, hapticsBufferLength: 64 }, 'win32')).toBe(64);
   });
 });

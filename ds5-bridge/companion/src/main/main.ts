@@ -1440,6 +1440,7 @@ function registerIpc(
     service.setFeedbackBoostEnabled(value)
   ));
   ipcMain.handle('bridge:setHapticsBufferLength', (_event, value: number) => service.setHapticsBufferLength(value));
+  ipcMain.handle('bridge:setHapticsBufferAuto', (_event, enabled: boolean) => service.setHapticsBufferAuto(Boolean(enabled)));
   ipcMain.handle('bridge:setClassicRumbleGain', (_event, value: number) => service.setClassicRumbleGain(value));
   ipcMain.handle('bridge:setClassicRumbleEnabled', (_event, value: boolean) => service.setClassicRumbleEnabled(value));
   ipcMain.handle('bridge:setClassicRumbleV1Enabled', (_event, value: boolean) => (

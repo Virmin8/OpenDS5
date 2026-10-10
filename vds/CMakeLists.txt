@@ -204,11 +204,14 @@ target_link_libraries(speaker_mono_test PRIVATE vds_protocol)
 add_executable(rumble_mode_test tests/rumble_mode_test.cc)
 target_link_libraries(rumble_mode_test PRIVATE vds_protocol)
 
+add_executable(audio_pacing_test tests/audio_pacing_test.cc)
+target_link_libraries(audio_pacing_test PRIVATE vds_protocol)
+
 enable_testing()
 foreach(vds_test trigger_effect_v2_test speaker_gain_test bt_input_report_test
                  persona_test speaker_resampler_test
                  speaker_enhancer_test haptics_resampler_test
-                 speaker_mono_test rumble_mode_test)
+                 speaker_mono_test rumble_mode_test audio_pacing_test)
   # The tests use assert(); keep them active in Release builds too.
   target_compile_options(${vds_test} PRIVATE -UNDEBUG)
   add_test(NAME ${vds_test} COMMAND ${vds_test})

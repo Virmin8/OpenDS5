@@ -1201,6 +1201,61 @@ DsState state_after_audio_packet(const std::optional<DsState> &previous,
   return result;
 }
 
+bool AudioQueueTrimmer::should_trim(std::size_t depth) {
+  window_min_depth_ = std::min(window_min_depth_, depth);
+  if (++window_packets_ < kWindowPackets) {
+    return false;
+  }
+  const bool trim = window_min_depth_ > kTargetMinDepth;
+  reset();
+  return trim;
+}
+
+void AudioQueueTrimmer::reset() {
+  window_packets_ = 0;
+  window_min_depth_ = SIZE_MAX;
+}
+
+namespace {
+
+// Buffer length (3 kHz samples) that covers `us`, rounded up.
+std::int64_t haptics_samples_for_us(std::int64_t us) {
+  return (us * VDS_HAPTICS_SAMPLE_RATE + 999999) / 1000000;
+}
+
+} // namespace
+
+HapticsBufferTuner::HapticsBufferTuner(std::uint8_t initial)
+    : length_(std::clamp(initial, kMinLength, kMaxLength)) {}
+
+std::uint8_t HapticsBufferTuner::on_send(std::int64_t gap_us) {
+  const auto needed = static_cast<std::uint8_t>(std::clamp<std::int64_t>(
+      haptics_samples_for_us(gap_us + kHeadroomUs), 0, 255));
+  if (filled_ == kWindowPackets) {
+    --counts_[needed_[next_]];
+  } else {
+    ++filled_;
+  }
+  needed_[next_] = needed;
+  ++counts_[needed];
+  next_ = (next_ + 1) % kWindowPackets;
+
+  if (filled_ < kCoveredRank) {
+    return length_;
+  }
+  // The Nth-largest need in the window.
+  std::size_t seen = 0;
+  for (std::size_t length = counts_.size(); length-- > 0;) {
+    seen += counts_[length];
+    if (seen >= kCoveredRank) {
+      length_ = static_cast<std::uint8_t>(std::clamp<std::size_t>(
+          length, kMinLength, kMaxLength));
+      break;
+    }
+  }
+  return length_;
+}
+
 BtReport HapticsPacketBuilder::build_packet(
     std::span<const std::int8_t, kHapticsSampleSize> haptics,
     std::span<const std::uint8_t, kSpeakerOpusSize> speaker,

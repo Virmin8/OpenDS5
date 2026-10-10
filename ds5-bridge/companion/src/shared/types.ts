@@ -50,6 +50,8 @@ export interface CompanionSettings {
   hapticsGainPercent: number;
   feedbackBoostEnabled: boolean;
   hapticsBufferLength: number;
+  /** vdsd picks the buffer length from Bluetooth timing; hapticsBufferLength is used when off. */
+  hapticsBufferAuto: boolean;
   classicRumbleEnabled: boolean;
   classicRumbleGainPercent: number;
   classicRumbleV1Enabled: boolean;

@@ -11,6 +11,31 @@ followed by what was wrong or missing and what changed. Add
 `### Verified on hardware` only for what was actually tested on a real
 controller or machine.
 
+## [Unreleased]
+
+### Added
+- **Automatic Audio Buffer Length (Linux).** The controller's audio buffer was a
+  fixed value, so it had to be set high enough for the worst Bluetooth moments
+  and added that delay to every haptic all the time. vdsd now sets it after every
+  packet from the gaps between Bluetooth sends: it covers the 3rd-longest gap of
+  the last ~3 s, rises on the packet that brings a third spike into that window
+  and falls as soon as spikes age out. On a clean link the buffer drops from
+  21 ms to as low as 13 ms. It is on by default; switch it off under Audio
+  Buffer Length to use a fixed value. Diagnostics shows the live value.
+
+### Fixed
+- **No standing backlog in vdsd's send queue.** Audio comes in from USB and goes
+  out over Bluetooth at the same rate, so a backlog left by a burst stayed as
+  extra haptics delay for the rest of the stream. vdsd now skips one chunk when
+  the queue holds more than one spare for ~2 s, and restarts after running dry
+  on 2 chunks instead of 3. Diagnostics counts the trimmed chunks.
+
+### Verified on hardware
+- HD haptics in Final Fantasy VII Rebirth over Bluetooth on CachyOS: the
+  automatic buffer tracked the link and felt tighter than the fixed 64. Sending
+  with no spare chunk was also tried and rejected, because the queue kept running
+  dry.
+
 ## [1.9.2] - 2026-10-10 — pacman and AUR packages; delete the Default profile
 
 OpenDS5 now installs on Arch Linux and CachyOS as a real pacman package, and

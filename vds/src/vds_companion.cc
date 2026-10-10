@@ -331,11 +331,15 @@ std::uint8_t apply_command(CompanionRuntime &runtime,
     return kAckOk;
   }
   case 0x0B: // SET_HAPTICS_BUFFER_LENGTH (clamped like the firmware)
-    if (value == 0 || value > 255) {
+    if (value > 255) {
       return kAckErrInvalidValue;
     }
-    settings.haptics_buffer_length =
-        static_cast<std::uint8_t>(std::clamp<std::uint16_t>(value, 16, 128));
+    // 0 is a vdsd extension: tune the buffer automatically.
+    settings.haptics_buffer_auto = value == 0;
+    if (value != 0) {
+      settings.haptics_buffer_length =
+          static_cast<std::uint8_t>(std::clamp<std::uint16_t>(value, 16, 128));
+    }
     return kAckOk;
   // Settings accepted and stored by the app but not yet actuated here.
   case 0x12: // SET_POLLING_RATE_MODE

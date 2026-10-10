@@ -28,6 +28,8 @@ struct CompanionSettings {
   bool classic_rumble_v1 = false;
   // DualSense audio buffer length written into every 0x36 packet header.
   std::uint8_t haptics_buffer_length = 64;
+  // vdsd picks the buffer length from measured Bluetooth send gaps.
+  bool haptics_buffer_auto = false;
   std::uint16_t trigger_effect_intensity_percent = 100;
   bool player_led_enabled = true;
   bool led_enabled = true;

@@ -104,10 +104,14 @@ constexpr auto kAudioOutputInterval = std::chrono::microseconds(
  */
 constexpr auto kMaxAudioCatchup = 2 * kAudioOutputInterval;
 /*
- * Chunks to buffer after the queue runs dry before sending again, so USB/BT
- * jitter does not immediately underrun the speaker (~32 ms).
+ * Chunks to buffer after the queue runs dry before sending again (~21 ms).
+ * Input and output run at the same rate, so this stays as latency on every
+ * speaker sample and haptic for the rest of the stream; AudioQueueTrimmer keeps
+ * it from growing past this. One chunk is not enough: USB delivers audio in
+ * bursts that do not line up with the send times, and the queue keeps running
+ * dry (tested: refills climbed continuously).
  */
-constexpr std::size_t kAudioPrimeChunks = 3;
+constexpr std::size_t kAudioPrimeChunks = 2;
 constexpr auto kHapticsOutputBlockedRetry = std::chrono::milliseconds(2);
 constexpr auto kBluetoothPreemptWait = std::chrono::milliseconds(2000);
 constexpr auto kBluetoothPreemptPoll = std::chrono::milliseconds(100);
@@ -161,6 +165,8 @@ struct LatencyTraceStats {
  */
 struct AudioStats {
   std::uint8_t buffer_length = 64; // 3 kHz samples
+  bool buffer_auto = false;
+  std::uint64_t trims_total = 0;
   Clock::time_point last_send{};
   std::uint64_t packets_total = 0;
   std::uint64_t late_total = 0;
@@ -223,6 +229,8 @@ struct VirtualPort {
   std::optional<vds::BtStateReport> pending_bt_state_report;
   Clock::time_point next_haptics_send_time{};
   bool audio_primed = false;
+  vds::AudioQueueTrimmer queue_trimmer;
+  vds::HapticsBufferTuner buffer_tuner;
   vds::HostPersona persona = vds::HostPersona::DualSense;
   vds::PersonaState persona_state;
   bool speaker_waveout_selected = true;
@@ -675,6 +683,7 @@ void reset_virtual_port(VirtualPort &port) {
   port.waveout_extractor =
       vds::PcmAudioExtractor{kLinuxSpeakerInputFrames};
   port.haptics_builder = vds::HapticsPacketBuilder{};
+  port.haptics_builder.set_buffer_length(port.audio_stats.buffer_length);
   port.output_state = vds::DsOutputState{};
   port.pending_audio_chunks.clear();
   port.audio_primed = false;
@@ -1752,6 +1761,15 @@ bool flush_pending_audio_chunk(VirtualPort &port,
     return true;
   }
 
+  if (!port.audio_primed) {
+    port.queue_trimmer.reset();
+  }
+  if (port.queue_trimmer.should_trim(port.pending_audio_chunks.size())) {
+    // A standing backlog is pure haptics latency: skip one chunk to drain it.
+    port.pending_audio_chunks.pop_front();
+    ++port.audio_stats.trims_total;
+  }
+
   const bool output_trace = trace_enabled(trace_flags, kTraceOutput);
   const auto &chunk = port.pending_audio_chunks.front();
   // Haptics gain is applied by the extractor before 8-bit quantization.
@@ -1804,6 +1822,10 @@ bool flush_pending_audio_chunk(VirtualPort &port,
       if (gap_us > buffer_us) {
         ++stats.late_total;
         ++stats.window_late;
+      }
+      if (stats.buffer_auto) {
+        stats.buffer_length = port.buffer_tuner.on_send(gap_us);
+        port.haptics_builder.set_buffer_length(stats.buffer_length);
       }
     }
   }
@@ -2557,6 +2579,8 @@ std::string handle_audio_stats_request(std::span<const VirtualPort> ports,
     reply += ",\"buffer_length\":" + std::to_string(stats.buffer_length);
     reply += ",\"buffer_ms\":" +
              fixed(1000.0 * stats.buffer_length / VDS_HAPTICS_SAMPLE_RATE, 1);
+    reply += std::string(",\"buffer_auto\":") + (stats.buffer_auto ? "true" : "false");
+    reply += ",\"trims_total\":" + std::to_string(stats.trims_total);
     reply += ",\"window_seconds\":" + fixed(window_s, 2);
     reply += ",\"packets_per_second\":" +
              fixed(window_s > 0.0 ? stats.window_packets / window_s : 0.0, 1);
@@ -3091,8 +3115,11 @@ void apply_companion_state(std::vector<VirtualPort> &ports,
       continue;
     }
     port.haptics_gain_percent = settings.haptics_gain_percent;
-    port.haptics_builder.set_buffer_length(settings.haptics_buffer_length);
-    port.audio_stats.buffer_length = settings.haptics_buffer_length;
+    port.audio_stats.buffer_auto = settings.haptics_buffer_auto;
+    port.audio_stats.buffer_length = settings.haptics_buffer_auto
+                                         ? port.buffer_tuner.buffer_length()
+                                         : settings.haptics_buffer_length;
+    port.haptics_builder.set_buffer_length(port.audio_stats.buffer_length);
     port.output_state.set_companion_overrides(overrides);
     try {
       forward_bt_state_if_changed(port, *controller->backend, trace_flags,

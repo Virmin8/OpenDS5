@@ -137,6 +137,18 @@ const LIGHTBAR_BRIGHTNESS_STEP = 10;
 const TRIGGER_EFFECT_STEP = 10;
 const AUDIO_REACTIVE_HAPTICS_FIXED_GAIN_PERCENT = 100;
 const AUDIO_REACTIVE_HAPTICS_SUPPRESS_CLASSIC_RUMBLE_MODE_FLAG = 0x80;
+
+/**
+ * SET_HAPTICS_BUFFER_LENGTH value: 0 asks vdsd (Linux) to tune the buffer from its
+ * Bluetooth timing. The DS5 Bridge firmware on Windows rejects 0, so it always gets
+ * the fixed length.
+ */
+export function hapticsBufferCommandValue(
+  settings: Pick<CompanionSettings, 'hapticsBufferAuto' | 'hapticsBufferLength'>,
+  platform: NodeJS.Platform = process.platform
+): number {
+  return platform === 'linux' && settings.hapticsBufferAuto ? 0 : settings.hapticsBufferLength;
+}
 const SONY_VENDOR_ID = 0x054c;
 const DUALSENSE_PRODUCT_IDS = new Set([0x0ce6, 0x0df2]);
 const WINDOWS_DEVICE_CLEANUP_RELATIVE_PATH = path.join('tools', 'windows', 'clean-ds5bridge-devices.ps1');
@@ -2297,7 +2309,18 @@ export class BridgeService extends EventEmitter {
 
   async setHapticsBufferLength(length: number): Promise<BridgeSnapshot> {
     const value = Math.max(16, Math.min(128, Math.round(length)));
-    await this.sendSettingCommand(COMMAND_ID.SET_HAPTICS_BUFFER_LENGTH, value, { hapticsBufferLength: value });
+    await this.sendSettingCommand(COMMAND_ID.SET_HAPTICS_BUFFER_LENGTH, value, {
+      hapticsBufferLength: value,
+      hapticsBufferAuto: false
+    });
+    return this.getSnapshot();
+  }
+
+  async setHapticsBufferAuto(enabled: boolean): Promise<BridgeSnapshot> {
+    const settings = { ...this.settingsStore.get(), hapticsBufferAuto: enabled };
+    await this.sendSettingCommand(COMMAND_ID.SET_HAPTICS_BUFFER_LENGTH, hapticsBufferCommandValue(settings), {
+      hapticsBufferAuto: enabled
+    });
     return this.getSnapshot();
   }
 
@@ -3927,7 +3950,7 @@ export class BridgeService extends EventEmitter {
     await this.sendCommand(COMMAND_ID.SET_HAPTICS_GAIN, this.effectiveHapticsGain(settings), {
       expectSettingsRevisionChange
     });
-    await this.sendCommand(COMMAND_ID.SET_HAPTICS_BUFFER_LENGTH, settings.hapticsBufferLength, {
+    await this.sendCommand(COMMAND_ID.SET_HAPTICS_BUFFER_LENGTH, hapticsBufferCommandValue(settings), {
       expectSettingsRevisionChange
     });
     await this.applyAudioReactiveHapticsSettings(settings, expectSettingsRevisionChange);

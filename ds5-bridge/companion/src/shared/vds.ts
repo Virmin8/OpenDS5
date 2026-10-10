@@ -55,6 +55,8 @@ export type VdsAudioPortStats = {
   /** Controller audio buffer, in 3 kHz samples and milliseconds. */
   bufferLength: number;
   bufferMs: number;
+  /** vdsd is tuning bufferLength from its send gaps. */
+  bufferAuto: boolean;
   /** Measured since the previous poll. */
   windowSeconds: number;
   packetsPerSecond: number;
@@ -68,6 +70,8 @@ export type VdsAudioPortStats = {
   refillsTotal: number;
   queueDepth: number;
   queueDroppedTotal: number;
+  /** Chunks skipped to drain a standing queue backlog. */
+  trimsTotal: number;
   blockedTotal: number;
   headphones: boolean;
   speakerMono: boolean;

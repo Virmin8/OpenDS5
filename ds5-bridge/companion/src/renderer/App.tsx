@@ -4148,10 +4148,13 @@ export function App() {
     ? 'Waiting for the controller to re-enumerate.'
     : audioPathLabel;
   const audioPathTone = connected && !personaTransitionActive ? 'good' : 'idle';
+  // vdsd can tune the buffer itself from its Bluetooth timing (Linux only).
+  const audioBufferAuto = VDS_AVAILABLE && Boolean(snapshot?.settings.hapticsBufferAuto);
   const audioBufferLengthControlDisabled = !connected
     || !audioBufferLengthControlSupported
     || pendingAction !== null
-    || audioBufferLengthCommitPending;
+    || audioBufferLengthCommitPending
+    || audioBufferAuto;
   const audioReactiveHapticsRouteSupported = audioReactiveHapticsSupported;
   const audioReactiveHapticsBlocked = !connected
     || !audioReactiveHapticsSupported
@@ -8700,33 +8703,59 @@ export function App() {
                               className="audio-buffer-title"
                             />
                             <div className="audio-buffer-readout">
-                              <strong>{audioBufferLengthValue}</strong>
-                              <span>{audioBufferDelayLabel(audioBufferLengthValue)}</span>
+                              {audioBufferAuto ? (
+                                <strong>Auto</strong>
+                              ) : (
+                                <>
+                                  <strong>{audioBufferLengthValue}</strong>
+                                  <span>{audioBufferDelayLabel(audioBufferLengthValue)}</span>
+                                </>
+                              )}
                             </div>
-                            <div
-                              className={`audio-buffer-status-icon ${audioBufferZoneTone(audioBufferLengthValue)}`}
-                              aria-label={audioBufferZoneLabel(audioBufferLengthValue)}
-                              aria-describedby="audio-buffer-zone-tooltip"
-                              tabIndex={0}
-                            >
-                              {audioBufferZoneTone(audioBufferLengthValue) === 'safe' && (
-                                <IconCircleCheck size={18} stroke={2.35} aria-hidden="true" />
-                              )}
-                              {audioBufferZoneTone(audioBufferLengthValue) === 'risky' && (
-                                <IconAlertTriangle size={18} stroke={2.35} aria-hidden="true" />
-                              )}
-                              {audioBufferZoneTone(audioBufferLengthValue) === 'stutter' && (
-                                <IconAlertHexagon size={18} stroke={2.35} aria-hidden="true" />
-                              )}
-                              <span
-                                id="audio-buffer-zone-tooltip"
-                                className="settings-shortcut-tooltip shortcut-glyph-tooltip audio-buffer-zone-tooltip"
-                                role="tooltip"
+                            {!audioBufferAuto && (
+                              <div
+                                className={`audio-buffer-status-icon ${audioBufferZoneTone(audioBufferLengthValue)}`}
+                                aria-label={audioBufferZoneLabel(audioBufferLengthValue)}
+                                aria-describedby="audio-buffer-zone-tooltip"
+                                tabIndex={0}
                               >
-                                {audioBufferZoneTooltip(audioBufferLengthValue)}
-                              </span>
-                            </div>
+                                {audioBufferZoneTone(audioBufferLengthValue) === 'safe' && (
+                                  <IconCircleCheck size={18} stroke={2.35} aria-hidden="true" />
+                                )}
+                                {audioBufferZoneTone(audioBufferLengthValue) === 'risky' && (
+                                  <IconAlertTriangle size={18} stroke={2.35} aria-hidden="true" />
+                                )}
+                                {audioBufferZoneTone(audioBufferLengthValue) === 'stutter' && (
+                                  <IconAlertHexagon size={18} stroke={2.35} aria-hidden="true" />
+                                )}
+                                <span
+                                  id="audio-buffer-zone-tooltip"
+                                  className="settings-shortcut-tooltip shortcut-glyph-tooltip audio-buffer-zone-tooltip"
+                                  role="tooltip"
+                                >
+                                  {audioBufferZoneTooltip(audioBufferLengthValue)}
+                                </span>
+                              </div>
+                            )}
                           </div>
+                          {VDS_AVAILABLE && (
+                            <div className="audio-buffer-auto-row">
+                              <span>Automatic: lowest buffer your Bluetooth link can keep smooth</span>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={audioBufferAuto}
+                                aria-label="Automatic audio buffer length"
+                                className={`switch ${audioBufferAuto ? 'on' : ''}`}
+                                disabled={!connected || !audioBufferLengthControlSupported || pendingAction !== null}
+                                onClick={() => void runAction('audio-buffer-auto', () => (
+                                  window.bridge.setHapticsBufferAuto(!audioBufferAuto)
+                                ))}
+                              >
+                                <span />
+                              </button>
+                            </div>
+                          )}
                           <label className="audio-slider-row audio-buffer-slider-row">
                             <div className="range-control audio-buffer-range-control">
                               <input
@@ -10990,7 +11019,7 @@ export function App() {
                                 </div>
                                 <div>
                                   <dt>Buffer</dt>
-                                  <dd>{audio.bufferLength} samples · {audio.bufferMs.toFixed(1)} ms</dd>
+                                  <dd>{audio.bufferLength} samples · {audio.bufferMs.toFixed(1)} ms{audio.bufferAuto ? ' · auto' : ''}</dd>
                                 </div>
                                 <div>
                                   <dt>Delivery</dt>
@@ -11012,7 +11041,7 @@ export function App() {
                                 <div>
                                   <dt>Queue</dt>
                                   <dd title="Refills: the send queue ran dry mid-stream. Dropped: chunks discarded because the queue was full. Blocked: Bluetooth sends that had to wait.">
-                                    {audio.queueDepth} queued · {audio.refillsTotal} refills · {audio.queueDroppedTotal} dropped · {audio.blockedTotal} blocked
+                                    {audio.queueDepth} queued · {audio.refillsTotal} refills · {audio.trimsTotal} trimmed · {audio.queueDroppedTotal} dropped · {audio.blockedTotal} blocked
                                   </dd>
                                 </div>
                               </Fragment>
