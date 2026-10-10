@@ -97,8 +97,14 @@ in supported games just work — no cable.
 ## 🆕 What's new in this fork
 
 This fork builds on [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5)
-1.8.1, the original OpenDS5 by [LordVicky](https://github.com/LordVicky),
-with the following additions:
+1.8.1, the original OpenDS5 by [LordVicky](https://github.com/LordVicky).
+
+> [!NOTE]
+> The changes in this fork were made by
+> [Claude](https://claude.com/claude-code), Anthropic's AI assistant, using
+> Claude Code, working with the fork's maintainer.
+
+The additions:
 
 ### Controller personas (DualShock 4 / Xbox 360)
 - The `vds_hcd` kernel module gains two new virtual USB profiles: a
