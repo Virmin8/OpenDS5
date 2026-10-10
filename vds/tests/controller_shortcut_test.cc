@@ -2,6 +2,7 @@
 #include <array>
 #include <cassert>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <thread>
 
@@ -139,6 +140,36 @@ int main() {
     assert((feed(runtime, state, 0, kHatNeutral).buttons & kPs) != 0);
     std::this_thread::sleep_for(100ms);
     assert((feed(runtime, state, 0, kHatNeutral).buttons & kPs) == 0);
+  }
+
+  // Idle Disconnect activity rules.
+  {
+    std::array<std::uint8_t, 64> idle{};
+    idle[0] = 0x01;
+    idle[1] = idle[2] = idle[3] = idle[4] = 128; // sticks centred
+    idle[8] = kHatNeutral;
+    assert(!vds::controller_input_active(idle));
+    auto drift = idle;
+    drift[1] = 136; // stick noise inside the centre band
+    assert(!vds::controller_input_active(drift));
+    auto stick = idle;
+    stick[3] = 200;
+    assert(vds::controller_input_active(stick));
+    auto trigger = idle;
+    trigger[6] = 1;
+    assert(vds::controller_input_active(trigger));
+    auto dpad = idle;
+    dpad[8] = kHatUp;
+    assert(vds::controller_input_active(dpad));
+    auto face = idle;
+    face[8] = kHatNeutral | 0x20; // cross
+    assert(vds::controller_input_active(face));
+    auto ps = idle;
+    ps[10] = kPs;
+    assert(vds::controller_input_active(ps));
+    auto motion = idle;
+    for (std::size_t i = 16; i < 28; ++i) motion[i] = 0x55; // gyro/accel
+    assert(!vds::controller_input_active(motion));
   }
 
   // D-pad without Mute is untouched.

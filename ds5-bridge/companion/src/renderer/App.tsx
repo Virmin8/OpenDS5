@@ -476,9 +476,12 @@ const AUDIO_REACTIVE_HAPTICS_FIELD_TOOLTIPS = {
   release: 'Controls how quickly the haptics fade when a sound drops.'
 } as const;
 const IDLE_DISCONNECT_TIMEOUT_OPTIONS: Array<[string, number]> = [
+  ['1 min', 1],
   ['5 min', 5],
   ['15 min', 15],
-  ['30 min', 30]
+  ['30 min', 30],
+  ['1 hour', 60],
+  ['2 hours', 120]
 ];
 const UI_SCALE_OPTIONS: Array<[string, UiScalePercent]> = [
   ['75%', 75],

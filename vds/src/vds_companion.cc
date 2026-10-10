@@ -260,8 +260,8 @@ std::uint8_t apply_command(CompanionRuntime &runtime,
   case 0x1B: // SET_MIC_MUTE
     settings.mic_muted = value != 0;
     return kAckOk;
-  case 0x1C: // SET_IDLE_DISCONNECT_TIMEOUT
-    if (value == 0 || value > 600) {
+  case 0x1C: // SET_IDLE_DISCONNECT_TIMEOUT (minutes)
+    if (value == 0 || value > 120) {
       return kAckErrInvalidValue;
     }
     settings.idle_disconnect_timeout_minutes = value;
@@ -798,6 +798,19 @@ std::uint32_t apply_ps_gate(const CompanionRuntime &runtime,
 }
 
 } // namespace
+
+bool controller_input_active(std::span<const std::uint8_t> report) {
+  if (report.size() < 11) {
+    return false;
+  }
+  const auto stick_moved = [](std::uint8_t value) {
+    return value < 120 || value > 140;
+  };
+  return stick_moved(report[1]) || stick_moved(report[2]) ||
+         stick_moved(report[3]) || stick_moved(report[4]) || report[5] > 0 ||
+         report[6] > 0 || report[kDpadByte] != 0x08 || report[9] != 0 ||
+         report[10] != 0;
+}
 
 void companion_translate_input(CompanionRuntime &runtime,
                                CompanionInputState &state,

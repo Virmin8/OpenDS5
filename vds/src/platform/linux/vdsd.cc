@@ -227,6 +227,8 @@ struct VirtualPort {
   std::uint16_t haptics_gain_percent = 100;
   std::uint8_t battery_status = 0xff;
   bool headphones_plugged = false;
+  // Idle Disconnect: last input that counts as activity.
+  Clock::time_point last_input_activity{};
   // Diagnostic counters: the `audio` control request resets the window part.
   mutable AudioStats audio_stats;
   vds::CompanionInputState companion_input;
@@ -668,6 +670,7 @@ void reset_virtual_port(VirtualPort &port) {
   port.haptics_gain_percent = 100;
   port.battery_status = 0xff;
   port.headphones_plugged = false;
+  port.last_input_activity = {};
   port.audio_stats = {};
   port.companion_input = {};
   port.feature_cache = {};
@@ -1101,6 +1104,30 @@ bool handle_bt_input(VirtualPort &port, vds::BtL2capBackend &bt_backend,
   auto report = bt_backend.read_input_report();
   if (!report) {
     return false;
+  }
+  // Idle Disconnect, checked on the raw report (before shortcuts or remapping
+  // hide buttons). Turning the controller off drops the link like the
+  // companion's Turn Off; the normal hang-up path then cleans up.
+  if (port.last_input_activity == Clock::time_point{} ||
+      vds::controller_input_active(*report)) {
+    port.last_input_activity = read_time;
+  } else if (companion.settings.idle_disconnect_enabled &&
+             read_time - port.last_input_activity >
+                 std::chrono::minutes(
+                     companion.settings.idle_disconnect_timeout_minutes)) {
+    port.last_input_activity = read_time;
+    logger.log("bluetooth", vds::LogLevel::Info,
+               "idle for " +
+                   std::to_string(companion.settings.idle_disconnect_timeout_minutes) +
+                   " min; turning controller off address=" +
+                   bt_backend.address());
+    try {
+      (void)vds::disconnect_bluez_device(bt_backend.address());
+    } catch (const std::exception &error) {
+      logger.log("bluetooth", vds::LogLevel::Warn,
+                 "idle turn off failed address=" + bt_backend.address() +
+                     " error=" + error.what());
+    }
   }
   vds::companion_translate_input(companion, port.companion_input,
                                  std::span<std::uint8_t>(*report));

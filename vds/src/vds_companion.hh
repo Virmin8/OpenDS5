@@ -32,7 +32,7 @@ struct CompanionSettings {
   bool player_led_enabled = true;
   bool led_enabled = true;
   bool idle_disconnect_enabled = false;
-  std::uint16_t idle_disconnect_timeout_minutes = 10;
+  std::uint16_t idle_disconnect_timeout_minutes = 15; // 1-120, like the firmware
   std::uint16_t speaker_volume_percent = 100;
   std::uint8_t speaker_gain_level = 1;
   std::uint8_t lightbar_red = 0;
@@ -137,6 +137,11 @@ struct CompanionRuntime {
 // companion button remap table and detects chord bindings (starter held +
 // button pressed), queueing their event codes for the app to poll via the
 // companion INPUT report.
+// Idle Disconnect activity (DS5 Bridge firmware rules): any button, a
+// trigger, or a stick outside the 120-140 centre band. Motion does not count,
+// so a controller lying on a desk is idle. `report` is the USB input report.
+bool controller_input_active(std::span<const std::uint8_t> report);
+
 void companion_translate_input(CompanionRuntime &runtime,
                                CompanionInputState &state,
                                std::span<std::uint8_t> report);
