@@ -3,20 +3,21 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/LordVicky/OpenDS5/actions/workflows/release.yml"><img src="https://github.com/LordVicky/OpenDS5/actions/workflows/release.yml/badge.svg" alt="release build"></a>
+  <a href="https://github.com/Virmin8/OpenDS5/actions/workflows/release.yml"><img src="https://github.com/Virmin8/OpenDS5/actions/workflows/release.yml/badge.svg" alt="release build"></a>
+  <a href="https://github.com/Virmin8/OpenDS5/releases"><img src="https://img.shields.io/github/v/release/Virmin8/OpenDS5" alt="latest release"></a>
   <a href="ds5-bridge/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue" alt="license: AGPL-3.0-only"></a>
-  <a href="https://github.com/LordVicky/OpenDS5/releases"><img src="https://img.shields.io/github/v/release/LordVicky/OpenDS5" alt="latest release"></a>
   <a href="https://discord.gg/hg5AF3zM5D"><img src="https://img.shields.io/badge/Discord-join%20server-5865F2?logo=discord&logoColor=white" alt="Discord server"></a>
 </p>
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Linux%20AppImage-blue" alt="platform: Linux AppImage">
+  <img src="https://img.shields.io/badge/platform-Linux-blue" alt="platform: Linux">
+  <img src="https://img.shields.io/badge/install-AppImage%20%C2%B7%20pacman%20%C2%B7%20NixOS-blue" alt="install: AppImage, pacman, NixOS">
   <img src="https://img.shields.io/badge/hardware-none%20required-success" alt="no extra hardware required">
 </p>
 
-**Everything your DualSense can do, on Linux, without the cable.** OpenDS5
-lets you shape your controller's adaptive triggers, haptics, audio, lighting,
-and buttons from one app — while your games see a wired DualSense with all
-its native features unlocked, even though you're playing over Bluetooth.
+**Everything your DualSense can do, on Linux, without the cable.** Shape your
+controller's adaptive triggers, haptics, audio, lighting and buttons from one
+app, while games see a wired DualSense with all its native features, even over
+Bluetooth.
 
 <p align="center">
   <img src="docs/screenshots/overview.png" alt="OpenDS5 Overview — connection status, quick actions and quick controls" width="850">
@@ -26,58 +27,39 @@ its native features unlocked, even though you're playing over Bluetooth.
 
 - [Features](#-features)
 - [Screenshots](#-screenshots)
-- [Why the "wired" part matters](#-why-the-wired-part-matters)
-- [What's new in this fork](#-whats-new-in-this-fork)
-- [Supported distros](#-supported-distros)
+- [Why "wired" matters](#-why-wired-matters)
 - [Getting started](#-getting-started) · [Pairing](#-pairing-your-controller)
+- [Supported distros](#-supported-distros)
 - [Controller shortcuts](#%EF%B8%8F-controller-shortcuts)
+- [Troubleshooting](#-troubleshooting)
 - [How it works](#%EF%B8%8F-how-it-works)
-- [Limitations of custom trigger profiles](#%EF%B8%8F-honest-limitations-of-custom-trigger-profiles)
+- [Limitations of custom trigger profiles](#%EF%B8%8F-limitations-of-custom-trigger-profiles)
+- [About this fork](#-about-this-fork)
 - [Credits & license](#-credits--license)
 
 ## ✨ Features
 
-- 🎮 **Wireless-to-wired bridge (via vds)** — play Bluetooth, look wired.
-  Unlocks native DualSense features in games that normally demand a cable.
-  OpenDS5 installs and manages vds for you, so this works out of the box.
-- 🧪 **Trigger Lab** — design your own adaptive trigger effects with the full
-  DualSense effect surface: constant resistance, weapon-style breaks,
-  vibration, resistance ramps, and 10-zone custom curves. Live-preview
-  everything on your controller.
-- 🎭 **Controller personas** — present your DualSense to the PC as a
-  **DualShock 4** or an **Xbox 360** controller for games that don't support
-  the DualSense, switchable from the app without dropping the Bluetooth link.
-- 🎯 **Game-linked profiles** — link any installed game to one of your own
-  controller profiles and OpenDS5 switches to it automatically while that game
-  is running. Games from **Steam, Heroic and Lutris** are detected
-  automatically.
-- 🔊 **Haptics & controller audio** — route sound to the controller's speaker
-  and headphone jack, with haptic feedback support.
-- 💡 **Lighting** — control the lightbar and player LEDs.
-- 🎛️ **Button remapping, personas & chords** — remap buttons, save setups as
-  switchable personas, and trigger actions with button combinations.
-- 📶 **Bluetooth mode switching** — flip between *OpenDS5 mode* (vds owns the
-  controller) and *normal mode* (your Bluetooth keyboards, mice and other
-  pads work again) from the app, or let it switch automatically when no
-  controller has been connected for a while.
-- 🕹️ **Controller shortcuts** — change speaker volume, cycle profiles or turn
-  the controller off without leaving your game (Mute + D-pad / Triangle). See
-  [Controller shortcuts](#%EF%B8%8F-controller-shortcuts).
-- 📦 **Painless install — and uninstall** — one AppImage. A first-launch setup
-  wizard installs the kernel module and background service for you (one
-  password prompt), with Secure Boot handled. App updates rebuild the kernel
-  module automatically, and a one-click uninstaller removes everything again.
-  See [Supported distros](#-supported-distros).
+- 🎮 **Wireless, but wired to your games** — native adaptive triggers, HD haptics and speaker audio over Bluetooth.
+- 📳 **Low-latency HD haptics** — the controller buffer follows your Bluetooth link packet by packet.
+- 🧪 **Trigger Lab** — design adaptive trigger effects (resistance, breaks, vibration, ramps, 10-zone curves) with live preview.
+- 🎭 **Controller personas** — appear as a **DualShock 4** or **Xbox 360** controller for games without DualSense support.
+- 🎯 **Game-linked profiles** — switch profiles automatically while a game runs; finds **Steam, Heroic and Lutris** games.
+- 🔊 **Audio** — controller speaker and headphone jack, with a loudness boost for the built-in speaker.
+- 💡 **Lighting** — lightbar and player LEDs.
+- 🎛️ **Remapping & chords** — remap buttons and trigger actions with button combos.
+- 📶 **Bluetooth modes** — switch between OpenDS5 mode and normal mode (keyboards and mice work again), or automatically.
+- 🕹️ **Controller shortcuts** — volume, profile and power on the Mute button, mid-game.
+- 📦 **Easy install & uninstall** — AppImage with a setup wizard, a pacman package for Arch, or a NixOS flake.
 
 ## 📸 Screenshots
 
 | | |
 | --- | --- |
-| **Game Profiles** — your games with cover art and native-feature flags ![Game Profile tab](docs/screenshots/game-profile.png) | **Add Game** — pick from your Steam, Heroic and Lutris libraries and choose the profile to use while playing ![Add Game dialog](docs/screenshots/add-game.png) |
-| **Bluetooth** — switch Bluetooth modes and attach or detach controllers ![Bluetooth tab](docs/screenshots/bluetooth.png) | **Triggers** — adaptive trigger strength with a built-in effect tester ![Triggers tab](docs/screenshots/triggers.png) |
+| **Game Profiles** — your games with cover art and native-feature flags ![Game Profile tab](docs/screenshots/game-profile.png) | **Add Game** — pick from Steam, Heroic and Lutris and choose a profile ![Add Game dialog](docs/screenshots/add-game.png) |
+| **Bluetooth** — switch modes and attach or detach controllers ![Bluetooth tab](docs/screenshots/bluetooth.png) | **Triggers** — trigger strength with a built-in effect tester ![Triggers tab](docs/screenshots/triggers.png) |
 
 <details>
-<summary><b>More screenshots</b> — audio, haptics, trigger lab, lighting, remapping, chords, system, settings</summary>
+<summary><b>More screenshots</b> — audio, haptics, Trigger Lab, lighting, remapping, chords, system, settings</summary>
 
 | | |
 | --- | --- |
@@ -88,156 +70,40 @@ its native features unlocked, even though you're playing over Bluetooth.
 
 </details>
 
-## 🔌 Why the "wired" part matters
+## 🔌 Why "wired" matters
 
-Many games with native DualSense support (adaptive triggers, haptics,
-controller audio) only enable those features when the controller is plugged
-in over USB. Over plain Bluetooth you get a basic gamepad and nothing else.
-
-With vds running under OpenDS5, your controller stays wireless but games see
-a USB-connected DualSense. Native trigger effects, haptics, and speaker audio
-in supported games just work — no cable.
-
-## 🆕 What's new in this fork
-
-This fork builds on [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5)
-1.8.1, the original OpenDS5 by [LordVicky](https://github.com/LordVicky).
-
-> [!NOTE]
-> The changes in this fork were made by
-> [Claude](https://claude.com/claude-code), Anthropic's AI assistant, using
-> Claude Code, working with the fork's maintainer.
-
-The additions:
-
-### Controller personas (DualShock 4 / Xbox 360)
-- The `vds_hcd` kernel module gains two new virtual USB profiles: a
-  **DualShock 4** (`054c:09cc`, HID) and an **Xbox 360 wired controller**
-  (`045e:028e`, XUSB, bound by the kernel's `xpad` driver).
-- `vdsd` translates DualSense input into DS4 / XInput reports and maps
-  rumble and lightbar output back onto the DualSense. DS4 feature reports
-  (calibration, MAC) are answered from the real controller's data.
-- Pick the persona in the app (`SET_HOST_PERSONA`); the virtual controller
-  re-enumerates with the new identity while the Bluetooth link stays up.
-
-### Bluetooth mode and controller management
-- New **Bluetooth** panel: switch between OpenDS5 mode and normal mode
-  (BlueZ input plugin back on, so other Bluetooth input devices work).
-- Optional **auto switching**: drop to normal mode after a configurable idle
-  time (10 s – 1 h) with no controller connected, and return to OpenDS5 mode
-  as soon as a registered DualSense connects.
-- See every paired controller's state (paired / connected / attached /
-  bridged) and attach or detach controllers from vds.
-
-### Audio fixes
-Credit for these goes to
-[djanice1980/DS5_Bridge](https://github.com/djanice1980/DS5_Bridge).
-
-- Speaker packets are now paced to the 512-frame extraction window
-  (~10.67 ms) with a small priming buffer, fixing periodic crackles and
-  underruns over Bluetooth.
-- Sending audio no longer un-mutes the microphone, and the speaker volume
-  set by the game or app is kept instead of being forced to max.
-- New `SET_SPEAKER_GAIN` command (preamp levels 1–7).
-- The WirePlumber config now forces a plain 4.0 sink (speaker + haptics) for
-  the virtual DualSense / DualSense Edge, and the installer restarts
-  WirePlumber so it applies without logging out.
-
-### Companion app
-- **Game library**: installed games are detected from Steam, **Heroic Games
-  Launcher** and **Lutris**, with a search box; scanning no longer stalls on
-  large game binaries.
-- **Profile when playing**: link a game to one of your own controller
-  profiles; auto switching selects it whenever that game is running.
-- **Launch with profile** and **Start minimized** (open in the tray) settings,
-  plus a proper login item (XDG autostart entry) for the AppImage.
-- **Diagnostics**: view the `vdsd` log and toggle input/output tracing from
-  the app.
-- **Test Triggers**: vds has no microphone path, so the Overview's microphone
-  quick action is replaced with a button that plays a test effect on the
-  triggers.
-- **Uninstall** from the settings menu, optionally purging app settings.
-
-### Installer
-- `opends5-install --uninstall [--purge]` (or
-  `./OpenDS5.AppImage --uninstall-system`) removes the module, `vdsd`, udev
-  rules, WirePlumber config, BlueZ override, `vds` group and launcher. Every
-  step runs even if an earlier one fails, and is logged.
-- `--rebuild-module` forces a fresh DKMS build; app updates use it so a newly
-  shipped module replaces the loaded one.
-- The BlueZ override script is always installed, so `vdsd` can switch
-  Bluetooth modes at runtime.
-
-### Tests
-- New C++ tests for personas, Bluetooth input reports and speaker gain
-  (`ctest` in `vds/`), an installer uninstall test, and updated companion
-  tests.
-
-## 🐧 Supported distros
-
-OpenDS5 ships a small kernel module (`vds_hcd`, from vds) that it installs
-through **DKMS** — your distro's standard mechanism for out-of-tree modules.
-DKMS builds the module against your running kernel and automatically rebuilds
-it on every future kernel update, so it keeps working after upgrades. The
-setup wizard handles all of this; the table below shows what it does on each
-platform:
-
-| Distro | How the module is installed |
-| --- | --- |
-| **Fedora** | `dnf` installs `dkms` + `kernel-devel` (or `kernel-cachyos-devel` on COPR kernels), then DKMS builds the module |
-| **Arch / CachyOS** | Install from the AUR (see below), or let the wizard use `pacman` to install `dkms` + headers matched to your kernel flavor (`linux-cachyos-headers`, `linux-zen-headers`, …); Clang/LTO kernels build with `LLVM=1` |
-| **Debian / Ubuntu** | `apt` installs `dkms` + `linux-headers-$(uname -r)` |
-| **openSUSE** | `zypper` installs `dkms` + `kernel-default-devel` |
-| **Bazzite / Silverblue** | `rpm-ostree install dkms kernel-devel` layers the packages; one reboot, then re-run the wizard |
-| **NixOS** | Declarative flake module — add `inputs.opends5.nixosModules.default`, enable `services.opends5`, then apply with `nixos-rebuild switch` |
-
-On every DKMS platform the installer then registers the module source under
-`/usr/src/`, builds it, and enables autoload — after that, kernel updates are
-handled for you. **Secure Boot** is supported too: the module is signed with
-DKMS's own MOK key, and if that key isn't enrolled yet the wizard walks you
-through the one-reboot enrollment.
-
-On anything else, the installer exits with a clear "unsupported" message —
-see [docs/PORTING.md](docs/PORTING.md) for manual steps.
+Many games only enable adaptive triggers, HD haptics and controller audio when
+the DualSense is plugged in over USB; over plain Bluetooth you get a basic
+gamepad. OpenDS5 keeps your controller wireless but shows games a USB-connected
+DualSense, so those features just work.
 
 ## 🚀 Getting started
 
-Pick one way to install, then pair your controller as described below.
+Pick one install method, then [pair your controller](#-pairing-your-controller).
 
 ### AppImage (any distro)
 
-1. Download the latest `OpenDS5-Companion-Setup-x.y.z.AppImage` from
-   [Releases](../../releases) and make it executable.
-2. Run it. The setup wizard shows exactly what it will install (DKMS kernel
-   module, `vdsd` service, udev rules) and does it after one password prompt.
+1. Download `OpenDS5-Companion-Setup-x.y.z.AppImage` from [Releases](../../releases) and make it executable.
+2. Run it. The setup wizard shows what it will install (kernel module, `vdsd` service, udev rules) and asks for your password once.
 3. Updates are offered inside the app.
 
-### Arch Linux / CachyOS (AUR)
+### Arch Linux / CachyOS (pacman)
 
-```bash
-yay -S opends5-bin     # repackages the release AppImage; nothing to compile
-yay -S opends5         # or: builds the app and vdsd from source (uses the system electron39)
-```
+1. Download `opends5-bin-x.y.z-1-x86_64.pkg.tar.zst` from [Releases](../../releases).
+2. Install the downloaded file (pacman only accepts the unsigned package as a file, not a link):
+   ```bash
+   sudo pacman -U ./opends5-bin-x.y.z-1-x86_64.pkg.tar.zst
+   ```
+3. **Log out and back in once**, so you're in the `vds` group.
 
-Any AUR helper works (`paru`, …). Without one, every release also has a ready
-pacman package: download `opends5-bin-x.y.z-1-x86_64.pkg.tar.zst` from
-[Releases](../../releases) and install it with
-`sudo pacman -U ./opends5-bin-x.y.z-1-x86_64.pkg.tar.zst`. (Give pacman the
-downloaded file, not the link: the package is unsigned, and pacman only accepts
-unsigned packages from local files.)
-
-The package installs everything the setup
-wizard would, and DKMS builds the kernel module for each installed kernel. When
-the install finishes it loads the module, starts `vdsd`, and adds you to the
-`vds` group: **log out and back in once** so the app can reach `vdsd`. Updates
-come through your AUR helper instead of the app. If you used the AppImage's
-setup wizard before, remove that install first (see
-[packaging/aur/README.md](packaging/aur/README.md)).
+The package loads the module, starts `vdsd` and adds you to `vds` automatically.
+Update by installing the next release's package; `sudo pacman -R opends5-bin`
+removes everything except your settings. If you used the AppImage's setup
+wizard before, remove that setup first (see
+[packaging/aur/README.md](packaging/aur/README.md)). AUR recipes are in
+[`packaging/aur/`](packaging/aur/) for building with `makepkg`.
 
 ### NixOS
-
-Add the flake and enable the service; the module, `vdsd`, the group and the app
-are all declarative:
 
 ```nix
 inputs.opends5.url = "github:Virmin8/OpenDS5";
@@ -246,45 +112,67 @@ inputs.opends5.nixosModules.default
 { services.opends5 = { enable = true; users = [ "YOURNAME" ]; }; }
 ```
 
-Then `sudo nixos-rebuild switch`. Full options are in
-[docs/INSTALLER.md](docs/INSTALLER.md#nixos).
+Then `sudo nixos-rebuild switch`. Options are in [docs/INSTALLER.md](docs/INSTALLER.md#nixos).
 
 ### 🎮 Pairing your controller
 
-Pairing happens through your desktop's normal Bluetooth settings, then the
-controller is handed over to OpenDS5:
+1. In OpenDS5, open the **Bluetooth** tab and set **Bluetooth Mode** to **Normal**.
+2. Hold **Create** + **PS** for about three seconds, until the lightbar flashes rapidly.
+3. Pair the controller in your desktop's Bluetooth settings.
+4. Back in OpenDS5, set **Bluetooth Mode** to **OpenDS5**.
+5. Under **Controllers**, click **Attach**, then press **PS**.
 
-1. In OpenDS5, open the **Bluetooth** tab and switch **Bluetooth Mode** to
-   **Normal**.
-2. Put the DualSense in pairing mode: hold **Create** + **PS** for about three
-   seconds, until the lightbar flashes rapidly.
-3. Pair it from your desktop's Bluetooth settings like any other device.
-4. Back in OpenDS5, switch **Bluetooth Mode** to **OpenDS5**.
-5. Under **Controllers**, click **Attach** next to your DualSense, then press
-   **PS** to connect.
-
-You only need to do this once. From then on, pressing **PS** connects the
-controller straight to OpenDS5.
+You only do this once; after that, **PS** connects straight to OpenDS5.
 
 > [!NOTE]
-> vds needs to own the controller's Bluetooth HID channels, so setup disables
-> BlueZ's input plugin — without this the system grabs the DualSense as a
-> plain gamepad and OpenDS5 never sees it. While that's in effect, other
-> Bluetooth keyboards and mice don't work. Use the **Bluetooth** panel in the
-> app to switch to *normal mode* when you need them (or enable automatic
-> switching), and back to *OpenDS5 mode* to play.
+> In OpenDS5 mode, BlueZ's input plugin is off so vds can own the controller,
+> which means other Bluetooth keyboards and mice don't work. Switch to
+> **Normal** on the Bluetooth tab when you need them, or turn on **Auto switch**.
 
-Using the AppImage and prefer the terminal? `./OpenDS5.AppImage --install-system` does the same
-setup, and `./OpenDS5.AppImage --uninstall-system [--purge]` removes it all
-again (also available in the app's settings menu). See [docs/INSTALLER.md](docs/INSTALLER.md) for per-platform details,
-exit codes, and logs.
+## 🐧 Supported distros
+
+The setup wizard installs the `vds_hcd` kernel module through **DKMS**, which
+rebuilds it on every kernel update.
+
+| Distro | What the wizard installs |
+| --- | --- |
+| **Arch / CachyOS** | `dkms` + headers for your kernel flavor (or use the [pacman package](#arch-linux--cachyos-pacman)) |
+| **Fedora** | `dkms` + `kernel-devel` (`kernel-cachyos-devel` on COPR kernels) |
+| **Debian / Ubuntu** | `dkms` + `linux-headers-$(uname -r)` |
+| **openSUSE** | `dkms` + `kernel-default-devel` |
+| **Bazzite / Silverblue** | `dkms` + `kernel-devel` via `rpm-ostree`; reboot once, then run the wizard again |
+| **NixOS** | Nothing; use the [flake](#nixos) |
+
+**Secure Boot** works: the module is signed with DKMS's MOK key, and the wizard
+walks you through enrolling it if needed. Other distros get a clear
+"unsupported" message; see [docs/PORTING.md](docs/PORTING.md).
+
+From a terminal, `./OpenDS5.AppImage --install-system` and
+`--uninstall-system [--purge]` do the same as the wizard and the in-app
+uninstaller. Details, logs and exit codes are in
+[docs/INSTALLER.md](docs/INSTALLER.md).
+
+## 🕹️ Controller shortcuts
+
+Turn them on in **Settings → Shortcuts**. Hold **Mute**, then press the second
+button (PS isn't used, because holding it powers the controller off).
+
+| Shortcut | Buttons | What it does |
+| --- | --- | --- |
+| **Volume** | **Mute** + **D-pad Up / Down** | Speaker volume in 10% steps; hold to repeat |
+| **Profile** | **Mute** + **D-pad Left / Right** | Previous / next controller profile |
+| **Turn off** | **Mute** + **Triangle** | Turn the controller off (**PS** turns it back on) |
+
+Shortcut buttons are hidden from the game. Build your own combos on the
+**Chords** page.
+
+## 🔧 Troubleshooting
 
 ### 🔊 If controller audio crackles
 
-To keep HD haptics tight, OpenDS5 runs the controller's audio in small 2.7 ms
-blocks. A slower or busy PC may not keep up, which sounds like crackling from
-the controller speaker or feels like stuttering haptics. Go back to PipeWire's
-usual, larger blocks by creating
+OpenDS5 runs the controller's audio in small 2.7 ms blocks to keep haptics
+tight. If your PC can't keep up (crackling speaker, stuttering haptics), go back
+to PipeWire's usual blocks with
 `~/.config/wireplumber/wireplumber.conf.d/99-opends5-latency.conf`:
 
 ```
@@ -304,26 +192,19 @@ monitor.alsa.rules = [
 ]
 ```
 
-Then run `systemctl --user restart wireplumber pipewire pipewire-pulse` (this
-briefly cuts all sound) and reconnect the controller. Delete the file to go back
-to the low-latency default.
+Then run `systemctl --user restart wireplumber pipewire pipewire-pulse` (cuts all
+sound briefly) and reconnect the controller. Delete the file to undo.
 
-## 🕹️ Controller shortcuts
+### 📶 "vdsd is not reachable" on the Bluetooth tab
 
-Turn each shortcut on in **Settings → Shortcuts**. They all use the **Mute**
-button as the modifier: hold **Mute**, then press the second button. (PS is
-avoided on purpose: holding PS for several seconds powers the DualSense off.)
-Buttons used for a shortcut are hidden from the game.
+You're not in the `vds` group yet, or haven't logged in again since being
+added. The Bluetooth tab tells you which; the fix is
+`sudo usermod -aG vds "$USER"` and/or logging out and back in.
 
-| Shortcut | Buttons | What it does |
-| --- | --- | --- |
-| **Volume Shortcut** | **Mute** + **D-pad Up / Down** | Controller speaker volume up/down in 10% steps; hold to keep stepping |
-| **Profile Shortcut** | **Mute** + **D-pad Left / Right** | Switch to the previous/next of your controller profiles (wraps around) |
-| **Turn Off Shortcut** | **Mute** + **Triangle** | Turn the controller off (press **PS** to turn it back on) |
+### 🔄 New version doesn't show up after updating
 
-The mute light stays off: there is no microphone over Bluetooth with vds, so
-Mute is free to use as a modifier. You can also build your own button combos
-on the **Chords** page.
+Fully quit OpenDS5 from its **tray icon** and start it again; closing the
+window only hides it.
 
 ## ⚙️ How it works
 
@@ -331,7 +212,7 @@ on the **Chords** page.
 DualSense (Bluetooth)
    │
    ▼
-vds_hcd.ko + vdsd            ← presents a virtual USB DualSense to the system
+vds_hcd.ko + vdsd            ← virtual USB DualSense
    │
    ▼
 OpenDS5 app (Electron)       ← triggers, haptics, audio, lighting, remapping
@@ -340,76 +221,38 @@ OpenDS5 app (Electron)       ← triggers, haptics, audio, lighting, remapping
 Your games                   ← see a wired DualSense
 ```
 
-OpenDS5 stands on the shoulders of some great projects:
+[vds](https://github.com/hurryman2212/vds) does the heavy lifting: a kernel
+module and daemon that take your Bluetooth DualSense and present it as a
+USB-wired one. OpenDS5 installs and manages vds and adds everything you control
+on top.
 
-- [**DS5Dongle**](https://github.com/awalol/DS5Dongle) by
-  [awalol](https://github.com/awalol) pioneered the whole idea: firmware that
-  turns a Pico 2 W into a DualSense dongle, making a wireless controller
-  appear wired to the host. It's the foundation everything else here traces
-  back to.
-- [**DS5_Bridge**](https://github.com/SundayMoments/DS5_Bridge) by
-  [SundayMoments](https://github.com/SundayMoments) built a Windows companion
-  GUI on top of DS5Dongle, and it's where OpenDS5 began. We ported it to
-  Linux, swapped the Pico hardware for vds, and then kept building on that
-  foundation — a trigger effect designer and a one-click installer.
-- [**vds**](https://github.com/hurryman2212/vds) by
-  [hurryman2212](https://github.com/hurryman2212) is the breakthrough that
-  brought all of this to Linux. Where DS5Dongle needed a Pico plugged into
-  the machine, vds does the same job entirely in software: a kernel module
-  and daemon that pick up your Bluetooth DualSense and present it to the
-  system as a genuine USB-wired one. Before vds, none of this existed on
-  Linux — every feature in OpenDS5 flows through it, and this project simply
-  wouldn't exist without it.
+## ⚠️ Limitations of custom trigger profiles
 
-## ⚠️ Honest limitations of custom trigger profiles
+- **They react to your finger, not the game.** A profile knows how far you've
+  pulled the trigger, not whether you're out of ammo or driving on gravel.
+- **Don't stack them on games with native support.** The profile and the game
+  will fight; let the game drive the triggers.
+- **Weapon states are inferred.** Switching states follows your button presses,
+  so it can drift if the game blocks a swap; one press on the state chips
+  re-syncs it.
+- **Reactive effects need input access.** Your user usually has to be in the
+  `input` group; without it only the base effect runs.
 
-Custom profiles are powerful, but it's worth being clear about what they can
-and can't do:
+## 🆕 About this fork
 
-- **They react to your finger, not the game.** A profile can change the
-  trigger feel based on how far you've pulled it (e.g. vibrate on full pull),
-  but it has no idea what's happening in-game. It can't tell whether you're
-  out of ammo, driving on gravel, or drawing a bow — only native game support
-  can do that.
-- **Don't stack them on natively supported games.** If a game already drives
-  the triggers itself, a custom profile will fight it. For those games, let
-  the game do the work — OpenDS5's wired bridge is what makes that possible.
-- **State switching is inferred, not game-truth.** A profile can hold several
-  named states ("Pistol", "Shotgun", "Driving") and switch between them when
-  you press the game's own swap buttons — but OpenDS5 only sees your inputs,
-  never the game. If the game blocks a swap (out of ammo, cutscene), the
-  tracked state can drift; the state chips in the app and select-style rules
-  re-sync it in one press.
-- **Reactive effects need input access.** Modifiers that respond to trigger
-  position read the controller's input device, which usually requires your
-  user to be in the `input` group. Without it, the profile's base effect
-  still works; only the reactive parts are skipped.
-- **Some effect modes need a current `vdsd`.** The newer modes
-  (`multi-feedback`, `slope`, `multi-vibration`, frequency-controlled
-  `vibration`) use the V2 trigger command. If they do nothing, update the
-  daemon with `./update-vdsd.sh`.
+This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
+[LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5) 1.8.1. It adds
+controller personas, the Bluetooth tab, low-latency HD haptics, a pacman
+package, audio fixes and more; see the [Changelog](CHANGELOG.md) for every
+release.
 
 ## 🙏 Credits & license
 
-OpenDS5 wouldn't exist without these projects — thank you:
+- [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5) — the original OpenDS5 this fork is based on.
+- [hurryman2212/vds](https://github.com/hurryman2212/vds) — the virtual DualSense kernel module and daemon (MIT).
+- [SundayMoments/DS5_Bridge](https://github.com/SundayMoments/DS5_Bridge) — the companion app OpenDS5 grew out of (AGPL-3.0-only).
+- [djanice1980/DS5_Bridge](https://github.com/djanice1980/DS5_Bridge) — speaker pacing, buffering and mic fixes.
+- [awalol/DS5Dongle](https://github.com/awalol/DS5Dongle) — the original Pico 2 W DualSense dongle everything traces back to.
 
-- [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5) — the original
-  OpenDS5 by [LordVicky](https://github.com/LordVicky), which this fork is
-  built on: the Linux port, Trigger Lab, game profiles, the installer and
-  the app itself.
-- [djanice1980/DS5_Bridge](https://github.com/djanice1980/DS5_Bridge) — the
-  source of the audio fixes in this fork: speaker packet pacing, buffering,
-  mic mute handling and speaker gain.
-- [hurryman2212/vds](https://github.com/hurryman2212/vds) — the virtual
-  DualSense kernel module and daemon that make the wireless-to-wired bridge
-  possible on Linux in the first place (MIT).
-- [awalol/DS5Dongle](https://github.com/awalol/DS5Dongle) — the original
-  Pico 2 W DualSense dongle project that DS5_Bridge, and by extension
-  OpenDS5, is founded on.
-- [SundayMoments/DS5_Bridge](https://github.com/SundayMoments/DS5_Bridge) —
-  the Windows companion GUI for DS5Dongle that OpenDS5 was ported from and
-  grew out of (AGPL-3.0-only).
-
-The combined work is **AGPL-3.0-only**. Files under `vds/` retain their
-upstream MIT license. See `ds5-bridge/LICENSE`, `ds5-bridge/NOTICE`, and
-`vds/LICENSE`.
+The combined work is **AGPL-3.0-only**; files under `vds/` keep their MIT
+license. See `ds5-bridge/LICENSE`, `ds5-bridge/NOTICE` and `vds/LICENSE`.

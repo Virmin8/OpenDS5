@@ -424,6 +424,9 @@ const MUTE_KEYBOARD_BEHAVIOR_OPTIONS: Array<[string, MuteKeyboardBehavior]> = [
 // vds (the Linux virtual DualSense bridge) only exists on Linux. Settings the
 // Bluetooth path cannot honour (polling rate, microphone, mute button modes)
 // are hidden there; the Windows DS5 Bridge firmware keeps them.
+const OPENDS5_REPOSITORY_URL = 'https://github.com/Virmin8/OpenDS5';
+// The LordVicky/OpenDS5 release this fork is based on.
+const UPSTREAM_OPENDS5_VERSION = '1.8.1';
 const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.platform === 'linux';
 // A distribution package removes the driver and vdsd itself, so the in-app uninstaller is hidden.
 const SYSTEM_UNINSTALL_AVAILABLE = VDS_AVAILABLE && !window.vds.systemPackage;
@@ -12210,7 +12213,7 @@ export function App() {
                       : 'The profile library has no profiles yet.'}
                   </p>
                   {triggerProfileLibraryCatalog.error ? (
-                    <p>Browse profiles manually at https://github.com/LordVicky/OpenDS5</p>
+                    <p>Browse profiles manually at https://github.com/LordVicky/OpenDS5-Profiles</p>
                   ) : null}
                 </div>
               ) : (
@@ -12656,14 +12659,28 @@ export function App() {
                 <button
                   type="button"
                   className="settings-menu-link-row"
-                  onClick={() => void window.bridge.openExternal('https://github.com/LordVicky/OpenDS5')}
+                  onClick={() => void window.bridge.openExternal(OPENDS5_REPOSITORY_URL)}
                 >
                   <span className="settings-menu-link-icon" aria-hidden="true">
                     <IconBrandGithub size={18} />
                   </span>
                   <span className="settings-menu-link-copy">
                     <strong>OpenDS5{appVersion ? ` ${appVersion}` : ''}</strong>
-                    <span>LordVicky/OpenDS5 · AGPL-3.0</span>
+                    <span>Virmin8/OpenDS5 · AGPL-3.0</span>
+                  </span>
+                </button>
+                {/* This fork starts from LordVicky's OpenDS5 at UPSTREAM_OPENDS5_VERSION. */}
+                <button
+                  type="button"
+                  className="settings-menu-link-row"
+                  onClick={() => void window.bridge.openExternal('https://github.com/LordVicky/OpenDS5')}
+                >
+                  <span className="settings-menu-link-icon" aria-hidden="true">
+                    <IconBrandGithub size={18} />
+                  </span>
+                  <span className="settings-menu-link-copy">
+                    <strong>Based on OpenDS5 {UPSTREAM_OPENDS5_VERSION}</strong>
+                    <span>by LordVicky</span>
                   </span>
                 </button>
                 {/* Upstream attribution. The companion app is an AGPL-3.0 derivative of
