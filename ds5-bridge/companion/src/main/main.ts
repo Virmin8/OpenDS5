@@ -493,7 +493,9 @@ function isAppFileUrl(url: string, appIndexPath: string): boolean {
 }
 
 function isAllowedExternalUrl(url: string): boolean {
-  return /^https:\/\/github\.com\/LordVicky\/OpenDS5\/?$/i.test(url)
+  return /^https:\/\/github\.com\/Virmin8\/OpenDS5\/?$/i.test(url)
+    // The upstream OpenDS5 this fork is based on.
+    || /^https:\/\/github\.com\/LordVicky\/OpenDS5\/?$/i.test(url)
     // Upstream attribution: the companion app is an AGPL-3.0 derivative of
     // SundayMoments/DS5_Bridge, so the credit stays.
     || /^https:\/\/github\.com\/SundayMoments\/?$/i.test(url)
