@@ -29,7 +29,8 @@ its native features unlocked, even though you're playing over Bluetooth.
 - [Why the "wired" part matters](#-why-the-wired-part-matters)
 - [What's new in this fork](#-whats-new-in-this-fork)
 - [Supported distros](#-supported-distros)
-- [Getting started](#-getting-started)
+- [Getting started](#-getting-started) · [Pairing](#-pairing-your-controller)
+- [Controller shortcuts](#%EF%B8%8F-controller-shortcuts)
 - [How it works](#%EF%B8%8F-how-it-works)
 - [Limitations of custom trigger profiles](#%EF%B8%8F-honest-limitations-of-custom-trigger-profiles)
 - [Credits & license](#-credits--license)
@@ -59,6 +60,9 @@ its native features unlocked, even though you're playing over Bluetooth.
   controller) and *normal mode* (your Bluetooth keyboards, mice and other
   pads work again) from the app, or let it switch automatically when no
   controller has been connected for a while.
+- 🕹️ **Controller shortcuts** — change speaker volume, cycle profiles or turn
+  the controller off without leaving your game (Mute + D-pad / Triangle). See
+  [Controller shortcuts](#%EF%B8%8F-controller-shortcuts).
 - 📦 **Painless install — and uninstall** — one AppImage. A first-launch setup
   wizard installs the kernel module and background service for you (one
   password prompt), with Secure Boot handled. App updates rebuild the kernel
@@ -202,7 +206,24 @@ see [docs/PORTING.md](docs/PORTING.md) for manual steps.
    [Releases](../../releases) and make it executable.
 2. Run it. The setup wizard shows exactly what it will install (DKMS kernel
    module, `vdsd` service, udev rules) and does it after one password prompt.
-3. Pair your DualSense over Bluetooth and you're done.
+3. Pair your DualSense as described below, and you're done.
+
+### 🎮 Pairing your controller
+
+Pairing happens through your desktop's normal Bluetooth settings, then the
+controller is handed over to OpenDS5:
+
+1. In OpenDS5, open the **Bluetooth** tab and switch **Bluetooth Mode** to
+   **Normal**.
+2. Put the DualSense in pairing mode: hold **Create** + **PS** for about three
+   seconds, until the lightbar flashes rapidly.
+3. Pair it from your desktop's Bluetooth settings like any other device.
+4. Back in OpenDS5, switch **Bluetooth Mode** to **OpenDS5**.
+5. Under **Controllers**, click **Attach** next to your DualSense, then press
+   **PS** to connect.
+
+You only need to do this once. From then on, pressing **PS** connects the
+controller straight to OpenDS5.
 
 > [!NOTE]
 > vds needs to own the controller's Bluetooth HID channels, so setup disables
@@ -216,6 +237,23 @@ Prefer the terminal? `./OpenDS5.AppImage --install-system` does the same
 setup, and `./OpenDS5.AppImage --uninstall-system [--purge]` removes it all
 again (also available in the app's settings menu). See [docs/INSTALLER.md](docs/INSTALLER.md) for per-platform details,
 exit codes, and logs.
+
+## 🕹️ Controller shortcuts
+
+Turn each shortcut on in **Settings → Shortcuts**. They all use the **Mute**
+button as the modifier: hold **Mute**, then press the second button. (PS is
+avoided on purpose: holding PS for several seconds powers the DualSense off.)
+Buttons used for a shortcut are hidden from the game.
+
+| Shortcut | Buttons | What it does |
+| --- | --- | --- |
+| **Volume Shortcut** | **Mute** + **D-pad Up / Down** | Controller speaker volume up/down in 10% steps; hold to keep stepping |
+| **Profile Shortcut** | **Mute** + **D-pad Left / Right** | Switch to the previous/next of your controller profiles (wraps around) |
+| **Turn Off Shortcut** | **Mute** + **Triangle** | Turn the controller off (press **PS** to turn it back on) |
+
+The mute light stays off: there is no microphone over Bluetooth with vds, so
+Mute is free to use as a modifier. You can also build your own button combos
+on the **Chords** page.
 
 ## ⚙️ How it works
 

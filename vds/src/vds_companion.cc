@@ -120,6 +120,7 @@ CompanionReport build_status_report(
   if (settings.sleep_keybind_enabled) {
     status_flags |= 0x40;
   }
+  status_flags |= 0x80; // turn off (sleep) controller supported
   report[20] = status_flags;
   write_u32(report, 21, uptime_seconds(runtime));
   report[25] = kFirmwareMajor;
@@ -497,8 +498,12 @@ std::uint8_t apply_command(CompanionRuntime &runtime,
     actuation.persistent_trigger_right = {};
     actuation.test_trigger = {};
     return kAckOk;
-  case 0x11: // SLEEP_CONTROLLER
-    return connected ? kAckOk : kAckErrNotConnected;
+  case 0x11: // SLEEP_CONTROLLER ("Turn Off Controller")
+    if (!connected) {
+      return kAckErrNotConnected;
+    }
+    actuation.power_off_pending = true;
+    return kAckOk;
   case 0x40: // SET_TOUCHPAD_POINTER (Linux-port extension)
     settings.touchpad_pointer_enabled = value != 0;
     return kAckOk;
@@ -669,8 +674,10 @@ bool starter_held(std::uint8_t starter, std::uint32_t pressed,
   }
 }
 
+constexpr std::uint8_t kIndexTriangle = 11;
 constexpr std::uint8_t kEventVolumeDown = 0x01;
 constexpr std::uint8_t kEventVolumeUp = 0x02;
+constexpr std::uint8_t kEventTurnOff = 0x03; // SLEEP_CONTROLLER event
 constexpr std::uint8_t kEventProfilePrevious = 0x06;
 constexpr std::uint8_t kEventProfileNext = 0x07;
 // Volume repeats while held (firmware timing). Shortcuts use Mute as the
@@ -688,7 +695,9 @@ struct MuteShortcut {
   bool CompanionSettings::*enabled;
 };
 
-constexpr std::array<MuteShortcut, 4> kMuteShortcuts = {{
+constexpr std::array<MuteShortcut, 5> kMuteShortcuts = {{
+    {kIndexTriangle, kEventTurnOff, false,
+     &CompanionSettings::sleep_keybind_enabled},
     {kIndexDpadDown, kEventVolumeDown, true,
      &CompanionSettings::speaker_volume_shortcut_enabled},
     {kIndexDpadUp, kEventVolumeUp, true,
@@ -701,7 +710,8 @@ constexpr std::array<MuteShortcut, 4> kMuteShortcuts = {{
 
 bool mute_shortcuts_enabled(const CompanionRuntime &runtime) {
   return runtime.settings.speaker_volume_shortcut_enabled ||
-         runtime.settings.profile_shortcut_enabled;
+         runtime.settings.profile_shortcut_enabled ||
+         runtime.settings.sleep_keybind_enabled;
 }
 
 bool ps_gate_wanted(const CompanionRuntime &runtime) {

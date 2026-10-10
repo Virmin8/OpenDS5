@@ -594,7 +594,7 @@ const CHORD_CONTROLLER_SETTING_ACTION_OPTIONS: Array<[string, ChordControllerSet
   ['Audio Haptics', 'toggle-audio-haptics'],
   ['Lightbar Override', 'toggle-lightbar-override'],
   ['Mic Mute', 'toggle-mic-mute'],
-  ['Sleep Controller', 'sleep-controller'],
+  ['Turn Off Controller', 'sleep-controller'],
   ['DualSense', 'persona-dualsense'],
   ['DualShock 4', 'persona-ds4'],
   ['Xbox', 'persona-xbox'],
@@ -750,7 +750,7 @@ const REMAP_EDGE_LINE_POINTS: Record<DualSenseEdgeRemapButtonId, [[number, numbe
 };
 // vds (the Linux virtual DualSense bridge) only exists on Linux.
 const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.platform === 'linux';
-// Volume/profile shortcuts: vdsd uses Mute as the modifier (holding PS powers
+// Volume/profile/turn-off shortcuts: vdsd uses Mute as the modifier (holding PS powers
 // the DualSense off); the DS5 Bridge firmware uses PS.
 const SHORTCUT_MODIFIER_LABEL = VDS_AVAILABLE ? 'Mute' : 'PlayStation Home';
 
@@ -760,6 +760,18 @@ function ShortcutModifierGlyph() {
       {VDS_AVAILABLE
         ? <MicOff size={16} aria-label="Mute" />
         : <img src={psHomeGlyphUrl} alt="PlayStation Home" />}
+    </span>
+  );
+}
+
+function TurnOffShortcutGlyphs() {
+  return (
+    <span className="shortcut-glyph-row" aria-label={`${SHORTCUT_MODIFIER_LABEL} and Triangle`}>
+      <ShortcutModifierGlyph />
+      <span className="shortcut-plus" aria-hidden="true">+</span>
+      <span className="shortcut-glyph-key">
+        <img src={triangleGlyphUrl} alt="Triangle" />
+      </span>
     </span>
   );
 }
@@ -2708,7 +2720,7 @@ function chordControllerSettingSummary(action: ChordControllerSettingAction, ste
     case 'toggle-mic-mute':
       return 'Toggle Mic Mute';
     case 'sleep-controller':
-      return 'Sleep Controller';
+      return 'Turn Off Controller';
     case 'persona-dualsense':
       return 'Set Persona: DualSense';
     case 'persona-ds4':
@@ -3317,10 +3329,10 @@ export function App() {
       }
     }
     const shortcutKeys = new Set<string>();
-    if (snapshot?.settings.sleepKeybindEnabled) {
-      shortcutKeys.add(chordBindingKey('ps', 'triangle'));
-    }
     const shortcutModifier: ChordStarterId = VDS_AVAILABLE ? CHORD_MUTE_STARTER_ID : 'ps';
+    if (snapshot?.settings.sleepKeybindEnabled) {
+      shortcutKeys.add(chordBindingKey(shortcutModifier, 'triangle'));
+    }
     if (snapshot?.settings.speakerVolumeShortcutEnabled) {
       shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-up'));
       shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-down'));
@@ -4356,7 +4368,7 @@ export function App() {
     ? overviewSignalQuality
     : '--';
   const overviewShortcutItems = [
-    snapshot?.settings.sleepKeybindEnabled ? { id: 'sleep', label: 'Sleep Shortcut' } : null,
+    snapshot?.settings.sleepKeybindEnabled ? { id: 'sleep', label: 'Turn Off Shortcut' } : null,
     snapshot?.settings.speakerVolumeShortcutEnabled ? { id: 'volume', label: 'Volume Shortcut' } : null,
     snapshot?.settings.profileShortcutEnabled ? { id: 'profile', label: 'Profile Shortcut' } : null
   ].filter((item): item is { id: 'sleep' | 'volume' | 'profile'; label: string } => Boolean(item));
@@ -7658,7 +7670,7 @@ export function App() {
                     onClick={handleOverviewSleepController}
                   >
                     <Moon size={15} />
-                    {overviewSleepConfirmVisible ? 'Confirm Sleep' : 'Sleep Controller'}
+                    {overviewSleepConfirmVisible ? 'Confirm Turn Off' : 'Turn Off Controller'}
                   </button>
                 </div>
                 <div className="overview-persona-grid" aria-label="Host controller persona">
@@ -7894,16 +7906,8 @@ export function App() {
                         {item.label}
                         {item.id === 'sleep' ? (
                           <span className="settings-shortcut-tooltip shortcut-glyph-tooltip overview-shortcut-tooltip" role="tooltip">
-                            <span>Put controller to sleep with</span>
-                            <span className="shortcut-glyph-row" aria-label="PlayStation Home and Triangle">
-                              <span className="shortcut-glyph-key">
-                                <img src={psHomeGlyphUrl} alt="PlayStation Home" />
-                              </span>
-                              <span className="shortcut-plus" aria-hidden="true">+</span>
-                              <span className="shortcut-glyph-key">
-                                <img src={triangleGlyphUrl} alt="Triangle" />
-                              </span>
-                            </span>
+                            <span>Turn off the controller with</span>
+                            <TurnOffShortcutGlyphs />
                           </span>
                         ) : (
                           <span className="settings-shortcut-tooltip shortcut-glyph-tooltip overview-shortcut-tooltip" role="tooltip">
@@ -12527,18 +12531,10 @@ export function App() {
                 <div className="settings-menu-section-label">Shortcuts</div>
                 <div className={`settings-menu-row ${settingsFocusTarget === 'sleep-shortcut' ? 'settings-menu-row-highlight' : ''}`}>
                   <div className="settings-menu-copy settings-menu-copy-tooltip">
-                    <strong>Sleep Shortcut</strong>
+                    <strong>Turn Off Shortcut</strong>
                     <div className="settings-shortcut-tooltip shortcut-glyph-tooltip" role="tooltip">
-                      <span>Put controller to sleep with</span>
-                      <span className="shortcut-glyph-row" aria-label="PlayStation Home and Triangle">
-                        <span className="shortcut-glyph-key">
-                          <img src={psHomeGlyphUrl} alt="PlayStation Home" />
-                        </span>
-                        <span className="shortcut-plus" aria-hidden="true">+</span>
-                        <span className="shortcut-glyph-key">
-                          <img src={triangleGlyphUrl} alt="Triangle" />
-                        </span>
-                      </span>
+                      <span>Turn off the controller with</span>
+                      <TurnOffShortcutGlyphs />
                     </div>
                   </div>
                   <button

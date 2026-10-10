@@ -2780,12 +2780,52 @@ void switch_port_persona(VirtualPort &port, ControllerRuntime &controller,
   }
 }
 
+/*
+ * "Turn Off Controller": close vdsd's L2CAP channels, then drop the Bluetooth
+ * link through BlueZ. A DualSense powers itself off when the host
+ * disconnects it; pressing PS turns it back on and it reconnects.
+ */
+void power_off_controllers(std::vector<VirtualPort> &ports,
+                           std::vector<ControllerRuntime> &controllers,
+                           vds::Logger &logger) {
+  for (auto &controller : controllers) {
+    if (!controller.backend && !controller.virtual_connected) {
+      continue;
+    }
+    const std::string address = controller.config.address;
+    auto port = std::find_if(ports.begin(), ports.end(), [&](const VirtualPort &p) {
+      return p.path == controller.device;
+    });
+    if (port != ports.end()) {
+      drop_bt_backend(controller, *port, "turned off from the companion app",
+                      logger);
+    }
+    try {
+      if (!vds::disconnect_bluez_device(address)) {
+        logger.log("bluetooth", vds::LogLevel::Warn,
+                   "turn off: BlueZ device not found address=" + address);
+      }
+    } catch (const std::exception &error) {
+      logger.log("bluetooth", vds::LogLevel::Warn,
+                 "turn off: BlueZ disconnect failed address=" + address +
+                     " error=" + error.what());
+    }
+    logger.log("bluetooth", vds::LogLevel::Info,
+               "controller turned off address=" + address);
+  }
+}
+
 void apply_companion_state(std::vector<VirtualPort> &ports,
                            std::vector<ControllerRuntime> &controllers,
                            vds::CompanionRuntime &companion,
                            std::uint32_t trace_flags, vds::Logger &logger) {
   (void)vds::expire_companion_actuation(companion,
                                         std::chrono::steady_clock::now());
+
+  if (companion.actuation.power_off_pending) {
+    companion.actuation.power_off_pending = false;
+    power_off_controllers(ports, controllers, logger);
+  }
 
   const vds::CompanionSettings &settings = companion.settings;
   const vds::CompanionActuation &actuation = companion.actuation;

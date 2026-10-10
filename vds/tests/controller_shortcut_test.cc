@@ -98,6 +98,24 @@ int main() {
            runtime.pending_input_events.back() == 0x06);
   }
 
+  // Turn off: Mute + Triangle sends the SLEEP_CONTROLLER event once.
+  {
+    vds::CompanionRuntime runtime;
+    runtime.settings.sleep_keybind_enabled = true;
+    vds::CompanionInputState state;
+    std::array<std::uint8_t, 64> r{};
+    r[0] = 0x01;
+    r[8] = kHatNeutral | 0x80; // triangle
+    r[10] = kMute;
+    for (int i = 0; i < 20; ++i) {
+      auto copy = r;
+      vds::companion_translate_input(runtime, state, copy);
+      assert((copy[8] & 0x80) == 0 && (copy[10] & kMute) == 0);
+    }
+    assert(runtime.pending_input_events.size() == 1 &&
+           runtime.pending_input_events.front() == 0x03);
+  }
+
   // PS is a normal button with the shortcuts on: no hold-back, no events.
   {
     vds::CompanionRuntime runtime;

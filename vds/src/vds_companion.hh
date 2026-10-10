@@ -86,6 +86,9 @@ struct CompanionActuation {
   bool test_rumble_active = false;
   std::uint8_t test_rumble_power = 0;
   std::chrono::steady_clock::time_point test_rumble_until{};
+  // SLEEP_CONTROLLER ("Turn Off Controller"): vdsd drops the Bluetooth link,
+  // which powers the DualSense off, then clears this.
+  bool power_off_pending = false;
 };
 
 inline constexpr std::size_t kCompanionRemapButtonCount = 21;
@@ -106,8 +109,8 @@ struct CompanionInputState {
   // tracking; mute_consumed hides Mute from the host until it is released.
   // The PS hold-back keeps a PS-starter chord from leaking a lone PS press.
   bool mute_consumed = false;
-  std::array<bool, 4> shortcut_pressed{};
-  std::array<std::chrono::steady_clock::time_point, 4> shortcut_last_step{};
+  std::array<bool, 8> shortcut_pressed{};
+  std::array<std::chrono::steady_clock::time_point, 8> shortcut_last_step{};
   bool ps_gate_active = false;
   bool ps_passing = false; // held past the hold-back: passes until released
   std::chrono::steady_clock::time_point ps_gate_until{};
