@@ -1,7 +1,7 @@
 pkgbase = opends5
 	pkgdesc = DualSense companion app and Bluetooth-to-USB bridge (haptics, adaptive triggers, speaker)
-	pkgver = 1.9.2
-	pkgrel = 3
+	pkgver = 1.9.3
+	pkgrel = 1
 	url = https://github.com/Virmin8/OpenDS5
 	arch = x86_64
 	license = AGPL-3.0-only
@@ -14,14 +14,14 @@ pkgbase = opends5
 	makedepends = dbus
 	makedepends = opus
 	makedepends = systemd
-	source = opends5-1.9.2.tar.gz::https://github.com/Virmin8/OpenDS5/archive/refs/tags/v1.9.2.tar.gz
+	source = opends5-1.9.3.tar.gz::https://github.com/Virmin8/OpenDS5/archive/refs/tags/v1.9.3.tar.gz
 	source = opends5.sh
 	source = opends5.desktop
 	source = opends5.sysusers
 	source = opends5-modules-load.conf
 	source = 95-opends5.hook
 	source = pacman-setup.sh
-	sha256sums = 1854518ec16eee61c337bd028f2dabd6846792b2b8ab14ff641f7f1430c734a0
+	sha256sums = dcd5402da26be524b0b779c119459cef39220c0d7786c4c604ae1a313b571423
 	sha256sums = 9aa2ba00141150a9f037893d600bdb11720b8ab9fad6616c0120bad2018755ca
 	sha256sums = 186bfa5d777c54add852220c578846a80d242e7cbee6608d4804a1193d9456c8
 	sha256sums = 134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa
@@ -35,7 +35,7 @@ pkgname = opends5
 	license = AGPL-3.0-only
 	license = MIT
 	depends = electron39
-	depends = opends5-dkms=1.9.2
+	depends = opends5-dkms=1.9.3
 	depends = bluez
 	depends = bluez-libs
 	depends = dbus

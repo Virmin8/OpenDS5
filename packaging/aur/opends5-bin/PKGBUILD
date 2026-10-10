@@ -3,8 +3,8 @@
 # Repackages the release AppImage: nothing is compiled except the vds_hcd kernel
 # module, which DKMS builds for the installed kernels.
 pkgname=opends5-bin
-pkgver=1.9.2
-pkgrel=3
+pkgver=1.9.3
+pkgrel=1
 pkgdesc='DualSense companion app and Bluetooth-to-USB bridge (haptics, adaptive triggers, speaker)'
 arch=(x86_64)
 url='https://github.com/Virmin8/OpenDS5'
@@ -24,7 +24,7 @@ source=("OpenDS5-$pkgver.AppImage::$url/releases/download/v$pkgver/OpenDS5-Compa
         95-opends5.hook
         pacman-setup.sh)
 noextract=("OpenDS5-$pkgver.AppImage")
-sha256sums=('368077b51fc6e68686b601b5b7a32e075f7eb42343781c55e5464a84f342059e'
+sha256sums=('53a1f9daafb3b622705bea5e3d92fbe005ed375d483cd84db943398f2bb02592'
             '3ea5ed7a5469227808b9eec840ff2d3edd2aab530f805c01cc57bd7d80e1b745'
             '186bfa5d777c54add852220c578846a80d242e7cbee6608d4804a1193d9456c8'
             '134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa'
