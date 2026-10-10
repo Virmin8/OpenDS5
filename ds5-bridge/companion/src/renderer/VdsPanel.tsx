@@ -168,7 +168,7 @@ export function VdsPanel({ active }: { active: boolean }) {
                   Switches to Normal after no controller has been connected for:
                 </p>
                 <div className="modifier-block">
-                  <div className="modifier-grid" aria-label="Idle time before switching to normal mode">
+                  <div className="modifier-grid vds-idle-grid" aria-label="Idle time before switching to normal mode">
                     {IDLE_OPTIONS.map(([label, seconds]) => (
                       <button
                         key={seconds}

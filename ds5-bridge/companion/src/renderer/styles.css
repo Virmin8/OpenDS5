@@ -5611,8 +5611,10 @@ button.feature-icon {
   gap: 14px;
 }
 
+/* System and Bluetooth headings only hold action buttons; profiles are switched from the sidebar. */
 .system-page .profile-controls {
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .profile-controls .heading-icon-action,
@@ -9929,11 +9931,19 @@ button.trigger-lab-chip {
   overflow-wrap: anywhere;
 }
 
-/* The System page lays its heading controls out as icon/select/button; the
-   Bluetooth page only has a Refresh button, so right-align it instead. */
-.vds-page .profile-controls {
-  display: flex;
-  justify-content: flex-end;
+/* The shared System grid caps the card row at 326px; the Bluetooth card grows when auto switch
+   reveals the idle options, so let the row size to its content and scroll the page if needed. */
+.vds-page {
+  grid-template-rows: auto auto;
+  overflow-y: auto;
+}
+
+.vds-page .vds-idle-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.vds-page .vds-idle-grid button {
+  padding: 0 8px;
 }
 
 /* Host controller type: chip on the device card and a quick switcher that

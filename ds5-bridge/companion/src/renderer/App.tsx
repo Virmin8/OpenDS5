@@ -10768,13 +10768,6 @@ export function App() {
                     <IconTool size={20} />
                   </button>
                   )}
-                  <CustomSelect
-                    value={selectedControllerProfileId}
-                    disabled={!connected || pendingAction !== null}
-                    options={controllerProfileOptions}
-                    ariaLabel="System profile"
-                    onChange={selectControllerProfile}
-                  />
                   <button
                     className="heading-action"
                     type="button"
