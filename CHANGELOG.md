@@ -13,7 +13,6 @@ Maintainers: each release's GitHub notes come from its section below. Before
 tagging vx.y.z, add "## [x.y.z] - YYYY-MM-DD — short summary" at the top; the
 summary becomes the release title. Start with a one or two line summary (what
 the reader has to do in bold), then emoji ### sections with short bullets.
-Only list under Verified on hardware what was really tested.
 -->
 
 ---
@@ -34,10 +33,6 @@ HD haptics reach the controller about **15–25 ms sooner** over Bluetooth.
 ### 🐛 Fixed
 - **No standing backlog** in vdsd's send queue, which could add up to ~85 ms of delay.
 - **Audio Buffer Length control** fits in the Speaker card again; the Automatic switch sits in its header.
-
-### ✅ Verified on hardware
-- FF7 Rebirth over Bluetooth on CachyOS: tighter haptics, no PipeWire xruns, no refills.
-- Tried and dropped: sending with no spare chunk (queue ran dry) and 16-sample haptics packets (the DualSense needs 32).
 
 ---
 
@@ -62,9 +57,6 @@ OpenDS5 now installs on Arch and CachyOS as a real pacman package.
 
 ### 🛠️ Developer
 - **nix-flake CI** updates `npmDepsHash` itself when the lockfile changes.
-
-### ✅ Verified on hardware
-- `opends5-bin` on CachyOS (kernel 7.2.9): DKMS build, module load, vdsd from the packaged unit.
 
 ---
 
