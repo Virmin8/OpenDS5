@@ -3,6 +3,79 @@
 Each release's GitHub notes are taken from its section below. Add a new
 `## [x.y.z]` section at the top before tagging `vx.y.z`.
 
+## [1.9.1] - 2026-10-10
+
+Better sound and HD haptics over Bluetooth, new controller shortcuts, and
+every setting in the Linux app now either works or has been removed.
+
+The changes in this release were made by
+[Claude](https://claude.com/claude-code), Anthropic's AI assistant, using
+Claude Code, working with the fork's maintainer.
+
+### Audio
+- **Clearer speaker and headphone sound.** The Opus encoder now runs at full
+  quality, and a proper band-limited resampler replaces the old linear one,
+  which distorted treble and turned bright sounds (cymbals, "s" sounds)
+  gritty.
+- **Louder built-in speaker without distortion.** Bass the tiny speaker
+  cannot play is filtered out, then the sound is boosted by up to 18 dB with
+  a limiter that keeps it from clipping. Headphones are not affected.
+- **Mono for the built-in speaker.** The controller has one speaker, so the
+  whole Bluetooth audio budget now goes to one channel: roughly half the
+  coding error. Headphones keep stereo.
+- **Smooth volume slider.** The Speaker slider now changes the volume
+  evenly; before, small moves near the top made it very quiet.
+- The default speaker preamp gain is now 1 (the boost provides the
+  loudness); installs still on the old default of 4 are moved to 1.
+
+### HD haptics
+- **More accurate vibration.** A proper filter replaces simple averaging:
+  the actuator band is reproduced flat, high-frequency audio no longer turns
+  into false buzzing, quiet detail survives the 8-bit conversion, and the
+  haptics gain no longer makes vibration coarser.
+
+### Added
+- **Controller shortcuts**, all on the Mute button (holding PS for several
+  seconds turns the DualSense off, so it is not used):
+  - **Mute + D-pad Up/Down:** speaker volume.
+  - **Mute + D-pad Left/Right:** previous/next controller profile (new).
+  - **Mute + Triangle:** turn the controller off.
+- **Turn Off Controller** (Overview quick action, shortcut, chord action),
+  renamed from "Sleep", now actually turns the controller off.
+- **Lights restored after a native DualSense game.** When a game that took
+  over the lightbar, player LEDs or triggers exits, the previous state comes
+  back instead of staying off until the next game.
+- **Audio diagnostics** (System → Diagnostics): buffer size, packet rate,
+  longest gap, late packets (probable dropouts) and speaker mode, live.
+- Idle Disconnect timeouts of **1 minute, 1 hour and 2 hours**.
+
+### Fixed
+Settings that were shown but did nothing over vds now work:
+- **Audio Buffer Length**
+- **Classic Rumble V1** (v2 remains the default)
+- **Volume Shortcut**
+- **Idle Disconnect**: turns the controller off after the chosen time
+  without input (buttons, triggers, sticks; motion does not count).
+- **PC Sleep Disconnect**: turns the controller off before the PC sleeps.
+
+Also:
+- The mute light no longer comes on (there is no microphone over vds).
+- The Settings dialog no longer overflows its frame.
+
+### Removed (Linux)
+Settings that cannot work over Bluetooth with vds are hidden: Polling
+Rate, microphone and pass-through controls, Mute Button Behavior, and the
+Windows-only Emergency Device Repair. The System and Overview tabs show
+"Bridge: vds" instead of an emulated firmware version.
+
+### Developer
+- `vds/tools/audio_compare.cc`: measures Bluetooth vs USB audio and haptics
+  fidelity; `vds/tools/imu_haptics_test.py`: measures real vibration with
+  the controller's accelerometer.
+- New tests for the speaker resampler, enhancer and mono encoding, haptics,
+  rumble mode, controller shortcuts, idle activity and game-session
+  restore.
+
 ## [1.9.0] - 2026-10-10
 
 First release of this fork of
