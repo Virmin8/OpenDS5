@@ -22,6 +22,14 @@ controller or machine.
   and falls as soon as spikes age out. On a clean link the buffer drops from
   21 ms to as low as 13 ms. It is on by default; switch it off under Audio
   Buffer Length to use a fixed value. Diagnostics shows the live value.
+- **Haptics-only packets while the speaker is silent.** Every Bluetooth audio
+  packet carried a 200-byte speaker frame, even when the speaker had nothing to
+  play, so a haptics-only game still sent 398-byte packets. After about a second
+  of speaker silence vdsd now sends the 206-byte 0x33 report with the same
+  haptics, rumble, trigger and lightbar data; the first packet with speaker
+  sound switches back. Less airtime per packet means fewer late sends, so the
+  automatic buffer can sit lower. Diagnostics shows "(haptics only)" while it is
+  active.
 
 ### Fixed
 - **No standing backlog in vdsd's send queue.** Audio comes in from USB and goes
@@ -29,12 +37,19 @@ controller or machine.
   extra haptics delay for the rest of the stream. vdsd now skips one chunk when
   the queue holds more than one spare for ~2 s, and restarts after running dry
   on 2 chunks instead of 3. Diagnostics counts the trimmed chunks.
+- **The Audio Buffer Length control fits in the Speaker card.** The Automatic
+  switch is on the same line as the title, and the slider only shows when
+  Automatic is off, instead of an extra row that pushed the slider out of the
+  card and dimmed the whole control.
 
 ### Verified on hardware
 - HD haptics in Final Fantasy VII Rebirth over Bluetooth on CachyOS: the
-  automatic buffer tracked the link and felt tighter than the fixed 64. Sending
-  with no spare chunk was also tried and rejected, because the queue kept running
-  dry.
+  automatic buffer tracked the link and felt tighter than the fixed 64, and
+  haptics-only packets switched on during speaker silence and back when sound
+  played, a little more responsive again. Two further steps were tried and
+  rejected: sending with no spare chunk (the queue kept running dry) and
+  16-sample haptics packets every 5.3 ms (haptics felt broken; the DualSense
+  needs 32 samples per packet).
 
 ## [1.9.2] - 2026-10-10 — pacman and AUR packages; delete the Default profile
 
