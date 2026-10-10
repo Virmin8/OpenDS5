@@ -4,7 +4,7 @@
 # module, which DKMS builds for the installed kernels.
 pkgname=opends5-bin
 pkgver=1.9.2
-pkgrel=2
+pkgrel=3
 pkgdesc='DualSense companion app and Bluetooth-to-USB bridge (haptics, adaptive triggers, speaker)'
 arch=(x86_64)
 url='https://github.com/Virmin8/OpenDS5'
@@ -30,7 +30,7 @@ sha256sums=('368077b51fc6e68686b601b5b7a32e075f7eb42343781c55e5464a84f342059e'
             '134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa'
             '5554373b4a2907063636255caf2ebdc4056ae5c9858876a91392a16766eebd9e'
             '41c917458c771ae1803bd20a089d758ba7914e077f976c5b7229e219d993fafe'
-            'a1d486968076f3a3cd1b24aeae08128cb5ebfbc3fbf013d0c8ebdc9db961eeb9')
+            '02401e946d12ecae7b0c14d94c107d08e68379991c86020d981eea9b0d1f1113')
 
 prepare() {
   chmod +x "OpenDS5-$pkgver.AppImage"

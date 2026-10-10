@@ -3,7 +3,7 @@
 pkgbase=opends5
 pkgname=(opends5 opends5-dkms)
 pkgver=1.9.2
-pkgrel=2
+pkgrel=3
 pkgdesc='DualSense companion app and Bluetooth-to-USB bridge (haptics, adaptive triggers, speaker)'
 arch=(x86_64)
 url='https://github.com/Virmin8/OpenDS5'
@@ -24,7 +24,7 @@ sha256sums=('1854518ec16eee61c337bd028f2dabd6846792b2b8ab14ff641f7f1430c734a0'
             '134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa'
             '5554373b4a2907063636255caf2ebdc4056ae5c9858876a91392a16766eebd9e'
             '41c917458c771ae1803bd20a089d758ba7914e077f976c5b7229e219d993fafe'
-            'a1d486968076f3a3cd1b24aeae08128cb5ebfbc3fbf013d0c8ebdc9db961eeb9')
+            '02401e946d12ecae7b0c14d94c107d08e68379991c86020d981eea9b0d1f1113')
 
 _srcroot() {
   printf '%s/OpenDS5-%s' "$srcdir" "$pkgver"

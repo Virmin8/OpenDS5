@@ -28,7 +28,7 @@ loaded=$(cat /sys/module/vds_hcd/version 2>/dev/null)
 installed=$(modinfo -F version vds_hcd 2>/dev/null)
 if [ -n "$loaded" ] && [ -n "$installed" ] && [ "$loaded" != "$installed" ]; then
   systemctl stop vdsd.service 2>/dev/null
-  modprobe -r vds_hcd 2>/dev/null || echo "  -> vds_hcd $loaded is in use; $installed loads after a reboot."
+  rmmod vds_hcd 2>/dev/null || echo "  -> vds_hcd $loaded is in use; $installed loads after a reboot."
 fi
 modprobe vds_hcd || echo "  -> Could not load vds_hcd; see 'dkms status vds_hcd'."
 

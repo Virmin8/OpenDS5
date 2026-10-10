@@ -33,7 +33,9 @@ pre_remove() {
   if [ -d /run/systemd/system ]; then
     systemctl disable --now vdsd.service 2>/dev/null || true
   fi
-  modprobe -r vds_hcd 2>/dev/null || true
+  # rmmod, not modprobe -r: the DKMS remove hook has already deleted the module
+  # file by now, and modprobe -r gives up when it cannot find it.
+  rmmod vds_hcd 2>/dev/null || true
   # vdsd's OpenDS5 mode runs bluetoothd with --noplugin=input through a drop-in in
   # /etc that pacman does not own; left behind, Bluetooth keyboards and mice stay off.
   if grep -qs 'noplugin=input' /etc/systemd/system/bluetooth.service.d/override.conf; then
