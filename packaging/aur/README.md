@@ -18,6 +18,18 @@ and "Launch at startup" points at `/usr/bin/opends5`. Updates come through pacma
 an AUR helper. (This needs a release newer than 1.9.1; on 1.9.1 the in-app
 "Uninstall OpenDS5" button is still shown and must not be used.)
 
+## Install without an AUR helper
+
+`install.sh` downloads the `opends5-bin` recipe from `main`, points it at the latest
+GitHub release (using the release's `.sha256`, so it works before the PKGBUILD here is
+bumped), offers to remove an earlier AppImage installer setup, then runs `makepkg -si`:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/Virmin8/OpenDS5/main/packaging/aur/install.sh)
+```
+
+Use `bash <(…)` rather than `curl … | bash`, so pacman's prompts can read the keyboard.
+
 ## Test a package locally
 
 ```bash
