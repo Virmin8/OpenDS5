@@ -241,22 +241,21 @@ on top.
 ## 🆕 About this fork
 
 This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
-[LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5) 1.8.1. New compared
-with 1.8.1:
+[LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5) 1.8.1, and adds:
 
 **🎮 Controller**
 - **Personas** — appear as a DualShock 4 or Xbox 360 controller.
 - **Mute-button shortcuts** — speaker volume, next/previous profile, turn off.
-- **Turn Off Controller** quick action that really powers it off.
-- **Lights restored** after a game that took over the lightbar.
+- **Turn Off Controller** quick action.
+- **Lights restored** when a game that used the lightbar exits.
 
 **📶 Bluetooth**
 - **Bluetooth tab** — OpenDS5 / normal mode, auto switching, attach and detach controllers.
-- **Idle and PC-sleep disconnect** that actually turn the controller off.
+- **Idle and PC-sleep disconnect** for the controller.
 
 **🔊 Audio & haptics**
-- **Clearer, louder speaker** without the crackling.
-- **More accurate HD haptics**, with **lower latency** and an automatic buffer.
+- **Speaker sound tuning** — higher-quality encoding, a loudness boost and mono for the built-in speaker.
+- **Low-latency HD haptics** with an automatic buffer.
 - **Speaker gain** setting.
 
 **🎯 Games & profiles**
