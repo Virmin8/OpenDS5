@@ -127,6 +127,7 @@ jobs:
               h = $0; sub(/^## \[?/, "", h); split(h, part, /[] ]/)
               if (part[1] == v) { found = 1; next }
             }
+            /^---$/ { next }
             found
           ' CHANGELOG.md | sed 's/^### /## /' > /tmp/release-notes.md
           # "## [x.y.z] - date — summary" titles the release "vx.y.z — summary".
