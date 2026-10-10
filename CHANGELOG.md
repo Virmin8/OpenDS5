@@ -11,7 +11,19 @@ followed by what was wrong or missing and what changed. Add
 `### Verified on hardware` only for what was actually tested on a real
 controller or machine.
 
-## [Unreleased]
+## [1.9.3] - 2026-10-10 — tighter HD haptics over Bluetooth
+
+HD haptics reach the controller about 15-25 ms sooner over Bluetooth: the
+controller's audio buffer now follows your Bluetooth link packet by packet,
+haptics travel in smaller packets while the speaker is silent, and both
+vdsd's queue and PipeWire hold less audio. **Update as usual**: from inside the
+app for the AppImage, or with the new `opends5-bin` package below on Arch and
+CachyOS. **If controller audio crackles afterwards**, see "If controller audio
+crackles" in the README to go back to larger audio blocks.
+
+The changes in this release were made by
+[Claude](https://claude.com/claude-code), Anthropic's AI assistant, using
+Claude Code, working with the fork's maintainer.
 
 ### Added
 - **Automatic Audio Buffer Length (Linux).** The controller's audio buffer was a
