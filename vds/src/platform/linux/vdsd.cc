@@ -12,6 +12,7 @@
 #include <deque>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <iostream>
 #include <optional>
 #include <span>
@@ -34,6 +35,7 @@
 #include <grp.h>
 #include <linux/input.h>
 #include <sys/epoll.h>
+#include <sys/inotify.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -45,6 +47,7 @@
 #include "vds/ds5_protocol.h"
 #include "vds_bluez.hh"
 #include "vds_sleep_watch.hh"
+#include "vds_host_watch.hh"
 #include "vds_bt.hh"
 #include "vds_bt_mode.hh"
 #include "vds_build_info.hh"
@@ -227,6 +230,18 @@ struct VirtualPort {
   std::uint32_t speaker_waveout_phase = 0;
   std::uint16_t haptics_gain_percent = 100;
   std::uint8_t battery_status = 0xff;
+  // Restore after a native DualSense game: watch the virtual controller's
+  // hidraw node. Each program that opens it (in order) keeps a snapshot of
+  // the output state from just before it did; when the latest one closes it,
+  // that snapshot is restored (a Steam started later stays underneath).
+  struct HostSession {
+    pid_t pid;
+    vds::DsOutputState::HostState before;
+  };
+  std::string hidraw_node;
+  int hidraw_watch = -1;
+  std::set<pid_t> host_baseline;
+  std::vector<HostSession> host_sessions;
   bool headphones_plugged = false;
   // Idle Disconnect: last input that counts as activity.
   Clock::time_point last_input_activity{};
@@ -270,6 +285,7 @@ enum class EventKind : std::uint32_t {
   BtAcceptInterrupt = 6,
   Udev = 7,
   Sleep = 8,
+  HostWatch = 9,
 };
 
 struct EventSource {
@@ -672,6 +688,7 @@ void reset_virtual_port(VirtualPort &port) {
   port.haptics_gain_percent = 100;
   port.battery_status = 0xff;
   port.headphones_plugged = false;
+  port.host_sessions.clear();
   port.last_input_activity = {};
   port.audio_stats = {};
   port.companion_input = {};
@@ -2809,6 +2826,131 @@ void switch_port_persona(VirtualPort &port, ControllerRuntime &controller,
   }
 }
 
+std::string process_name(pid_t pid) {
+  std::ifstream comm("/proc/" + std::to_string(pid) + "/comm");
+  std::string name;
+  std::getline(comm, name);
+  return name.empty() ? "?" : name;
+}
+
+std::optional<std::size_t> port_index_from_path(const std::string &path) {
+  constexpr std::string_view prefix = "/dev/vds";
+  if (path.rfind(prefix, 0) != 0 || path.size() == prefix.size()) {
+    return std::nullopt;
+  }
+  try {
+    return static_cast<std::size_t>(std::stoul(path.substr(prefix.size())));
+  } catch (const std::exception &) {
+    return std::nullopt;
+  }
+}
+
+void clear_host_watch(VirtualPort &port, int inotify_fd) {
+  if (port.hidraw_watch >= 0 && inotify_fd >= 0) {
+    ::inotify_rm_watch(inotify_fd, port.hidraw_watch);
+  }
+  port.hidraw_watch = -1;
+  port.hidraw_node.clear();
+  port.host_baseline.clear();
+  port.host_sessions.clear();
+}
+
+// Attaches the hidraw watch once a bridged controller's node exists; drops
+// it when the controller goes away.
+void refresh_host_watches(std::vector<VirtualPort> &ports,
+                          std::vector<ControllerRuntime> &controllers,
+                          int inotify_fd, vds::Logger &logger) {
+  for (auto &port : ports) {
+    const ControllerRuntime *controller = controller_for_port(controllers, port.path);
+    const bool connected = controller != nullptr && controller->virtual_connected;
+    if (!connected) {
+      if (port.hidraw_watch >= 0) {
+        clear_host_watch(port, inotify_fd);
+      }
+      continue;
+    }
+    if (port.hidraw_watch >= 0) {
+      continue;
+    }
+    const auto index = port_index_from_path(port.path);
+    const auto node = index ? vds::find_port_hidraw(*index) : std::nullopt;
+    if (!node) {
+      continue;
+    }
+    const int watch = ::inotify_add_watch(inotify_fd, node->c_str(),
+                                          IN_OPEN | IN_CLOSE);
+    if (watch < 0) {
+      continue;
+    }
+    port.hidraw_node = *node;
+    port.hidraw_watch = watch;
+    port.host_baseline = vds::node_openers(*node, ::getpid());
+    port.host_sessions.clear();
+    logger.log("host", vds::LogLevel::Info,
+               port.path + " watching " + *node + " for native game sessions");
+  }
+}
+
+// Re-checks who has the port's hidraw node open after an open/close.
+void update_host_session(VirtualPort &port, ControllerRuntime *controller,
+                         std::uint32_t trace_flags, vds::Logger &logger) {
+  const std::set<pid_t> openers = vds::node_openers(port.hidraw_node, ::getpid());
+  std::erase_if(port.host_baseline,
+                [&](pid_t pid) { return !openers.contains(pid); });
+
+  // Programs that closed it: the latest one restores the state from before it
+  // opened; an earlier one hands its (older) snapshot to the next in line.
+  bool restored = false;
+  for (std::size_t i = port.host_sessions.size(); i-- > 0;) {
+    if (openers.contains(port.host_sessions[i].pid)) {
+      continue;
+    }
+    const auto session = port.host_sessions[i];
+    port.host_sessions.erase(port.host_sessions.begin() +
+                             static_cast<std::ptrdiff_t>(i));
+    logger.log("host", vds::LogLevel::Info,
+               port.path + " pid " + std::to_string(session.pid) +
+                   " closed the controller");
+    if (i == port.host_sessions.size()) {
+      port.output_state.restore_host_state(session.before);
+      restored = true;
+    } else {
+      port.host_sessions[i].before = session.before;
+    }
+  }
+
+  for (const pid_t pid : openers) {
+    const bool known =
+        port.host_baseline.contains(pid) ||
+        std::any_of(port.host_sessions.begin(), port.host_sessions.end(),
+                    [&](const VirtualPort::HostSession &session) {
+                      return session.pid == pid;
+                    });
+    if (known) {
+      continue;
+    }
+    port.host_sessions.push_back({pid, port.output_state.host_state()});
+    logger.log("host", vds::LogLevel::Info,
+               port.path + " " + process_name(pid) + " (pid " +
+                   std::to_string(pid) + ") opened the controller");
+  }
+
+  if (restored) {
+    logger.log("host", vds::LogLevel::Info,
+               port.path + " restored lights and output state after a native "
+                           "game closed the controller");
+    if (controller != nullptr && controller->backend) {
+      try {
+        forward_bt_state_if_changed(port, *controller->backend, trace_flags,
+                                    logger, "native game closed");
+      } catch (const std::exception &error) {
+        logger.log("host", vds::LogLevel::Warn,
+                   port.path + " restore send failed: " + error.what());
+      }
+    }
+  }
+}
+
 /*
  * "Turn Off Controller": close vdsd's L2CAP channels, then drop the Bluetooth
  * link through BlueZ. A DualSense powers itself off when the host
@@ -2989,7 +3131,7 @@ vds::UniqueFd rebuild_epoll(int control_fd,
                             const vds::VdsDeviceMonitor &vds_monitor,
                             std::span<VirtualPort> ports,
                             std::span<ControllerRuntime> controllers,
-                            int sleep_fd) {
+                            int sleep_fd, int host_watch_fd) {
   vds::UniqueFd epoll_fd(::epoll_create1(EPOLL_CLOEXEC));
   if (!epoll_fd) {
     throw std::runtime_error("epoll_create1 failed: " +
@@ -3000,6 +3142,9 @@ vds::UniqueFd rebuild_epoll(int control_fd,
   add_epoll_fd(epoll_fd.get(), vds_monitor.fd(), EventKind::Udev, 0);
   if (sleep_fd >= 0) {
     add_epoll_fd(epoll_fd.get(), sleep_fd, EventKind::Sleep, 0);
+  }
+  if (host_watch_fd >= 0) {
+    add_epoll_fd(epoll_fd.get(), host_watch_fd, EventKind::HostWatch, 0);
   }
   if (bt_acceptor) {
     add_epoll_fd(epoll_fd.get(), bt_acceptor->control_listener_fd(),
@@ -3068,6 +3213,8 @@ int main(int argc, char **argv) {
     // only while the companion setting is on.
     std::optional<vds::SleepWatcher> sleep_watcher;
     bool system_sleeping = false;
+    vds::UniqueFd host_watch_fd(::inotify_init1(IN_NONBLOCK | IN_CLOEXEC));
+    auto next_host_watch_refresh = Clock::now();
     try {
       sleep_watcher.emplace();
     } catch (const std::exception &error) {
@@ -3117,12 +3264,20 @@ int main(int argc, char **argv) {
       if (epoll_dirty || !epoll_fd) {
         epoll_fd = rebuild_epoll(control_fd.get(), bt_acceptor, vds_monitor,
                                  ports, controllers,
-                                 sleep_watcher ? sleep_watcher->fd() : -1);
+                                 sleep_watcher ? sleep_watcher->fd() : -1,
+                                 host_watch_fd.get());
         epoll_dirty = false;
       }
 
+      if (host_watch_fd && Clock::now() >= next_host_watch_refresh) {
+        refresh_host_watches(ports, controllers, host_watch_fd.get(), logger);
+        next_host_watch_refresh = Clock::now() + std::chrono::seconds(2);
+      }
       std::array<epoll_event, 64> events{};
       int timeout_ms = next_wakeup_timeout_ms(ports, controllers);
+      if (host_watch_fd) {
+        timeout_ms = timeout_ms < 0 ? 2000 : std::min(timeout_ms, 2000);
+      }
       if (bluetooth_mode_needs_poll(bt_mode, bt_acceptor)) {
         timeout_ms = timeout_ms < 0
                          ? kBluetoothModePollMs
@@ -3212,6 +3367,39 @@ int main(int argc, char **argv) {
           }
           if ((revents & (EPOLLERR | EPOLLHUP)) != 0) {
             throw std::runtime_error("Bluetooth listener epoll error");
+          }
+          continue;
+        }
+
+        if (source.kind == EventKind::HostWatch) {
+          std::array<char, 4096> buffer{};
+          std::set<int> touched;
+          for (;;) {
+            const ssize_t length =
+                ::read(host_watch_fd.get(), buffer.data(), buffer.size());
+            if (length <= 0) {
+              break;
+            }
+            for (ssize_t offset = 0; offset < length;) {
+              const auto *event =
+                  reinterpret_cast<const inotify_event *>(buffer.data() + offset);
+              touched.insert(event->wd);
+              if ((event->mask & IN_IGNORED) != 0) {
+                for (auto &port : ports) {
+                  if (port.hidraw_watch == event->wd) {
+                    port.hidraw_watch = -1; // node removed; refresh re-attaches
+                    port.hidraw_node.clear();
+                  }
+                }
+              }
+              offset += static_cast<ssize_t>(sizeof(inotify_event) + event->len);
+            }
+          }
+          for (auto &port : ports) {
+            if (port.hidraw_watch >= 0 && touched.contains(port.hidraw_watch)) {
+              update_host_session(port, controller_for_port(controllers, port.path),
+                                  trace_flags, logger);
+            }
           }
           continue;
         }

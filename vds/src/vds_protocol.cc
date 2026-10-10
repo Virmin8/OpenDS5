@@ -1020,6 +1020,20 @@ void DsOutputState::recompute_effective_state() {
   }
 }
 
+DsOutputState::HostState DsOutputState::host_state() const {
+  return {state_, light_color_, light_brightness_, emulate_light_brightness_};
+}
+
+void DsOutputState::restore_host_state(const HostState &snapshot) {
+  state_ = snapshot.state;
+  light_color_ = snapshot.light_color;
+  light_brightness_ = snapshot.light_brightness;
+  emulate_light_brightness_ = snapshot.emulate_light_brightness;
+  // Re-applies the speaker routing bits for the stream as it is now, and
+  // recomputes the effective state.
+  set_audio_out_stream_active(audio_out_stream_active_);
+}
+
 BtInitReport DsOutputState::build_bt_init_report() {
   BtInitReport report{};
   report[0] = 0x32;

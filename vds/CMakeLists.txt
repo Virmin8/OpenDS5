@@ -146,7 +146,8 @@ else()
 
   add_executable(vdsd src/platform/linux/vdsd.cc
                       src/platform/linux/vds_bt_mode.cc
-                      src/platform/linux/vds_sleep_watch.cc)
+                      src/platform/linux/vds_sleep_watch.cc
+                      src/platform/linux/vds_host_watch.cc)
   add_dependencies(vdsd vds_build_info_header)
   target_include_directories(vdsd PRIVATE ${VDS_GENERATED_DIR})
   target_link_libraries(
@@ -357,4 +358,10 @@ if(NOT WIN32)
                                                  vds_common vds_config vds_log)
   target_compile_options(controller_shortcut_test PRIVATE -UNDEBUG)
   add_test(NAME controller_shortcut_test COMMAND controller_shortcut_test)
+
+  add_executable(host_session_test tests/host_session_test.cc
+                                   src/platform/linux/vds_host_watch.cc)
+  target_link_libraries(host_session_test PRIVATE vds_protocol)
+  target_compile_options(host_session_test PRIVATE -UNDEBUG)
+  add_test(NAME host_session_test COMMAND host_session_test)
 endif()

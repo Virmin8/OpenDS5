@@ -7631,8 +7631,8 @@ export function App() {
                     </strong>
                   </div>
                   <div>
-                    <span>Firmware</span>
-                    <strong>{overviewFirmwareLabel}</strong>
+                    <span>{VDS_AVAILABLE ? 'Bridge' : 'Firmware'}</span>
+                    <strong>{VDS_AVAILABLE ? 'vds' : overviewFirmwareLabel}</strong>
                   </div>
                 </div>
               </button>
@@ -10756,6 +10756,7 @@ export function App() {
                   <p>Configure bridge behavior and defaults.</p>
                 </div>
                 <div className="profile-controls">
+                  {!VDS_AVAILABLE && (
                   <button
                     className="heading-icon-action emergency-repair-button"
                     type="button"
@@ -10766,6 +10767,7 @@ export function App() {
                   >
                     <IconTool size={20} />
                   </button>
+                  )}
                   <CustomSelect
                     value={selectedControllerProfileId}
                     disabled={!connected || pendingAction !== null}
@@ -10901,7 +10903,7 @@ export function App() {
                         <p>
                           {showDiagnostics
                             ? 'Debug Data'
-                            : 'Firmware'}
+                            : VDS_AVAILABLE ? 'Bluetooth bridge' : 'Firmware'}
                         </p>
                     </div>
                     <div className="dual-selector system-mode-selector" role="tablist" aria-label="System control mode">
@@ -11109,8 +11111,8 @@ export function App() {
                   ) : (
                     <div className="device-list">
                       <div className="device-row">
-                        <span>Firmware</span>
-                        <strong>{snapshot.status?.firmwareVersion ?? '--'}</strong>
+                        <span>{VDS_AVAILABLE ? 'Bridge' : 'Firmware'}</span>
+                        <strong>{VDS_AVAILABLE ? 'vds' : snapshot.status?.firmwareVersion ?? '--'}</strong>
                       </div>
                       <div className="device-row">
                         <span>Controller</span>

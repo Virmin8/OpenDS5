@@ -253,6 +253,19 @@ public:
     return companion_;
   }
 
+  // Output state written by the host (kernel driver, Steam, games). A native
+  // DualSense game changes it for its session; vdsd snapshots it when the
+  // game opens the controller and restores it when the game closes it.
+  struct HostState {
+    DsState state{};
+    std::array<std::uint8_t, 3> light_color{};
+    std::uint8_t light_brightness = 0;
+    bool emulate_light_brightness = false;
+  };
+  HostState host_state() const;
+  // Restores a snapshot; the current speaker-stream routing is kept.
+  void restore_host_state(const HostState &snapshot);
+
 private:
   void recompute_effective_state();
 
