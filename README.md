@@ -241,10 +241,37 @@ on top.
 ## 🆕 About this fork
 
 This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
-[LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5) 1.8.1. It adds
-controller personas, the Bluetooth tab, low-latency HD haptics, a pacman
-package, audio fixes and more; see the [Changelog](CHANGELOG.md) for every
-release.
+[LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5) 1.8.1. New compared
+with 1.8.1:
+
+**🎮 Controller**
+- **Personas** — appear as a DualShock 4 or Xbox 360 controller.
+- **Mute-button shortcuts** — speaker volume, next/previous profile, turn off.
+- **Turn Off Controller** quick action that really powers it off.
+- **Lights restored** after a game that took over the lightbar.
+
+**📶 Bluetooth**
+- **Bluetooth tab** — OpenDS5 / normal mode, auto switching, attach and detach controllers.
+- **Idle and PC-sleep disconnect** that actually turn the controller off.
+
+**🔊 Audio & haptics**
+- **Clearer, louder speaker** without the crackling.
+- **More accurate HD haptics**, with **lower latency** and an automatic buffer.
+- **Speaker gain** setting.
+
+**🎯 Games & profiles**
+- **Heroic and Lutris** games next to Steam, with search.
+- **Profile when playing** — link a game to one of your own profiles.
+- **Launch with profile** and **Start minimized**.
+- **Delete the Default profile** once you have your own.
+
+**📦 Install & tools**
+- **pacman package** for Arch and CachyOS on every release.
+- **One-click uninstall** from Settings.
+- **Diagnostics** — daemon log, tracing and live audio stats.
+- **Test Triggers** quick action.
+
+Full details are in the [Changelog](CHANGELOG.md).
 
 ## 🙏 Credits & license
 
