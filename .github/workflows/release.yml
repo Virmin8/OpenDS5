@@ -228,3 +228,92 @@ jobs:
         run: |
           pacman -Sy --noconfirm github-cli
           gh release upload "${GITHUB_REF_NAME}" dist/*.pkg.tar.zst --repo "${GITHUB_REPOSITORY}" --clobber
+
+  # The Windows installer and its checksum, which the Windows app's update
+  # check looks for (OpenDS5-Companion-Setup-x.y.z.exe + .exe.sha256). Runs
+  # after the AppImage job because that job creates the Release.
+  windows:
+    needs: appimage
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: locate vcpkg
+        shell: pwsh
+        run: |
+          $Vcpkg = Get-Command vcpkg.exe -ErrorAction SilentlyContinue
+          $VcpkgPath = if ($Vcpkg) { $Vcpkg.Source } else { "C:\vcpkg\vcpkg.exe" }
+          "VDS_VCPKG_ROOT=$(Split-Path -Parent $VcpkgPath)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # vds-win/ is gitignored and consumed via extraResources.
+      - name: build vdsd
+        shell: pwsh
+        run: |
+          cmake -S vds -B vds\build-win `
+            -DVDS_STATIC_MSVC_RUNTIME=ON `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VDS_VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+          cmake --build vds\build-win --config Release --parallel --target vdsd vdsctl
+          New-Item -ItemType Directory -Force -Path vds-win | Out-Null
+          Copy-Item vds\build-win\Release\vdsd.exe, vds\build-win\Release\vdsctl.exe vds-win\
+          $Dlls = Get-ChildItem vds\build-win\Release\*.dll -ErrorAction SilentlyContinue
+          if ($Dlls) { throw "vdsd is not self-contained; it needs: $($Dlls.Name -join ', ')" }
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ds5-bridge/companion/package-lock.json
+
+      - name: install
+        working-directory: ds5-bridge/companion
+        run: npm ci
+
+      - name: test
+        working-directory: ds5-bridge/companion
+        run: |
+          npx vitest run src
+          npm run test:installer
+
+      - name: build installer
+        working-directory: ds5-bridge/companion
+        run: |
+          npm run build
+          npx electron-builder --win nsis --x64 --publish never
+
+      # sha256sum's "<hash>  <name>" line, the format the update check parses.
+      - name: checksum
+        shell: pwsh
+        working-directory: ds5-bridge/companion/artifacts/installer
+        run: |
+          $Exe = Get-ChildItem OpenDS5-Companion-Setup-*.exe | Select-Object -First 1
+          if (!$Exe) { throw "no installer was built" }
+          $Hash = (Get-FileHash $Exe.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText("$($Exe.FullName).sha256", "$Hash  $($Exe.Name)`n")
+          Get-Content "$($Exe.FullName).sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenDS5-Windows-Setup
+          path: |
+            ds5-bridge/companion/artifacts/installer/OpenDS5-Companion-Setup-*.exe
+            ds5-bridge/companion/artifacts/installer/OpenDS5-Companion-Setup-*.exe.sha256
+          if-no-files-found: error
+
+      - name: attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: ds5-bridge/companion/artifacts/installer
+        run: |
+          $Files = @(Get-ChildItem OpenDS5-Companion-Setup-*.exe, OpenDS5-Companion-Setup-*.exe.sha256 | ForEach-Object { $_.Name })
+          gh release upload "$env:GITHUB_REF_NAME" @Files --repo "$env:GITHUB_REPOSITORY" --clobber

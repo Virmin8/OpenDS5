@@ -102,8 +102,9 @@ describe('IPC contract', () => {
     expect(bridgeServiceSource).toContain('setShowBatteryPercentTrayIcon(enabled: boolean): BridgeSnapshot');
     expect(mainSource).toContain('function batteryTrayIcon(percent: number, charging: boolean): Electron.NativeImage');
     expect(mainSource).toContain('snapshot.settings.showBatteryPercentTrayIcon');
-    expect(mainSource).toContain('TRAY_BATTERY_ICON_DISCHARGING');
-    expect(mainSource).toContain('TRAY_BATTERY_ICON_CHARGING');
+    // Colours follow the taskbar theme (tray-icon-theme.ts).
+    expect(mainSource).toContain('trayBatteryPalette(theme)');
+    expect(mainSource).toContain('charging ? palette.charging : palette.discharging');
     expect(mainSource).toContain('rawPowerState === 0x01 || rawPowerState === 0x02');
   });
 

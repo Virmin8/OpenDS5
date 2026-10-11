@@ -445,6 +445,11 @@ const VDS_LINUX = VDS_AVAILABLE && window.vds.platform === 'linux';
 // The touchpad moves the cursor through Linux's DualSense driver (vdsd can
 // grab it) or the Pico firmware; vdsd on Windows has no pointer to toggle.
 const TOUCHPAD_MOUSE_AVAILABLE = !VDS_AVAILABLE || VDS_LINUX;
+// Trigger modifiers and state switch rules react to controller input, which
+// the app reads from the Linux input device; Windows has no reader yet.
+// Windows exposes no RSSI for a classic Bluetooth link (Linux reads it via HCI).
+const SIGNAL_STRENGTH_AVAILABLE = !VDS_AVAILABLE || VDS_LINUX;
+const CONTROLLER_INPUT_AVAILABLE =typeof window === 'undefined' || window.vds?.platform !== 'win32';
 // A distribution package removes the driver and vdsd itself, so the in-app
 // uninstaller is hidden. On Windows it removes the vdsd service; the app
 // itself goes from the Apps list.
@@ -7892,12 +7897,14 @@ export function App() {
                   <h3>Wireless</h3>
                 </div>
                 <div className="overview-fields">
+                  {SIGNAL_STRENGTH_AVAILABLE && (
                   <div>
                     <span>Signal</span>
                     <strong className={`signal-value ${overviewSignalTone}`} title={overviewSignalTitle}>
                       {overviewSignalLabel}
                     </strong>
                   </div>
+                  )}
                   <div>
                     <span>{VDS_AVAILABLE ? 'Bridge' : 'Firmware'}</span>
                     <strong>{VDS_AVAILABLE ? 'vds' : overviewFirmwareLabel}</strong>
@@ -9660,6 +9667,7 @@ export function App() {
                               No base effect — game trigger output passes through.
                             </p>
                           )}
+                          {CONTROLLER_INPUT_AVAILABLE && (
                           <div className="trigger-profiles-modifiers-section">
                             <button
                               type="button"
@@ -9820,6 +9828,7 @@ export function App() {
                               </>
                             )}
                           </div>
+                          )}
                         </div>
                       </section>
                     );
@@ -9829,7 +9838,7 @@ export function App() {
                   {/* Name and process matching live in Game Profiles now: a game is
                       added (and matched) there, so the editor only shapes the feel. */}
 
-                  {triggerProfileDraft.states && triggerProfileDraft.states.length > 1 && (
+                  {CONTROLLER_INPUT_AVAILABLE && triggerProfileDraft.states && triggerProfileDraft.states.length > 1 && (
                     <div className="trigger-profiles-group">
                       <h4 className="trigger-profiles-group-title">State Switching</h4>
                       <p className="trigger-profiles-switching-hint">
@@ -11284,6 +11293,8 @@ export function App() {
                             {vdsDiagnostics?.bluetooth?.lastError && (
                               <div><dt>Last Error</dt><dd title={vdsDiagnostics.bluetooth.lastError}>{vdsDiagnostics.bluetooth.lastError}</dd></div>
                             )}
+                            {/* Trace toggles are Linux only; the Windows build hides them. */}
+                            {VDS_LINUX && (
                             <div>
                               <dt>vdsd Trace</dt>
                               <dd className="vds-trace-toggles">
@@ -11308,6 +11319,7 @@ export function App() {
                                 })}
                               </dd>
                             </div>
+                            )}
                             <div className="debug-entry">
                               <dt>Daemon Log</dt>
                               <dd>

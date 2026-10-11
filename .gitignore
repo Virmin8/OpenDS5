@@ -19,3 +19,6 @@ revert-to-main.sh
 vds-bin/
 result
 vds-win/
+# .NET build output of the Windows audio helper
+ds5-bridge/companion/native/**/bin/
+ds5-bridge/companion/native/**/obj/

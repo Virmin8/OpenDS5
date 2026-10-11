@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, powerMonitor, screen, shell } from 'electron';
-import { spawnSync } from 'node:child_process';
+import { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, nativeTheme, powerMonitor, screen, shell } from 'electron';
+import { recolorMarkForLightTaskbar, trayBatteryPalette, trayTheme, type TrayTheme } from './tray-icon-theme';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -126,9 +127,9 @@ const hasSingleInstanceLock = ALLOW_PARALLEL_AUTOMATION_INSTANCE || app.requestS
 const audioHapticsIconCache = new Map<string, Promise<string | null> | string | null>();
 const TRAY_BATTERY_ICON_SIZE = 32;
 const TRAY_BATTERY_ICON_SCALE_FACTOR = 2;
-const TRAY_BATTERY_ICON_SHADOW = { red: 0, green: 0, blue: 0, alpha: 180 };
-const TRAY_BATTERY_ICON_DISCHARGING = { red: 245, green: 248, blue: 255, alpha: 255 };
-const TRAY_BATTERY_ICON_CHARGING = { red: 57, green: 215, blue: 125, alpha: 255 };
+// Logical tray icon size and the scale factors Windows draws it at (100-200%).
+const TRAY_MARK_SIZE = 16;
+const TRAY_MARK_SCALE_FACTORS = [1, 1.25, 1.5, 2];
 const trayBatteryIconCache = new Map<string, Electron.NativeImage>();
 
 function windowsAppUserModelId(): string {
@@ -190,7 +191,37 @@ function scheduleWindowStateSave(): void {
   }, 500);
 }
 
+function currentTrayTheme(): TrayTheme {
+  return trayTheme(process.platform, nativeTheme);
+}
+
+/** The mark recoloured dark for a light Windows taskbar, at each tray scale. */
+function lightTaskbarTrayIcon(): Electron.NativeImage | null {
+  const source = createImageAsset(APP_TRAY_ICON_PNG);
+  if (source.isEmpty()) {
+    return null;
+  }
+  const icon = nativeImage.createEmpty();
+  for (const scaleFactor of TRAY_MARK_SCALE_FACTORS) {
+    const size = Math.round(TRAY_MARK_SIZE * scaleFactor);
+    const resized = source.resize({ width: size, height: size, quality: 'best' });
+    icon.addRepresentation({
+      scaleFactor,
+      width: size,
+      height: size,
+      buffer: recolorMarkForLightTaskbar(resized.toBitmap())
+    });
+  }
+  return icon;
+}
+
 async function createTrayIcon(): Promise<Electron.NativeImage> {
+  if (currentTrayTheme() === 'light') {
+    const lightIcon = lightTaskbarTrayIcon();
+    if (lightIcon) {
+      return lightIcon;
+    }
+  }
   const icon = createImageAsset(APP_TRAY_ICON_ICO);
   if (!icon.isEmpty()) {
     return icon;
@@ -361,15 +392,17 @@ function drawTrayIconNumber(buffer: Buffer, text: string, color: TrayBatteryIcon
 function batteryTrayIcon(percent: number, charging: boolean): Electron.NativeImage {
   const clampedPercent = Math.max(0, Math.min(100, Math.round(percent)));
   const text = String(clampedPercent);
-  const key = `${text}:${charging ? 'charging' : 'discharging'}`;
+  const theme = currentTrayTheme();
+  const palette = trayBatteryPalette(theme);
+  const key = `${text}:${charging ? 'charging' : 'discharging'}:${theme}`;
   const cached = trayBatteryIconCache.get(key);
   if (cached) {
     return cached;
   }
 
   const buffer = Buffer.alloc(TRAY_BATTERY_ICON_SIZE * TRAY_BATTERY_ICON_SIZE * 4);
-  drawTrayIconNumber(buffer, text, TRAY_BATTERY_ICON_SHADOW, 1);
-  drawTrayIconNumber(buffer, text, charging ? TRAY_BATTERY_ICON_CHARGING : TRAY_BATTERY_ICON_DISCHARGING);
+  drawTrayIconNumber(buffer, text, palette.shadow, 1);
+  drawTrayIconNumber(buffer, text, charging ? palette.charging : palette.discharging);
   const image = nativeImage.createFromBitmap(buffer, {
     width: TRAY_BATTERY_ICON_SIZE,
     height: TRAY_BATTERY_ICON_SIZE,
@@ -1836,6 +1869,16 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
   });
 
   ipcMain.handle('update:restart', () => {
+    const installer = updateService.verifiedWindowsInstaller();
+    if (installer) {
+      // electron-builder's NSIS: --updated runs the upgrade path (no pages, old
+      // uninstaller in update mode, vdsd kept), /S is silent, --force-run starts
+      // OpenDS5 again afterwards. If this process is still running when it gets
+      // to the files, the installer closes it (CHECK_APP_RUNNING).
+      spawn(installer, ['--updated', '/S', '--force-run'], { detached: true, stdio: 'ignore' }).unref();
+      app.quit();
+      return;
+    }
     const target = appImagePath();
     if (!target) {
       return;
@@ -1975,6 +2018,16 @@ app.whenReady().then(async () => {
     { label: 'Quit', click: () => app.quit() }
   ]));
   tray.on('click', showMainWindow);
+  // Switching the Windows taskbar between light and dark redraws the tray.
+  nativeTheme.on('updated', () => {
+    void createTrayIcon().then((icon) => {
+      trayDefaultIcon = icon;
+      const snapshot = bridgeService?.getSnapshot();
+      if (snapshot) {
+        updateTrayPresentation(snapshot);
+      }
+    });
+  });
 
   bridgeService.on('snapshot', (snapshot) => {
     updateTrayPresentation(snapshot);

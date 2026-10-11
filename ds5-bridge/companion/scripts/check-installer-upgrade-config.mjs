@@ -36,7 +36,16 @@ const checks = [
   ['uninstall/upgrade does not delete app data by default', nsis.deleteAppDataOnUninstall === false],
   ['Apps & features display name stays stable', nsis.uninstallDisplayName === expected.uninstallDisplayName],
   ['custom NSIS script is not overriding upgrade flow', nsis.script == null],
-  ['custom NSIS include is not required for DS5 upgrade flow', nsis.include == null],
+  // The include only adds an uninstall step (remove the vdsd service) that must
+  // never run during an upgrade's old-version uninstall.
+  ['custom NSIS include is the vdsd uninstall hook', nsis.include === 'nsis/installer.nsh'],
+  ['vdsd uninstall hook is skipped on upgrade', (() => {
+    const include = readText('../nsis/installer.nsh');
+    const start = include.indexOf('!macro customUnInstall');
+    const body = include.slice(start, include.indexOf('!macroend', start));
+    return start >= 0 && body.trimStart().split('\n')[1]?.trim() === '${ifNot} ${isUpdated}'
+      && !/!macro (customInstall|customRemoveFiles|preInit|customInit)\b/.test(include);
+  })()],
   ['electron-builder skips fresh-install pages during upgrade', commonNsh.includes('!macro skipPageIfUpdated') && commonNsh.includes('${if} ${isUpdated}') && commonNsh.includes('Abort')],
   ['electron-builder checks/closes the running app before file replacement', installSectionNsh.includes('!insertmacro CHECK_APP_RUNNING')],
   ['electron-builder invokes the old uninstaller before writing new files', installSectionNsh.includes('!insertmacro uninstallOldVersion SHELL_CONTEXT')],

@@ -10,7 +10,15 @@ export type Release = {
 
 export type UpdateDecision =
   | { kind: 'none' }
-  | { kind: 'offer'; version: string; notes: string; appImage: ReleaseAsset; sha256: ReleaseAsset };
+  /** asset: the AppImage on Linux, the setup .exe on Windows. */
+  | { kind: 'offer'; version: string; notes: string; asset: ReleaseAsset; sha256: ReleaseAsset };
+
+/** The release file this platform updates from. */
+export function isUpdateAsset(name: string, platform: NodeJS.Platform): boolean {
+  return platform === 'win32'
+    ? /^OpenDS5-Companion-Setup-.+\.exe$/i.test(name)
+    : name.endsWith('.AppImage');
+}
 
 function parts(version: string): { numbers: number[]; prerelease: string | null } {
   const [core, prerelease = null] = version.replace(/^v/, '').split('-', 2);
@@ -36,16 +44,17 @@ export function decideUpdate(input: {
   release: Release | null;
   currentVersion: string;
   skippedVersions: readonly string[];
+  platform?: NodeJS.Platform;
 }): UpdateDecision {
-  const { release, currentVersion, skippedVersions } = input;
+  const { release, currentVersion, skippedVersions, platform = 'linux' } = input;
   if (!release) return { kind: 'none' };
   if (release.draft || release.prerelease) return { kind: 'none' };
   if (skippedVersions.includes(release.version)) return { kind: 'none' };
   if (compareVersions(release.version, currentVersion) <= 0) return { kind: 'none' };
 
-  const appImage = release.assets.find((a) => a.name.endsWith('.AppImage'));
-  const sha256 = release.assets.find((a) => a.name.endsWith('.AppImage.sha256'));
-  if (!appImage || !sha256) return { kind: 'none' };
+  const asset = release.assets.find((a) => isUpdateAsset(a.name, platform));
+  const sha256 = asset && release.assets.find((a) => a.name === `${asset.name}.sha256`);
+  if (!asset || !sha256) return { kind: 'none' };
 
-  return { kind: 'offer', version: release.version, notes: release.notes, appImage, sha256 };
+  return { kind: 'offer', version: release.version, notes: release.notes, asset, sha256 };
 }

@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import {
@@ -95,7 +96,14 @@ export function decideRebuild(input: {
   return { kind: 'rebuild', hash: bundledHash };
 }
 
+/** Where Windows downloads the next release's setup .exe before running it. */
+export function windowsInstallerDownloadPath(version: string): string {
+  return path.join(os.tmpdir(), 'OpenDS5-update', `OpenDS5-Companion-Setup-${version}.exe`);
+}
+
 export type UpdateServiceDeps = {
+  platform: NodeJS.Platform;
+  windowsInstallerPath: (version: string) => string;
   appImagePath: typeof appImagePath;
   canSelfReplace: typeof canSelfReplace;
   fetchLatestRelease: typeof fetchLatestRelease;
@@ -110,6 +118,8 @@ export type UpdateServiceDeps = {
 };
 
 const DEFAULT_DEPS: UpdateServiceDeps = {
+  platform: process.platform,
+  windowsInstallerPath: windowsInstallerDownloadPath,
   appImagePath,
   canSelfReplace,
   fetchLatestRelease,
@@ -131,6 +141,8 @@ const DEFAULT_DEPS: UpdateServiceDeps = {
 export class UpdateService {
   private state: UpdateState = { phase: 'idle' };
   private pending: Extract<UpdateDecision, { kind: 'offer' }> | null = null;
+  /** Windows: the verified setup .exe that "Restart" runs. */
+  private verifiedInstaller: string | null = null;
   private readonly deps: UpdateServiceDeps;
 
   constructor(
@@ -146,6 +158,11 @@ export class UpdateService {
     return this.state;
   }
 
+  /** Windows: the downloaded, checksum-verified setup .exe to run on Restart. */
+  verifiedWindowsInstaller(): string | null {
+    return this.verifiedInstaller;
+  }
+
   private set(state: UpdateState): void {
     this.state = state;
     this.emit(state);
@@ -157,9 +174,12 @@ export class UpdateService {
    * check does not retry on every launch.
    */
   async check(skippedVersions: readonly string[]): Promise<UpdateState> {
-    const target = this.deps.appImagePath();
+    // Windows updates by running the next release's installer, so it needs no
+    // AppImage path.
+    const windows = this.deps.platform === 'win32';
+    const target = windows ? null : this.deps.appImagePath();
     const nixos = this.deps.isNixOS();
-    if (!target && !nixos) {
+    if (!windows && !target && !nixos) {
       this.set({ phase: 'idle' });
       return this.state;
     }
@@ -169,6 +189,7 @@ export class UpdateService {
       release,
       currentVersion: this.currentVersion,
       skippedVersions,
+      platform: this.deps.platform,
     });
     if (decision.kind === 'none') {
       this.pending = null;
@@ -179,7 +200,18 @@ export class UpdateService {
     this.pending = decision;
 
     if (nixos) {
-      this.set({ phase: 'notify', version: decision.version, url: decision.appImage.url });
+      this.set({ phase: 'notify', version: decision.version, url: decision.asset.url });
+      return this.state;
+    }
+
+    if (windows) {
+      this.set({
+        phase: 'offer',
+        version: decision.version,
+        currentVersion: this.currentVersion,
+        notes: decision.notes,
+        sizeBytes: decision.asset.size,
+      });
       return this.state;
     }
 
@@ -191,7 +223,7 @@ export class UpdateService {
     }
 
     if (!this.deps.canSelfReplace(target)) {
-      this.set({ phase: 'readonly', version: decision.version, url: decision.appImage.url });
+      this.set({ phase: 'readonly', version: decision.version, url: decision.asset.url });
       return this.state;
     }
 
@@ -200,7 +232,7 @@ export class UpdateService {
       version: decision.version,
       currentVersion: this.currentVersion,
       notes: decision.notes,
-      sizeBytes: decision.appImage.size,
+      sizeBytes: decision.asset.size,
     });
     return this.state;
   }
@@ -216,16 +248,22 @@ export class UpdateService {
   async start(): Promise<void> {
     if (this.deps.isNixOS()) return;
     const decision = this.pending;
-    const target = this.deps.appImagePath();
-    if (!decision || !target) return;
+    const windows = this.deps.platform === 'win32';
+    const target = windows ? null : this.deps.appImagePath();
+    if (!decision || (!windows && !target)) return;
     const { version } = decision;
 
-    const tempPath = tempDownloadPath(target);
+    // Windows: the setup .exe goes to a temp folder and runs on Restart.
+    const tempPath = target ? tempDownloadPath(target) : this.deps.windowsInstallerPath(version);
+    this.verifiedInstaller = null;
 
     try {
-      this.set({ phase: 'downloading', version, received: 0, total: decision.appImage.size });
+      if (windows) {
+        await fs.promises.mkdir(path.dirname(tempPath), { recursive: true });
+      }
+      this.set({ phase: 'downloading', version, received: 0, total: decision.asset.size });
       await this.deps.downloadTo({
-        url: decision.appImage.url,
+        url: decision.asset.url,
         tempPath,
         onProgress: (received, total) =>
           this.set({ phase: 'downloading', version, received, total }),
@@ -255,6 +293,12 @@ export class UpdateService {
       return;
     }
 
+    if (!target) {
+      this.verifiedInstaller = tempPath;
+      this.set({ phase: 'restart', version });
+      return;
+    }
+
     try {
       this.deps.swapInPlace(tempPath, target);
     } catch {
@@ -280,6 +324,16 @@ export class UpdateService {
    */
   cleanStaleDownload(): void {
     try {
+      if (this.deps.platform === 'win32') {
+        // Old installers, including the one the last update ran from.
+        if (!this.verifiedInstaller) {
+          fs.rmSync(path.dirname(this.deps.windowsInstallerPath(this.currentVersion)), {
+            recursive: true,
+            force: true,
+          });
+        }
+        return;
+      }
       const target = this.deps.appImagePath();
       if (!target) return;
       fs.rmSync(tempDownloadPath(target), { force: true });
@@ -295,7 +349,8 @@ export class UpdateService {
    * (nothing to do, or the rebuild failed — in which case the next launch retries).
    */
   async rebuildIfNeeded(recordedHash: string): Promise<string | null> {
-    if (this.deps.isNixOS()) return null;
+    // Windows has no kernel module; the setup wizard updates vdsd on launch.
+    if (this.deps.isNixOS() || this.deps.platform === 'win32') return null;
     const outcome = decideRebuild({
       bundledHash: this.deps.moduleSourceHash(this.deps.moduleSourceRoot()),
       recordedHash,

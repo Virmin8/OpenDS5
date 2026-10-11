@@ -155,7 +155,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "OpenDS5",
-      "uninstallDisplayName": "OpenDS5"
+      "uninstallDisplayName": "OpenDS5",
+      "include": "nsis/installer.nsh"
     },
     "linux": {
       "target": [

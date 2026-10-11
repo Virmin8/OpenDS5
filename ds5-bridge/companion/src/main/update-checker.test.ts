@@ -36,8 +36,28 @@ describe('decideUpdate', () => {
     expect(decision.kind).toBe('offer');
     if (decision.kind !== 'offer') throw new Error('expected an offer');
     expect(decision.version).toBe('1.8.0');
-    expect(decision.appImage.url).toBe('https://x/a');
+    expect(decision.asset.url).toBe('https://x/a');
     expect(decision.sha256.url).toBe('https://x/s');
+  });
+
+  it('offers the setup .exe on Windows and the AppImage on Linux', () => {
+    const both = release({
+      assets: [
+        { name: 'OpenDS5-Companion-Setup-1.8.0.AppImage', url: 'https://x/a', size: 118 },
+        { name: 'OpenDS5-Companion-Setup-1.8.0.AppImage.sha256', url: 'https://x/s', size: 64 },
+        { name: 'OpenDS5-Companion-Setup-1.8.0.exe', url: 'https://x/w', size: 140 },
+        { name: 'OpenDS5-Companion-Setup-1.8.0.exe.sha256', url: 'https://x/ws', size: 64 },
+      ],
+    });
+    const windows = decideUpdate({ ...base, release: both, platform: 'win32' });
+    const linux = decideUpdate({ ...base, release: both, platform: 'linux' });
+    if (windows.kind !== 'offer' || linux.kind !== 'offer') throw new Error('expected offers');
+    expect([windows.asset.url, windows.sha256.url]).toEqual(['https://x/w', 'https://x/ws']);
+    expect([linux.asset.url, linux.sha256.url]).toEqual(['https://x/a', 'https://x/s']);
+  });
+
+  it('does not offer Windows an AppImage-only release', () => {
+    expect(decideUpdate({ ...base, release: release(), platform: 'win32' }).kind).toBe('none');
   });
 
   it('does not offer the version already running', () => {
@@ -62,6 +82,14 @@ describe('decideUpdate', () => {
   it('does not offer a release with no AppImage or no checksum', () => {
     const noAppImage = release({ assets: [{ name: 'x.sha256', url: 'u', size: 1 }] });
     const noSum = release({ assets: [{ name: 'x.AppImage', url: 'u', size: 1 }] });
+    // A checksum for some other file does not count.
+    const otherSum = release({
+      assets: [
+        { name: 'x.AppImage', url: 'u', size: 1 },
+        { name: 'y.AppImage.sha256', url: 's', size: 64 },
+      ],
+    });
+    expect(decideUpdate({ ...base, release: otherSum }).kind).toBe('none');
     expect(decideUpdate({ ...base, release: noAppImage }).kind).toBe('none');
     expect(decideUpdate({ ...base, release: noSum }).kind).toBe('none');
   });

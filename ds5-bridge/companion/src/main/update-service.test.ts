@@ -135,7 +135,7 @@ describe('UpdateService.start', () => {
     kind: 'offer' as const,
     version: '1.8.0',
     notes: '',
-    appImage: { name: 'x.AppImage', url: 'https://x/a', size: NEW_BYTES.length },
+    asset: { name: 'x.AppImage', url: 'https://x/a', size: NEW_BYTES.length },
     sha256: { name: 'x.AppImage.sha256', url: 'https://x/s', size: 64 },
   };
 
@@ -143,6 +143,7 @@ describe('UpdateService.start', () => {
     states = [];
     const setup = { install: vi.fn().mockResolvedValue(0) } as unknown as SetupService;
     const svc = new UpdateService('1.7.0', setup, (s) => states.push(s), {
+      platform: 'linux',
       appImagePath: () => target,
       canSelfReplace: () => true,
       isNixOS: () => false,
@@ -246,6 +247,7 @@ describe('UpdateService.cleanStaleDownload', () => {
   function service(appImagePathImpl: () => string | null) {
     const setup = { install: vi.fn() } as unknown as SetupService;
     return new UpdateService('1.7.0', setup, () => {}, {
+      platform: 'linux',
       appImagePath: appImagePathImpl,
       canSelfReplace: () => true,
       isNixOS: () => false,
@@ -297,6 +299,7 @@ describe('UpdateService.check', () => {
   function service(overrides: Record<string, unknown> = {}) {
     const setup = { install: vi.fn() } as unknown as SetupService;
     const svc = new UpdateService('1.7.0', setup, () => {}, {
+      platform: 'linux',
       appImagePath: () => '/x/OpenDS5.AppImage',
       canSelfReplace: () => true,
       isNixOS: () => false,
@@ -367,6 +370,7 @@ describe('UpdateService.rebuildIfNeeded', () => {
       }),
     } as unknown as SetupService;
     const svc = new UpdateService('1.8.0', setup, (s) => states.push(s), {
+      platform: 'linux',
       appImagePath: () => '/x/OpenDS5.AppImage',
       canSelfReplace: () => true,
       isNixOS: () => false,
@@ -401,6 +405,7 @@ describe('UpdateService.rebuildIfNeeded', () => {
     const moduleSourceHash = vi.fn().mockReturnValue('bbb');
     const installedModuleVersion = vi.fn().mockReturnValue('1.7.0');
     const nixosService = new UpdateService('1.8.0', setup, () => {}, {
+      platform: 'linux',
       appImagePath: () => '/x/OpenDS5.AppImage',
       isNixOS: () => true,
       moduleSourceHash,
@@ -411,5 +416,98 @@ describe('UpdateService.rebuildIfNeeded', () => {
     expect(moduleSourceHash).not.toHaveBeenCalled();
     expect(installedModuleVersion).not.toHaveBeenCalled();
     expect(setup.install).not.toHaveBeenCalled();
+  });
+});
+
+describe('UpdateService on Windows', () => {
+  let dir: string;
+  let states: UpdateState[];
+  const BYTES = 'new-setup-exe-bytes';
+  const digest = createHash('sha256').update(BYTES).digest('hex');
+  const release = {
+    version: '1.8.0',
+    notes: 'notes',
+    draft: false,
+    prerelease: false,
+    assets: [
+      { name: 'OpenDS5-Companion-Setup-1.8.0.AppImage', url: 'https://x/a', size: 100 },
+      { name: 'OpenDS5-Companion-Setup-1.8.0.AppImage.sha256', url: 'https://x/as', size: 64 },
+      { name: 'OpenDS5-Companion-Setup-1.8.0.exe', url: 'https://x/w', size: BYTES.length },
+      { name: 'OpenDS5-Companion-Setup-1.8.0.exe.sha256', url: 'https://x/ws', size: 64 },
+    ],
+  };
+
+  function service(overrides: Record<string, unknown> = {}) {
+    states = [];
+    const setup = { install: vi.fn().mockResolvedValue(0) } as unknown as SetupService;
+    const downloadTo = vi.fn(async ({ tempPath }: { tempPath: string }) => {
+      fs.writeFileSync(tempPath, BYTES);
+    });
+    const svc = new UpdateService('1.7.0', setup, (s) => states.push(s), {
+      platform: 'win32',
+      windowsInstallerPath: (version: string) => path.join(dir, 'update', `Setup-${version}.exe`),
+      appImagePath: () => null,
+      isNixOS: () => false,
+      fetchLatestRelease: vi.fn().mockResolvedValue(release),
+      fetchText: vi.fn().mockResolvedValue(`${digest}  OpenDS5-Companion-Setup-1.8.0.exe`),
+      downloadTo,
+      ...overrides,
+    });
+    return { svc, setup, downloadTo };
+  }
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'opends5-win-update-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('offers the setup .exe without an AppImage path', async () => {
+    const { svc } = service();
+    await expect(svc.check([])).resolves.toEqual({
+      phase: 'offer',
+      version: '1.8.0',
+      currentVersion: '1.7.0',
+      notes: 'notes',
+      sizeBytes: BYTES.length,
+    });
+  });
+
+  it('downloads and verifies the installer, then hands it to Restart', async () => {
+    const { svc, downloadTo } = service();
+    await svc.check([]);
+    await svc.start();
+
+    const installer = path.join(dir, 'update', 'Setup-1.8.0.exe');
+    expect(downloadTo).toHaveBeenCalledWith(expect.objectContaining({ url: 'https://x/w', tempPath: installer }));
+    expect(fs.readFileSync(installer, 'utf8')).toBe(BYTES);
+    expect(svc.getState()).toEqual({ phase: 'restart', version: '1.8.0' });
+    expect(svc.verifiedWindowsInstaller()).toBe(installer);
+  });
+
+  it('never hands Restart an installer that failed its checksum', async () => {
+    const { svc } = service({ fetchText: vi.fn().mockResolvedValue(`${'0'.repeat(64)}  x.exe`) });
+    await svc.check([]);
+    await svc.start();
+
+    expect(svc.getState()).toMatchObject({ phase: 'failed', retry: 'download' });
+    expect(svc.verifiedWindowsInstaller()).toBeNull();
+    expect(fs.existsSync(path.join(dir, 'update', 'Setup-1.8.0.exe'))).toBe(false);
+  });
+
+  it('never runs the Linux driver rebuild', async () => {
+    const { svc, setup } = service({ installedModuleVersion: () => '1.7.0', moduleSourceHash: () => 'abc' });
+    await expect(svc.rebuildIfNeeded('')).resolves.toBeNull();
+    expect(setup.install).not.toHaveBeenCalled();
+  });
+
+  it('clears old downloads on launch', () => {
+    const { svc } = service();
+    fs.mkdirSync(path.join(dir, 'update'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'update', 'Setup-1.6.0.exe'), 'old');
+    svc.cleanStaleDownload();
+    expect(fs.existsSync(path.join(dir, 'update'))).toBe(false);
   });
 });
