@@ -1850,6 +1850,21 @@ describe('BridgeService', () => {
     expect(linuxMute).toHaveBeenLastCalledWith(true);
   });
 
+  it('vdsd: the Mute Light setting is saved and sent to the daemon', async () => {
+    const service = serviceFixture({}, { vdsMicSwitch: true, setLinuxMicMuted: vi.fn(async () => 1) });
+    const device = new MockHidDevice();
+    device.status = statusReport({ controllerConnected: true });
+    hidMock.state.devicesList = [companionDeviceInfo()];
+    hidMock.state.openDevices.set('companion-path', device);
+    await poll(service);
+    device.sentReports.length = 0;
+
+    await service.setMuteLedEnabled(false);
+
+    expect(service.getSnapshot().settings.muteLedEnabled).toBe(false);
+    expect(device.sentReports.find((report) => report[7] === COMMAND_ID.SET_MUTE_LED_ENABLED)?.[9]).toBe(0);
+  });
+
   it('vdsd: muting the mic turns the Microphone switch off and mutes it in Linux', async () => {
     const linuxMute = vi.fn(async () => 1);
     const service = serviceFixture(

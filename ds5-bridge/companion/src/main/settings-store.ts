@@ -144,6 +144,7 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   launchAtStartupEnabled: false,
   startMinimizedEnabled: false,
   profileShortcutEnabled: false,
+  muteLedEnabled: true,
   startupControllerProfileId: '',
   gameProfileLinks: {},
   setupSkipped: false,
@@ -912,6 +913,9 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     profileShortcutEnabled: typeof value?.profileShortcutEnabled === 'boolean'
       ? value.profileShortcutEnabled
       : DEFAULT_SETTINGS.profileShortcutEnabled,
+    muteLedEnabled: typeof value?.muteLedEnabled === 'boolean'
+      ? value.muteLedEnabled
+      : DEFAULT_SETTINGS.muteLedEnabled,
     gameProfileLinks: normalizeGameProfileLinks(value?.gameProfileLinks),
     startupControllerProfileId: typeof value?.startupControllerProfileId === 'string'
       && value.startupControllerProfileId.length <= 200

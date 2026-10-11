@@ -95,6 +95,8 @@ export const COMMAND_ID = {
   APPLY_ADAPTIVE_TRIGGER_EFFECT_V2: 0x41,
   // Linux-port extension: PS + D-pad left/right cycles controller profiles.
   SET_PROFILE_SHORTCUT_ENABLED: 0x42,
+  // Linux-port extension: light the Mute button while the mic is off.
+  SET_MUTE_LED_ENABLED: 0x43,
   SET_SPEAKER_GAIN: 0x32,
   ENTER_BOOTLOADER: 0x33
 } as const;

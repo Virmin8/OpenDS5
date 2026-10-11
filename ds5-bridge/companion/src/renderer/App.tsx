@@ -1611,6 +1611,26 @@ function lightbarColorLabel(color: string): string {
 }
 
 // Under vdsd only Normal and Chord exist; other saved modes act as Normal.
+const VDS_PACKET_MODE_LABELS: Record<string, string> = {
+  haptics: 'Haptics only',
+  'haptics+speaker': 'Haptics + speaker',
+  'haptics+mic': 'Haptics + mic',
+  'haptics+speaker+mic': 'Haptics + speaker + mic',
+  mic: 'Mic only',
+  idle: 'None'
+};
+
+function vdsPacketModeLabel(mode: string, hapticsOnly: boolean, streaming: boolean): string {
+  if (mode) {
+    return VDS_PACKET_MODE_LABELS[mode] ?? mode;
+  }
+  // Older vdsd without packet_mode.
+  if (!streaming) {
+    return 'None';
+  }
+  return hapticsOnly ? 'Haptics only' : 'Haptics + speaker';
+}
+
 function effectiveMuteButtonMode(mode: MuteButtonMode): MuteButtonMode {
   return VDS_AVAILABLE && mode !== 'chord' ? 'normal' : mode;
 }
@@ -6920,6 +6940,136 @@ export function App() {
   }
 
 
+  // Mute Button settings, shown on the Audio page's Mic view.
+  function renderMuteButtonCard() {
+    if (!snapshot) {
+      return null;
+    }
+    return (
+      <section className="system-card mute-card audio-mute-card">
+        <div className="feature-card-title system-card-heading">
+          <span className="feature-icon system-icon icon-wide"><MicOff size={20} /></span>
+          <div className="title-copy">
+            <h3>Mute Button</h3>
+            <p>Set controller mute behavior.</p>
+          </div>
+        </div>
+        <div className="system-fields">
+          <div className="select-row">
+            <span>Behavior</span>
+            <CustomSelect
+              value={effectiveMuteButtonMode(snapshot.settings.muteButtonMode)}
+              disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
+              options={MUTE_BUTTON_MODE_OPTIONS}
+              ariaLabel="Mute button behavior"
+              onChange={(mode) => setMuteButtonAction(mode)}
+            />
+          </div>
+          {VDS_AVAILABLE && (
+            <div className="select-row">
+              <span>Mute Light</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={snapshot.settings.muteLedEnabled}
+                aria-label="Mute light"
+                title="Light the Mute button while the microphone is off"
+                className={`switch ${snapshot.settings.muteLedEnabled ? 'on' : ''}`}
+                disabled={!connected || pendingAction !== null}
+                onClick={() => void runAction('mute-light', () => (
+                  window.bridge.setMuteLedEnabled(!snapshot.settings.muteLedEnabled)
+                ))}
+              >
+                <span />
+              </button>
+            </div>
+          )}
+          {effectiveMuteButtonMode(snapshot.settings.muteButtonMode) === 'keyboard' && (
+            <>
+              <div className="select-row">
+                <span>Key</span>
+                <CustomSelect
+                  value={snapshot.settings.muteKeyboardUsage}
+                  disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
+                  options={MUTE_KEY_OPTIONS}
+                  ariaLabel="Mute keyboard key"
+                  onChange={(usage) => setMuteButtonAction('keyboard', usage)}
+                />
+              </div>
+              <div className="select-row">
+                <span>Press Mode</span>
+                <CustomSelect
+                  value={snapshot.settings.muteKeyboardBehavior}
+                  disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
+                  options={MUTE_KEYBOARD_BEHAVIOR_OPTIONS}
+                  ariaLabel="Mute keyboard press mode"
+                  onChange={(behavior) => setMuteButtonAction('keyboard', undefined, undefined, behavior)}
+                />
+              </div>
+              <div className="modifier-block">
+                <div className="modifier-grid" aria-label="Keyboard modifiers">
+                  {MUTE_MODIFIER_OPTIONS.map(([label, bit]) => {
+                    const enabled = (snapshot.settings.muteKeyboardModifiers & bit) !== 0;
+                    return (
+                      <button
+                        key={bit}
+                        type="button"
+                        className={enabled ? 'active' : ''}
+                        disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
+                        onClick={() => setMuteModifier(bit, !enabled)}
+                      >
+                        <Keyboard size={16} />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="select-row">
+                <span
+                  className="settings-menu-copy-tooltip chord-starter-label"
+                  tabIndex={0}
+                  aria-describedby="mute-chord-starter-tooltip"
+                >
+                  Chord Starter
+                  <span
+                    id="mute-chord-starter-tooltip"
+                    className="settings-shortcut-tooltip chord-starter-tooltip"
+                    role="tooltip"
+                  >
+                    Lets Mute start a chord. When enabled, the keyboard key waits 250ms so a chord can be detected first.
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={snapshot.settings.muteKeyboardChordStarterEnabled}
+                  className={`switch ${snapshot.settings.muteKeyboardChordStarterEnabled ? 'on' : ''}`}
+                  disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
+                  onClick={() => setMuteButtonAction(
+                    'keyboard',
+                    undefined,
+                    undefined,
+                    undefined,
+                    !snapshot.settings.muteKeyboardChordStarterEnabled
+                  )}
+                >
+                  <span />
+                </button>
+              </div>
+            </>
+          )}
+          {snapshot.settings.muteButtonMode === 'quiet' && (
+            <div className={`quiet-state ${snapshot.status?.quietModeEnabled ? 'active' : ''}`}>
+              <VolumeX size={18} />
+              <span>{snapshot.status?.quietModeEnabled ? 'Controller Quiet On' : 'Controller Quiet Off'}</span>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div
       className={[
@@ -8890,7 +9040,7 @@ export function App() {
                   </div>
                 </section>
               </div>
-              <FeatureTipsPanel tab="audio" />
+              {showMicrophoneControl ? renderMuteButtonCard() : <FeatureTipsPanel tab="audio" />}
           </div>
 
           <div
@@ -10863,110 +11013,7 @@ export function App() {
               </div>
 
               <div className="feature-card-grid">
-                <section className="system-card mute-card">
-                  <div className="feature-card-title system-card-heading">
-                    <span className="feature-icon system-icon icon-wide"><MicOff size={20} /></span>
-                    <div className="title-copy">
-                      <h3>Mute Button</h3>
-                      <p>Set controller mute behavior.</p>
-                    </div>
-                  </div>
-                  <div className="system-fields">
-                    <div className="select-row">
-                      <span>Behavior</span>
-                      <CustomSelect
-                        value={effectiveMuteButtonMode(snapshot.settings.muteButtonMode)}
-                        disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
-                        options={MUTE_BUTTON_MODE_OPTIONS}
-                        ariaLabel="Mute button behavior"
-                        onChange={(mode) => setMuteButtonAction(mode)}
-                      />
-                    </div>
-                    {effectiveMuteButtonMode(snapshot.settings.muteButtonMode) === 'keyboard' && (
-                      <>
-                        <div className="select-row">
-                          <span>Key</span>
-                          <CustomSelect
-                            value={snapshot.settings.muteKeyboardUsage}
-                            disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
-                            options={MUTE_KEY_OPTIONS}
-                            ariaLabel="Mute keyboard key"
-                            onChange={(usage) => setMuteButtonAction('keyboard', usage)}
-                          />
-                        </div>
-                        <div className="select-row">
-                          <span>Press Mode</span>
-                          <CustomSelect
-                            value={snapshot.settings.muteKeyboardBehavior}
-                            disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
-                            options={MUTE_KEYBOARD_BEHAVIOR_OPTIONS}
-                            ariaLabel="Mute keyboard press mode"
-                            onChange={(behavior) => setMuteButtonAction('keyboard', undefined, undefined, behavior)}
-                          />
-                        </div>
-                        <div className="modifier-block">
-                          <div className="modifier-grid" aria-label="Keyboard modifiers">
-                            {MUTE_MODIFIER_OPTIONS.map(([label, bit]) => {
-                              const enabled = (snapshot.settings.muteKeyboardModifiers & bit) !== 0;
-                              return (
-                                <button
-                                  key={bit}
-                                  type="button"
-                                  className={enabled ? 'active' : ''}
-                                  disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
-                                  onClick={() => setMuteModifier(bit, !enabled)}
-                                >
-                                  <Keyboard size={16} />
-                                  {label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <div className="select-row">
-                          <span
-                            className="settings-menu-copy-tooltip chord-starter-label"
-                            tabIndex={0}
-                            aria-describedby="mute-chord-starter-tooltip"
-                          >
-                            Chord Starter
-                            <span
-                              id="mute-chord-starter-tooltip"
-                              className="settings-shortcut-tooltip chord-starter-tooltip"
-                              role="tooltip"
-                            >
-                              Lets Mute start a chord. When enabled, the keyboard key waits 250ms so a chord can be detected first.
-                            </span>
-                          </span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={snapshot.settings.muteKeyboardChordStarterEnabled}
-                            className={`switch ${snapshot.settings.muteKeyboardChordStarterEnabled ? 'on' : ''}`}
-                            disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
-                            onClick={() => setMuteButtonAction(
-                              'keyboard',
-                              undefined,
-                              undefined,
-                              undefined,
-                              !snapshot.settings.muteKeyboardChordStarterEnabled
-                            )}
-                          >
-                            <span />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {snapshot.settings.muteButtonMode === 'quiet' && (
-                      <div className={`quiet-state ${snapshot.status?.quietModeEnabled ? 'active' : ''}`}>
-                        <VolumeX size={18} />
-                        <span>{snapshot.status?.quietModeEnabled ? 'Controller Quiet On' : 'Controller Quiet Off'}</span>
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <section className={`system-card device-card ${showDiagnostics ? 'expanded' : ''} ${VDS_AVAILABLE ? 'system-card-full' : ''}`}>
+                <section className={`system-card device-card system-card-full ${showDiagnostics ? 'expanded' : ''}`}>
                   <div className="feature-card-title system-card-heading">
                     <span className="feature-icon system-icon icon-wide">
                       {showDiagnostics ? <IconStethoscope size={20} /> : <Settings2 size={20} />}
@@ -11053,12 +11100,28 @@ export function App() {
                                 <div>
                                   <dt>Audio</dt>
                                   <dd>
-                                    {audio.streaming ? 'Streaming' : 'Idle'}
-                                    {audio.streaming && audio.hapticsOnly ? ' (haptics only)' : ''}
+                                    {audio.streaming || audio.micOpen ? 'Streaming' : 'Idle'}
                                     {' · '}
                                     {audio.headphones
                                       ? 'headphones, stereo'
                                       : `speaker, ${audio.speakerMono ? 'mono' : 'stereo'}, boost ${audio.speakerBoostDb > 0 ? `+${audio.speakerBoostDb.toFixed(0)} dB` : 'off'}, volume ${audio.speakerVolumePercent}%`}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Packets</dt>
+                                  <dd title="Each Bluetooth packet carries only what is live: haptics alone (0x33), plus speaker audio (0x36), plus the mic section while it records.">
+                                    {vdsPacketModeLabel(audio.packetMode, audio.hapticsOnly, audio.streaming)}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt>Mic</dt>
+                                  <dd
+                                    className={!audio.micOpen && audio.micPacketsPerSecond > 0 ? 'diagnostic-warning' : undefined}
+                                    title="Mic packets from the controller. While the mic is closed there should be none; any that arrive make vdsd send the close again."
+                                  >
+                                    {audio.micOpen ? 'Open' : 'Closed'}
+                                    {` · ${audio.micPacketsPerSecond.toFixed(1)} packets/s · ${audio.micPacketsTotal} total`}
+                                    {audio.micWhileClosedTotal > 0 ? ` · ${audio.micWhileClosedTotal} while closed` : ''}
                                   </dd>
                                 </div>
                                 <div>

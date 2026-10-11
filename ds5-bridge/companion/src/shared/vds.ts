@@ -75,6 +75,16 @@ export type VdsAudioPortStats = {
   /** The speaker is silent, so packets carry only haptics (report 0x33). */
   hapticsOnly: boolean;
   hapticsOnlyTotal: number;
+  /**
+   * What the Bluetooth packets carry: haptics, haptics+speaker, haptics+mic,
+   * haptics+speaker+mic, mic (recording with no output stream) or idle.
+   */
+  packetMode: string;
+  micOpen: boolean;
+  micPacketsPerSecond: number;
+  micPacketsTotal: number;
+  /** Mic packets that arrived while the mic was closed (each burst re-sends the close). */
+  micWhileClosedTotal: number;
   blockedTotal: number;
   headphones: boolean;
   speakerMono: boolean;

@@ -4892,6 +4892,12 @@ button.feature-icon {
   white-space: nowrap;
 }
 
+/* Mute Button settings take the tips panel's row on the Audio page's Mic view. */
+.audio-page .audio-mute-card {
+  min-height: 0;
+  overflow: auto;
+}
+
 .mic-option-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

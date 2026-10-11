@@ -157,6 +157,9 @@ const api = {
   setProfileShortcutEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setProfileShortcutEnabled', value)
   ),
+  setMuteLedEnabled: (value: boolean): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setMuteLedEnabled', value)
+  ),
   setStartMinimizedEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setStartMinimizedEnabled', value)
   ),

@@ -1528,6 +1528,9 @@ function registerIpc(
   ipcMain.handle('bridge:setProfileShortcutEnabled', (_event, value: boolean) => (
     service.setProfileShortcutEnabled(Boolean(value))
   ));
+  ipcMain.handle('bridge:setMuteLedEnabled', (_event, value: boolean) => (
+    service.setMuteLedEnabled(Boolean(value))
+  ));
   ipcMain.handle('bridge:setStartMinimizedEnabled', (_event, value: boolean) => (
     service.setStartMinimizedEnabled(Boolean(value))
   ));

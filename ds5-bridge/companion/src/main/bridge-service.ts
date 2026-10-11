@@ -3070,6 +3070,15 @@ export class BridgeService extends EventEmitter {
     return this.getSnapshot();
   }
 
+  async setMuteLedEnabled(enabled: boolean): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ muteLedEnabled: enabled });
+    if (this.snapshot.state === 'connected' && this.vdsMicSwitch) {
+      await this.sendCommand(COMMAND_ID.SET_MUTE_LED_ENABLED, enabled ? 1 : 0, {});
+    }
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   setStartMinimizedEnabled(enabled: boolean): BridgeSnapshot {
     this.snapshot.settings = this.settingsStore.update({
       startMinimizedEnabled: enabled
@@ -4105,6 +4114,17 @@ export class BridgeService extends EventEmitter {
         );
       } catch {
         // ignored
+      }
+    }
+    if (this.vdsMicSwitch) {
+      try {
+        await this.sendCommand(
+          COMMAND_ID.SET_MUTE_LED_ENABLED,
+          this.settingsStore.get().muteLedEnabled ? 1 : 0,
+          { expectSettingsRevisionChange }
+        );
+      } catch {
+        // An older vdsd rejects it.
       }
     }
     await this.applyButtonRemapping(settings, expectSettingsRevisionChange);
