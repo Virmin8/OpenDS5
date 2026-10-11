@@ -432,14 +432,17 @@ function audioStatusReport(overrides: Partial<{
   return report;
 }
 
-function createService(initialSettings?: Parameters<SettingsStore['update']>[0]): { service: BridgeService; tempDir: string } {
+function createService(
+  initialSettings?: Parameters<SettingsStore['update']>[0],
+  options?: ConstructorParameters<typeof BridgeService>[1]
+): { service: BridgeService; tempDir: string } {
   const tempDir = mkdtempSync(path.join(tmpdir(), 'ds5-bridge-companion-'));
   const settingsStore = new SettingsStore(tempDir);
   if (initialSettings) {
     settingsStore.update(initialSettings);
   }
   return {
-    service: new BridgeService(settingsStore),
+    service: new BridgeService(settingsStore, options),
     tempDir
   };
 }
@@ -495,8 +498,11 @@ describe('BridgeService', () => {
     }
   });
 
-  function serviceFixture(initialSettings?: Parameters<SettingsStore['update']>[0]): BridgeService {
-    const fixture = createService(initialSettings);
+  function serviceFixture(
+    initialSettings?: Parameters<SettingsStore['update']>[0],
+    options?: ConstructorParameters<typeof BridgeService>[1]
+  ): BridgeService {
+    const fixture = createService(initialSettings, options);
     tempDirs.push(fixture.tempDir);
     services.push(fixture.service);
     return fixture.service;
@@ -1813,6 +1819,56 @@ describe('BridgeService', () => {
 
     releaseKeepalive();
     await flushImmediate();
+  });
+
+  it('vdsd: the controller Mute button switches the microphone and its Linux mute', async () => {
+    const linuxMute = vi.fn(async () => 1);
+    const service = serviceFixture(
+      { duplexMicEnabled: false, micMuted: true, muteButtonMode: 'quiet' },
+      { vdsMicSwitch: true, setLinuxMicMuted: linuxMute }
+    );
+    const device = new MockHidDevice();
+    device.status = statusReport({ controllerConnected: true, micMuted: true });
+    hidMock.state.devicesList = [companionDeviceInfo()];
+    hidMock.state.openDevices.set('companion-path', device);
+    await poll(service);
+    await flushReapply();
+    linuxMute.mockClear();
+
+    device.queueShortcutEvent(SHORTCUT_EVENT.MIC_MUTE_OFF);
+    await pollShortcut(service);
+    await flushImmediate();
+    expect(service.getSnapshot().settings.duplexMicEnabled).toBe(true);
+    expect(service.getSnapshot().settings.micMuted).toBe(false);
+    expect(linuxMute).toHaveBeenLastCalledWith(false);
+
+    device.queueShortcutEvent(SHORTCUT_EVENT.MIC_MUTE_ON);
+    await pollShortcut(service);
+    await flushImmediate();
+    expect(service.getSnapshot().settings.duplexMicEnabled).toBe(false);
+    expect(service.getSnapshot().settings.micMuted).toBe(true);
+    expect(linuxMute).toHaveBeenLastCalledWith(true);
+  });
+
+  it('vdsd: muting the mic turns the Microphone switch off and mutes it in Linux', async () => {
+    const linuxMute = vi.fn(async () => 1);
+    const service = serviceFixture(
+      { duplexMicEnabled: true, micMuted: false },
+      { vdsMicSwitch: true, setLinuxMicMuted: linuxMute }
+    );
+    const device = new MockHidDevice();
+    device.status = statusReport({ controllerConnected: true, micMuted: false });
+    hidMock.state.devicesList = [companionDeviceInfo()];
+    hidMock.state.openDevices.set('companion-path', device);
+    await poll(service);
+    device.sentReports.length = 0;
+
+    await service.setMicMute(true);
+
+    expect(device.sentReports.find((report) => report[7] === COMMAND_ID.SET_DUPLEX_ENABLED)?.[9]).toBe(0);
+    expect(device.sentReports.find((report) => report[7] === COMMAND_ID.SET_MIC_MUTE)?.[9]).toBe(1);
+    expect(service.getSnapshot().settings.duplexMicEnabled).toBe(false);
+    expect(linuxMute).toHaveBeenLastCalledWith(true);
   });
 
   it('ignores controller mic mute events when mic pass-through is not armed', async () => {

@@ -824,6 +824,46 @@ function linuxKeysymFor(code: number): string | null {
   return null;
 }
 
+/** Microphone switch on: mic pass-through enabled and not muted. */
+function micLive(settings: Pick<CompanionSettings, 'duplexMicEnabled' | 'micMuted'>): boolean {
+  return settings.duplexMicEnabled && !settings.micMuted;
+}
+
+function runCommandOutput(command: string, args: string[]): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn(command, args, { windowsHide: true });
+    let output = '';
+    child.stdout?.on('data', (chunk: Buffer) => {
+      output += chunk.toString();
+    });
+    child.on('error', reject);
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        resolve(output);
+      } else {
+        reject(new Error(`${command} exited (${signal ?? code ?? 'unknown'})`));
+      }
+    });
+  });
+}
+
+/**
+ * Mutes or unmutes the controller's microphone input in PipeWire/PulseAudio
+ * (vdsd's virtual DualSense "Wireless Controller Mic"), so apps see the
+ * Microphone switch. Returns how many inputs were changed.
+ */
+export async function setLinuxControllerMicMuted(muted: boolean): Promise<number> {
+  const listing = await runCommandOutput('pactl', ['list', 'short', 'sources']);
+  const names = listing
+    .split('\n')
+    .map((line) => line.split('\t')[1] ?? '')
+    .filter((name) => name.startsWith('alsa_input.') && /DualSense|Wireless_Controller/i.test(name));
+  for (const name of names) {
+    await runCommand('pactl', ['set-source-mute', name, muted ? '1' : '0']);
+  }
+  return names.length;
+}
+
 function runCommand(command: string, args: string[]): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, { windowsHide: true });
@@ -1431,8 +1471,21 @@ export class BridgeService extends EventEmitter {
     [SHORTCUT_EVENT.PROFILE_NEXT]: () => this.cycleControllerProfile(1)
   };
 
-  constructor(private readonly settingsStore: SettingsStore) {
+  /**
+   * vdsd (Linux) has one Microphone switch: pass-through + mute move together,
+   * the controller's Mute button flips it, and the controller's Linux mic
+   * input is muted while it is off. Off for the DS5 Bridge firmware.
+   */
+  private readonly vdsMicSwitch: boolean;
+  private readonly setLinuxMicMuted: (muted: boolean) => Promise<number>;
+
+  constructor(
+    private readonly settingsStore: SettingsStore,
+    options: { vdsMicSwitch?: boolean; setLinuxMicMuted?: (muted: boolean) => Promise<number> } = {}
+  ) {
     super();
+    this.vdsMicSwitch = options.vdsMicSwitch ?? false;
+    this.setLinuxMicMuted = options.setLinuxMicMuted ?? setLinuxControllerMicMuted;
     this.snapshot = {
       state: 'no-bridge',
       message: 'No bridge detected',
@@ -2460,6 +2513,10 @@ export class BridgeService extends EventEmitter {
   }
 
   async setMicMute(enabled: boolean): Promise<BridgeSnapshot> {
+    if (this.vdsMicSwitch) {
+      // vdsd has one Microphone switch: muting turns the mic off.
+      return this.setDuplexMicEnabled(!enabled);
+    }
     await this.sendCommand(COMMAND_ID.SET_MIC_MUTE, enabled ? 1 : 0, {
       expectSettingsRevisionChange: true
     });
@@ -2544,6 +2601,7 @@ export class BridgeService extends EventEmitter {
       duplexMicEnabled: nextEnabled,
       micMuted: !nextEnabled
     }));
+    await this.applyLinuxMicMute(this.snapshot.settings);
     if (nextEnabled) {
       await this.updateMicKeepaliveEngine(Boolean(this.snapshot.status?.controllerConnected));
     } else {
@@ -2721,6 +2779,10 @@ export class BridgeService extends EventEmitter {
         await this.setLightbarOverrideEnabled(!settings.lightbarOverrideEnabled);
         return;
       case 'toggle-mic-mute':
+        if (this.vdsMicSwitch) {
+          await this.setDuplexMicEnabled(!micLive(settings));
+          return;
+        }
         if (!settings.duplexMicEnabled) {
           return;
         }
@@ -2891,6 +2953,19 @@ export class BridgeService extends EventEmitter {
   }
 
   private async applyControllerMicMuteEvent(micMuted: boolean): Promise<void> {
+    if (this.vdsMicSwitch) {
+      // vdsd already switched the mic (Mute button); mirror it.
+      this.snapshot.settings = this.settingsStore.update(customSettingUpdate({
+        duplexMicEnabled: !micMuted,
+        micMuted
+      }));
+      if (this.snapshot.status) {
+        this.snapshot.status.micMuted = micMuted;
+      }
+      this.emitSnapshot();
+      await this.applyLinuxMicMute(this.snapshot.settings);
+      return;
+    }
     const settings = this.settingsStore.get();
     if (!settings.duplexMicEnabled || settings.muteButtonMode !== 'normal') {
       return;
@@ -3718,6 +3793,17 @@ export class BridgeService extends EventEmitter {
     let settings = this.settingsStore.get();
     if (
       this.reappliedSessionKey === this.sessionKey
+      && this.vdsMicSwitch
+      && micLive(settings) === status.micMuted
+    ) {
+      // vdsd's Mute button switched the mic and the event was missed.
+      settings = this.settingsStore.update(customSettingUpdate({
+        duplexMicEnabled: !status.micMuted,
+        micMuted: status.micMuted
+      }));
+      void this.applyLinuxMicMute(settings);
+    } else if (
+      this.reappliedSessionKey === this.sessionKey
       && settings.duplexMicEnabled
       && settings.micMuted !== status.micMuted
     ) {
@@ -4067,6 +4153,24 @@ export class BridgeService extends EventEmitter {
     await this.sendCommand(COMMAND_ID.SET_MIC_MUTE, settings.micMuted ? 1 : 0, {
       expectSettingsRevisionChange
     });
+    if (this.vdsMicSwitch) {
+      await this.applyLinuxMicMute(this.settingsStore.get());
+      // The virtual controller's mic input can appear after the reapply.
+      setTimeout(() => void this.applyLinuxMicMute(this.settingsStore.get()), 3000);
+    }
+  }
+
+  /** Under vdsd the controller's Linux mic input is muted while the Microphone switch is off. */
+  private async applyLinuxMicMute(settings: Pick<CompanionSettings, 'duplexMicEnabled' | 'micMuted'>): Promise<void> {
+    if (!this.vdsMicSwitch) {
+      return;
+    }
+    try {
+      await this.setLinuxMicMuted(!micLive(settings));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.appendAudioDebugLines([`[Mic] could not set the Linux mic mute: ${message}`]);
+    }
   }
 
   private async setFirmwareSpeakerVolume(percent: number, expectSettingsRevisionChange: boolean): Promise<void> {

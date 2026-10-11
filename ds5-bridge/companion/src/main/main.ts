@@ -1794,7 +1794,7 @@ app.whenReady().then(async () => {
   if (startupProfileId && settingsStore.get().controllerProfiles.some((profile) => profile.id === startupProfileId)) {
     settingsStore.selectControllerProfile(startupProfileId);
   }
-  bridgeService = new BridgeService(settingsStore);
+  bridgeService = new BridgeService(settingsStore, { vdsMicSwitch: process.platform === 'linux' });
   const triggerProfileStore = new TriggerProfileStore(
     path.join(app.getPath('userData'), 'trigger-profiles')
   );

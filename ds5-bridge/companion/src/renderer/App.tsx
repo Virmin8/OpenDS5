@@ -4150,6 +4150,9 @@ export function App() {
   const outputControlLower = headsetOutputDetected ? 'headphones' : 'speaker';
   const outputPresetLower = headsetOutputDetected ? 'headphones' : 'speaker';
   const duplexMicEnabled = Boolean(snapshot?.settings.duplexMicEnabled);
+  // vdsd has one Microphone switch: pass-through on and unmuted. Off keeps the
+  // controller mic closed, mutes its Linux input and lights the mute LED.
+  const microphoneOn = duplexMicEnabled && !snapshot?.settings.micMuted;
   const audioEnabled = speakerEnabled || duplexMicEnabled;
   const audioPathLabel = personaTransitionActive
     ? 'Switching Mode'
@@ -5927,9 +5930,8 @@ export function App() {
 
   function toggleDuplexMicEnabled() {
     if (!snapshot) return;
-    void runAction('duplex-mic-enabled', () => (
-      window.bridge.setDuplexMicEnabled(!snapshot.settings.duplexMicEnabled)
-    ));
+    const next = VDS_AVAILABLE ? !microphoneOn : !snapshot.settings.duplexMicEnabled;
+    void runAction('duplex-mic-enabled', () => window.bridge.setDuplexMicEnabled(next));
   }
 
   function toggleMicMute() {
@@ -7775,6 +7777,21 @@ export function App() {
                       <span />
                     </button>
                   </div>
+                  {VDS_AVAILABLE && (
+                    <div className="overview-heading-toggle">
+                      <span>Microphone</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={microphoneOn}
+                        className={`switch ${microphoneOn ? 'on' : ''}`}
+                        disabled={!controllerControlsAvailable || pendingAction !== null}
+                        onClick={toggleDuplexMicEnabled}
+                      >
+                        <span />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="overview-slider-list">
                   <label className={`overview-slider-row ${(!connected || !snapshot.settings.hapticsEnabled) ? 'disabled' : ''}`}>
@@ -8669,18 +8686,38 @@ export function App() {
                           </button>
                         ))}
                       </div>
-                      <div className="mic-option-grid">
-                        <button
-                          type="button"
-                          className={snapshot.settings.micMuted ? 'active danger' : ''}
-                          aria-pressed={snapshot.settings.micMuted}
-                          disabled={!connected || !duplexMicEnabled || pendingAction !== null}
-                          onClick={toggleMicMute}
-                        >
-                          <VolumeX size={15} />
-                          Mute
-                        </button>
-                      </div>
+                      {VDS_AVAILABLE ? (
+                        <div className="mic-switch-row">
+                          <span>Microphone</span>
+                          <span className="mic-switch-state">
+                            {microphoneOn ? 'On' : 'Off · muted in Linux'}
+                          </span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={microphoneOn}
+                            aria-label="Microphone"
+                            className={`switch ${microphoneOn ? 'on' : ''}`}
+                            disabled={!controllerControlsAvailable || pendingAction !== null}
+                            onClick={toggleDuplexMicEnabled}
+                          >
+                            <span />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mic-option-grid">
+                          <button
+                            type="button"
+                            className={snapshot.settings.micMuted ? 'active danger' : ''}
+                            aria-pressed={snapshot.settings.micMuted}
+                            disabled={!connected || !duplexMicEnabled || pendingAction !== null}
+                            onClick={toggleMicMute}
+                          >
+                            <VolumeX size={15} />
+                            Mute
+                          </button>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>
