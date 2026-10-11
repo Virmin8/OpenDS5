@@ -2465,6 +2465,12 @@ button {
   grid-template-rows: auto minmax(0, 326px) minmax(132px, 1fr);
 }
 
+/* System: the Device/Diagnostics card takes the free height; the profile
+   summary sits at the bottom at its own size. */
+.system-page {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
 .overview-heading {
   align-items: center;
 }
