@@ -149,7 +149,7 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   startMinimizedEnabled: false,
   profileShortcutEnabled: false,
   muteLedEnabled: true,
-  micProcessing: 1,
+  micProcessing: 2,
   micSpeakerGainLevel: 0,
   startupControllerProfileId: '',
   gameProfileLinks: {},

@@ -4898,6 +4898,17 @@ button.feature-icon {
   overflow: auto;
 }
 
+.segmented-row.mic-processing-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mic-processing-row button {
+  white-space: nowrap;
+  padding: 0 6px;
+}
+
 .mic-option-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

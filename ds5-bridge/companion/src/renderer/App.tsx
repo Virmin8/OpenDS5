@@ -1612,15 +1612,15 @@ function lightbarColorLabel(color: string): string {
 
 // Under vdsd only Normal and Chord exist; other saved modes act as Normal.
 const MIC_PROCESSING_OPTIONS: Array<[string, number]> = [
-  ['None', 0],
-  ['Noise cancel', 1],
-  ['Echo cancel', 2],
-  ['Noise + echo cancel', 3]
+  ['No Processing', 0],
+  ['Noise', 1],
+  ['Echo', 2],
+  ['Noise + Echo', 3]
 ];
 
 const MIC_SPEAKER_GAIN_OPTIONS: Array<[string, number]> = [
-  ['Same as speaker', 0],
-  ...[1, 2, 3, 4, 5, 6, 7].map((level): [string, number] => [`Level ${level}`, level])
+  ['Same', 0],
+  ...SPEAKER_GAIN_OPTIONS
 ];
 
 const VDS_PACKET_MODE_LABELS: Record<string, string> = {
@@ -8693,6 +8693,31 @@ export function App() {
                       )}
                     />
                   </div>
+                  {VDS_AVAILABLE && (
+                    <div
+                      className="chords-field chords-inline-field audio-speaker-gain-field"
+                      title="Speaker gain while the microphone is on. Same keeps the Speaker Gain."
+                    >
+                      <span>Mic-On Gain</span>
+                      <CustomSelect
+                        value={snapshot.settings.micSpeakerGainLevel}
+                        options={MIC_SPEAKER_GAIN_OPTIONS}
+                        disabled={!controllerControlsAvailable || !speakerVolumeSupported || pendingAction !== null}
+                        ariaLabel="Speaker gain while the microphone is on"
+                        className="audio-speaker-gain-select audio-mic-gain-select"
+                        closeOnSelect={true}
+                        onChange={(value) => void runAction('mic-speaker-gain', () => window.bridge.setMicSpeakerGainLevel(value))}
+                        renderValue={(label) => (
+                          <span>{label}</span>
+                        )}
+                        renderOption={(label) => (
+                          <span className="speaker-gain-option">
+                            <strong>{label}</strong>
+                          </span>
+                        )}
+                      />
+                    </div>
+                  )}
                   <div className="audio-heading-controls">
                     <div className="inline-switch">
                       <span>Enabled</span>
@@ -8849,6 +8874,7 @@ export function App() {
                         ))}
                       </div>
                       {VDS_AVAILABLE ? (
+                        <>
                         <div className="mic-switch-row">
                           <span>Microphone</span>
                           <span className="mic-switch-state">
@@ -8866,6 +8892,27 @@ export function App() {
                             <span />
                           </button>
                         </div>
+                        <div
+                          className="segmented-row mic-processing-row"
+                          role="radiogroup"
+                          aria-label="Mic processing"
+                          title="Controller processing while the microphone is on. Noise cancelling distorts the controller speaker."
+                        >
+                          {MIC_PROCESSING_OPTIONS.map(([label, value]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              role="radio"
+                              aria-checked={snapshot.settings.micProcessing === value}
+                              className={snapshot.settings.micProcessing === value ? 'active' : ''}
+                              disabled={!controllerControlsAvailable || pendingAction !== null}
+                              onClick={() => void runAction('mic-processing', () => window.bridge.setMicProcessing(value))}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        </>
                       ) : (
                         <div className="mic-option-grid">
                           <button
@@ -11167,30 +11214,6 @@ export function App() {
                                 </div>
                               </Fragment>
                             ))}
-                            <div>
-                              <dt>Mic Processing</dt>
-                              <dd title="Controller processing while the mic is open. Testing which setting keeps the speaker clean with the mic on.">
-                                <CustomSelect
-                                  value={snapshot.settings.micProcessing}
-                                  disabled={!connected || pendingAction !== null}
-                                  options={MIC_PROCESSING_OPTIONS}
-                                  ariaLabel="Mic processing"
-                                  onChange={(value) => void runAction('mic-processing', () => window.bridge.setMicProcessing(value))}
-                                />
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Gain (Mic On)</dt>
-                              <dd title="Speaker gain level while the mic is open.">
-                                <CustomSelect
-                                  value={snapshot.settings.micSpeakerGainLevel}
-                                  disabled={!connected || pendingAction !== null}
-                                  options={MIC_SPEAKER_GAIN_OPTIONS}
-                                  ariaLabel="Speaker gain while the mic is on"
-                                  onChange={(value) => void runAction('mic-speaker-gain', () => window.bridge.setMicSpeakerGainLevel(value))}
-                                />
-                              </dd>
-                            </div>
                             {vdsDiagnostics?.bluetooth?.lastError && (
                               <div><dt>Last Error</dt><dd title={vdsDiagnostics.bluetooth.lastError}>{vdsDiagnostics.bluetooth.lastError}</dd></div>
                             )}
