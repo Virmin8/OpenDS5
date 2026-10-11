@@ -32,6 +32,7 @@ Bluetooth.
 - [Getting started](#-getting-started) · [Pairing](#-pairing-your-controller)
 - [Supported distros](#-supported-distros)
 - [Controller shortcuts](#%EF%B8%8F-controller-shortcuts)
+- [Microphone](#%EF%B8%8F-microphone)
 - [Troubleshooting](#-troubleshooting)
 - [How it works](#%EF%B8%8F-how-it-works)
 - [Limitations of custom trigger profiles](#%EF%B8%8F-limitations-of-custom-trigger-profiles)
@@ -46,7 +47,7 @@ Bluetooth.
 - 🎭 **Controller personas** — appear as a **DualShock 4** or **Xbox 360** controller for games without DualSense support.
 - 🎯 **Game-linked profiles** — switch profiles automatically while a game runs; finds **Steam, Heroic and Lutris** games.
 - 🔊 **Audio** — controller speaker and headphone jack, with a loudness boost for the built-in speaker.
-- 🎙️ **Microphone** — optional mic pass-through (controller or headset mic), with level, mute and the Mute button.
+- 🎙️ **Microphone** — controller or headset mic in Linux, with one on/off switch, the Mute button and mute light, level and processing.
 - 💡 **Lighting** — lightbar and player LEDs.
 - 🎛️ **Remapping & chords** — remap buttons and trigger actions with button combos.
 - 📶 **Bluetooth modes** — switch between OpenDS5 mode and normal mode (keyboards and mice work again), or automatically.
@@ -158,7 +159,7 @@ uninstaller. Details, logs and exit codes are in
 
 Turn them on in **Settings → Shortcuts**. Hold the **touchpad** pressed in,
 then press the second button (PS isn't used, because holding it powers the
-controller off; Mute is the mic mute).
+controller off; Mute turns the [microphone](#%EF%B8%8F-microphone) on and off).
 
 | Shortcut | Buttons | What it does |
 | --- | --- | --- |
@@ -168,6 +169,34 @@ controller off; Mute is the mic mute).
 
 Shortcut buttons are hidden from the game. Build your own combos on the
 **Chords** page.
+
+## 🎙️ Microphone
+
+The controller's mic (or a headset's, when one is plugged in) shows up in Linux
+as **Wireless Controller Mic**. It's **off by default**, because the mic stream
+costs the controller speaker some quality.
+
+- **Turn it on** with the **Microphone** switch on **Audio → Mic**, in the
+  Overview's Quick Controls, or by pressing **Mute** on the controller.
+- **Off** means the controller's mic is closed, **Wireless Controller Mic** is
+  muted in Linux and the **mute light** is on, like on a PS5.
+- **On**, the controller's mic stays open, so recordings start instantly.
+  Bluetooth packets carry the mic alongside haptics and the speaker; with it
+  off they carry only what's needed (shown under **System → Diagnostics**).
+
+On the **Mic** view:
+
+| Setting | What it does |
+| --- | --- |
+| **Level** | Mic volume as Linux hears it |
+| **Mic Processing** | **Echo** (default), **Noise**, **Noise + Echo** or **No Processing**, done in the controller |
+| **Mute Button** | **Normal** toggles the mic; **Chord** lets Mute start chords instead |
+| **Mute Light** | Turn off to keep the mute light dark |
+| **Mic-On Gain** (page header) | Speaker gain while the mic is on; **Same** keeps your Speaker Gain |
+
+> [!NOTE]
+> **Noise** cancelling and a high **Mic-On Gain** make the controller speaker
+> sound distorted while the mic is on. **Echo** keeps it clean.
 
 ## 🔧 Troubleshooting
 
@@ -249,10 +278,9 @@ This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
 **🎮 Controller**
 - **Personas** — appear as a DualShock 4 or Xbox 360 controller.
 - **Touchpad shortcuts** — speaker volume, next/previous profile, turn off.
-- **Microphone pass-through** — off by default (the controller's mic stream
-  costs speaker quality); turn it on on the **Audio** page. While it is on the
-  controller mic stays open, so recordings start instantly. The Mute button
-  settings and a **Mute Light** switch are on its **Mic** view.
+- **[Microphone](#%EF%B8%8F-microphone)** — one on/off switch (also on Mute),
+  muted in Linux with the mute light on when off; mic processing and a
+  speaker gain for while the mic is on.
 - **Leanest Bluetooth packets** — haptics only, haptics + speaker, haptics +
   mic, or all three, depending on what is live (shown in Diagnostics).
 - **Turn Off Controller** quick action.
@@ -284,7 +312,7 @@ Full details are in the [Changelog](CHANGELOG.md).
 ## 🙏 Credits & license
 
 - [LordVicky/OpenDS5](https://github.com/LordVicky/OpenDS5) — the original OpenDS5 this fork is based on.
-- [hurryman2212/vds](https://github.com/hurryman2212/vds) — the virtual DualSense kernel module and daemon (MIT).
+- [hurryman2212/vds](https://github.com/hurryman2212/vds) — the virtual DualSense kernel module and daemon (MIT), including its microphone and headset support (with [TechAntohere](https://github.com/TechAntohere/vds-usbip)).
 - [SundayMoments/DS5_Bridge](https://github.com/SundayMoments/DS5_Bridge) — the companion app OpenDS5 grew out of (AGPL-3.0-only).
 - [djanice1980/DS5_Bridge](https://github.com/djanice1980/DS5_Bridge) — speaker pacing, buffering and mic fixes.
 - [awalol/DS5Dongle](https://github.com/awalol/DS5Dongle) — the original Pico 2 W DualSense dongle everything traces back to.
