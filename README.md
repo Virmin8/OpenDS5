@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Virmin8/OpenDS5/actions/workflows/release.yml"><img src="https://github.com/Virmin8/OpenDS5/actions/workflows/release.yml/badge.svg" alt="release build"></a>
+  <a href="https://github.com/Virmin8/OpenDS5/actions/workflows/release.yml"><img src="https://github.com/Virmin8/OpenDS5/actions/workflows/release.yml/badge.svg?event=push" alt="release build"></a>
   <a href="https://github.com/Virmin8/OpenDS5/releases"><img src="https://img.shields.io/github/v/release/Virmin8/OpenDS5" alt="latest release"></a>
   <a href="ds5-bridge/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue" alt="license: AGPL-3.0-only"></a>
 </p>
