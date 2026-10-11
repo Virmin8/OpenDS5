@@ -857,6 +857,27 @@ describe('BridgeService', () => {
     expect(service.getSnapshot().settings.micMuted).toBe(false);
   });
 
+  it('reapplies an unsupported saved persona as DualSense', async () => {
+    const service = serviceFixture({ hostPersonaMode: 'ds4' });
+    const device = new MockHidDevice();
+    device.settingsRevision = 4;
+    device.status = statusReport({
+      controllerConnected: true,
+      settingsRevision: 4,
+      uptimeSeconds: 30,
+      supportedHostPersonaModesMask: 0x01
+    });
+    hidMock.state.devicesList = [companionDeviceInfo()];
+    hidMock.state.openDevices.set('companion-path', device);
+
+    await poll(service);
+    await flushReapply();
+
+    const personaCommand = device.sentReports.filter((report) => report[7] === COMMAND_ID.SET_HOST_PERSONA).at(-1);
+    expect(personaCommand?.[9]).toBe(0);
+    expect(service.getSnapshot().settings.hostPersonaMode).toBe('ds4');
+  });
+
   it('reapplies current settings without feature-bit fallbacks', async () => {
     const service = serviceFixture();
     const device = new MockHidDevice();

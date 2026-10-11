@@ -4162,9 +4162,15 @@ export class BridgeService extends EventEmitter {
       pollingRateModeValue(settings.pollingRateMode),
       { expectSettingsRevisionChange }
     );
+    // A persona saved on another backend (DS4 with vdsd on Linux, then vdsd
+    // on Windows, which only has DualSense) falls back to DualSense.
+    const supportedPersonas = this.snapshot.status?.supportedHostPersonaModes;
+    const persona = !supportedPersonas || supportedPersonas.includes(settings.hostPersonaMode)
+      ? settings.hostPersonaMode
+      : 'dualsense';
     await this.sendCommand(
       COMMAND_ID.SET_HOST_PERSONA,
-      hostPersonaModeValue(settings.hostPersonaMode),
+      hostPersonaModeValue(persona),
       { expectSettingsRevisionChange }
     );
   }
