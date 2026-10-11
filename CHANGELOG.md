@@ -17,6 +17,37 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.4] - 2026-10-11 — controller microphone on Linux
+
+The controller's mic now works in Linux, with one switch to turn it on and off.
+**Update as usual**, then run `systemctl --user restart wireplumber` (or log out
+and back in) so **Wireless Controller Mic** appears. See
+[Microphone](https://github.com/Virmin8/OpenDS5#%EF%B8%8F-microphone).
+
+### 🎙️ Microphone
+- **Controller and headset mic** in Linux as **Wireless Controller Mic**, from vds's new microphone support.
+- **Microphone switch** on **Audio → Mic** and in Quick Controls; **Mute** on the controller flips it too. Off by default.
+- **Off** closes the controller's mic, mutes it in Linux and lights the mute light, like on a PS5.
+- **Instant start** — while the mic is on, the controller's mic stays open, so recordings don't lose their first seconds.
+- **Mic Processing** — Echo (default), Noise, Noise + Echo or none. Noise cancelling distorts the speaker, so it's off by default.
+- **Mic-On Gain** next to Speaker Gain — the speaker gain used while the mic is on.
+- **Mute Light** switch, to keep the mute light dark.
+
+### ✨ Added
+- **Leanest Bluetooth packets** — haptics only, haptics + speaker, haptics + mic, or all three, depending on what's live.
+- **Diagnostics** show the packet kind and the controller's mic packets.
+
+### 🔧 Changed
+- **Shortcuts start with a touchpad click** instead of Mute, which now turns the mic on and off.
+- **Mute Button settings** moved from System to **Audio → Mic**.
+- **Diagnostics** take the whole System page; the profile summary sits below.
+- **vds** updated with [hurryman2212/vds](https://github.com/hurryman2212/vds) 0.3.0-rc3 (microphone and headset support).
+
+### 🐛 Fixed
+- **Speaker stays clean with the mic off** — the controller's mic is only opened while the mic is on.
+
+---
+
 ## [1.9.3] - 2026-10-10 — tighter HD haptics over Bluetooth
 
 HD haptics reach the controller about **15–25 ms sooner** over Bluetooth.
