@@ -17,6 +17,38 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.5] - 2026-10-11 — OpenDS5 on Windows
+
+OpenDS5 now runs on Windows 10 and 11, with no kernel driver of its own: vds
+uses USB/IP and HidHide. **Windows:** download
+`OpenDS5-Companion-Setup-1.9.5.exe` and run it; the setup wizard installs the
+rest (see [Windows](https://github.com/Virmin8/OpenDS5#windows)). **Linux:**
+update as usual.
+
+### 🪟 Windows
+- **Installer and setup wizard** — installs USB/IP (usbip-win2), HidHide and the `vdsd` service, asking for administrator rights once.
+- **Wired DualSense over Bluetooth** — triggers, haptics, speaker, mic, lighting, battery, shortcuts and remapping, like on Linux.
+- **DualShock 4 and Xbox 360 personas.**
+- **Game profiles** — finds Steam, Epic and Heroic games and watches for running games.
+- **Updates inside the app** — download, verify and restart into the new version.
+- **Uninstall** from Windows Settings also removes the `vdsd` service.
+- **Tray icon** stays readable on a light taskbar.
+- **PC Sleep Disconnect** turns the controller off when Windows sleeps.
+
+Not on Windows yet: trigger modifiers and state switch rules (they need
+controller input the app can only read on Linux), signal strength (Windows
+does not report it for the DualSense), touchpad as mouse and Bluetooth modes.
+
+### ✨ Added
+- **System** shows the vds version next to Bridge.
+- **Browse for a game's executable** when adding a game profile.
+
+### 🔧 Changed
+- **vdsd** runs each controller through one shared bridge core on Linux and Windows, so both get the same features and fixes.
+- **Personas** offer only what the daemon can present; a saved persona it can't is reapplied as DualSense.
+
+---
+
 ## [1.9.4] - 2026-10-11 — controller microphone on Linux
 
 The controller's mic now works in Linux, with one switch to turn it on and off.

@@ -8,12 +8,12 @@
   <a href="ds5-bridge/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue" alt="license: AGPL-3.0-only"></a>
 </p>
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Linux-blue" alt="platform: Linux">
-  <img src="https://img.shields.io/badge/install-AppImage%20%C2%B7%20pacman%20%C2%B7%20NixOS-blue" alt="install: AppImage, pacman, NixOS">
+  <img src="https://img.shields.io/badge/platform-Linux%20%C2%B7%20Windows-blue" alt="platform: Linux, Windows">
+  <img src="https://img.shields.io/badge/install-AppImage%20%C2%B7%20pacman%20%C2%B7%20NixOS%20%C2%B7%20Windows%20installer-blue" alt="install: AppImage, pacman, NixOS, Windows installer">
   <img src="https://img.shields.io/badge/hardware-none%20required-success" alt="no extra hardware required">
 </p>
 
-**Everything your DualSense can do, on Linux, without the cable.** Shape your
+**Everything your DualSense can do, on Linux and Windows, without the cable.** Shape your
 controller's adaptive triggers, haptics, audio, lighting and buttons from one
 app, while games see a wired DualSense with all its native features, even over
 Bluetooth.
@@ -29,7 +29,7 @@ Bluetooth.
 - [Features](#-features)
 - [Screenshots](#-screenshots)
 - [Why "wired" matters](#-why-wired-matters)
-- [Getting started](#-getting-started) · [Pairing](#-pairing-your-controller)
+- [Getting started](#-getting-started) · [Windows](#windows) · [Pairing](#-pairing-your-controller)
 - [Supported distros](#-supported-distros)
 - [Controller shortcuts](#%EF%B8%8F-controller-shortcuts)
 - [Microphone](#%EF%B8%8F-microphone)
@@ -45,14 +45,14 @@ Bluetooth.
 - 📳 **Low-latency HD haptics** — the controller buffer follows your Bluetooth link packet by packet.
 - 🧪 **Trigger Lab** — design adaptive trigger effects (resistance, breaks, vibration, ramps, 10-zone curves) with live preview.
 - 🎭 **Controller personas** — appear as a **DualShock 4** or **Xbox 360** controller for games without DualSense support.
-- 🎯 **Game-linked profiles** — switch profiles automatically while a game runs; finds **Steam, Heroic and Lutris** games.
+- 🎯 **Game-linked profiles** — switch profiles automatically while a game runs; finds **Steam, Heroic and Lutris** games (**Steam, Epic and Heroic** on Windows).
 - 🔊 **Audio** — controller speaker and headphone jack, with a loudness boost for the built-in speaker.
 - 🎙️ **Microphone** — controller or headset mic in Linux, with one on/off switch, the Mute button and mute light, level and processing.
 - 💡 **Lighting** — lightbar and player LEDs.
 - 🎛️ **Remapping & chords** — remap buttons and trigger actions with button combos.
-- 📶 **Bluetooth modes** — switch between OpenDS5 mode and normal mode (keyboards and mice work again), or automatically.
+- 📶 **Bluetooth modes** (Linux) — switch between OpenDS5 mode and normal mode (keyboards and mice work again), or automatically.
 - 🕹️ **Controller shortcuts** — volume, profile and power with a touchpad click, mid-game.
-- 📦 **Easy install & uninstall** — AppImage with a setup wizard, a pacman package for Arch, or a NixOS flake.
+- 📦 **Easy install & uninstall** — AppImage with a setup wizard, a pacman package for Arch, a NixOS flake, or a Windows installer.
 
 ## 📸 Screenshots
 
@@ -117,7 +117,25 @@ inputs.opends5.nixosModules.default
 
 Then `sudo nixos-rebuild switch`. Options are in [docs/INSTALLER.md](docs/INSTALLER.md#nixos).
 
+### Windows
+
+Windows 10 or 11, 64-bit.
+
+1. Download `OpenDS5-Companion-Setup-x.y.z.exe` from [Releases](../../releases) and run it. The installer isn't signed yet, so Windows SmartScreen may warn you: choose **More info → Run anyway**.
+2. On first start, the setup wizard installs [USB/IP](https://github.com/vadimgrn/usbip-win2), [HidHide](https://github.com/nefarius/HidHide) and the `vdsd` service, and asks for administrator rights once. Restart Windows if it asks you to; your USB 3 ports reset briefly while USB/IP installs.
+3. Updates are offered inside the app. To uninstall, remove **OpenDS5** in **Settings → Apps**; that also removes the `vdsd` service.
+
+Not on Windows yet: trigger modifiers and state switch rules, signal strength,
+touchpad as mouse and Bluetooth modes.
+
 ### 🎮 Pairing your controller
+
+**On Windows:** hold **Create** + **PS** until the lightbar flashes rapidly,
+pair the controller in **Settings → Bluetooth & devices**, then in OpenDS5 open
+the **Bluetooth** tab and click **Attach** under **Controllers**. Your other
+Bluetooth devices keep working.
+
+**On Linux:**
 
 1. In OpenDS5, open the **Bluetooth** tab and set **Bluetooth Mode** to **Normal**.
 2. Hold **Create** + **PS** for about three seconds, until the lightbar flashes rapidly.
@@ -244,7 +262,8 @@ window only hides it.
 DualSense (Bluetooth)
    │
    ▼
-vds_hcd.ko + vdsd            ← virtual USB DualSense
+vdsd + vds_hcd.ko (Linux)    ← virtual USB DualSense
+vdsd + USB/IP (Windows)
    │
    ▼
 OpenDS5 app (Electron)       ← triggers, haptics, audio, lighting, remapping
@@ -253,10 +272,11 @@ OpenDS5 app (Electron)       ← triggers, haptics, audio, lighting, remapping
 Your games                   ← see a wired DualSense
 ```
 
-[vds](https://github.com/hurryman2212/vds) does the heavy lifting: a kernel
-module and daemon that take your Bluetooth DualSense and present it as a
-USB-wired one. OpenDS5 installs and manages vds and adds everything you control
-on top.
+[vds](https://github.com/hurryman2212/vds) does the heavy lifting: a daemon
+that takes your Bluetooth DualSense and presents it as a USB-wired one, through
+a kernel module on Linux and USB/IP on Windows (HidHide hides the Bluetooth
+controller from games there). OpenDS5 installs and manages vds and adds
+everything you control on top.
 
 ## ⚠️ Limitations of custom trigger profiles
 
