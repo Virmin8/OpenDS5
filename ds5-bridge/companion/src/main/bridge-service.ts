@@ -92,6 +92,7 @@ import { CompanionDebugConfig } from './debug-config';
 import { HidDiscoveryClient } from './hid-discovery-client';
 import { SettingsStore, normalizeUiScalePercent, normalizeUiThemePreset } from './settings-store';
 import { openCompanionTransport, type CompanionTransport } from './companion-transport';
+import { vdsdBackendActive } from './vdsd-backend';
 
 const POLL_INTERVAL_MS = 500;
 const SHORTCUT_POLL_INTERVAL_MS = 50;
@@ -145,9 +146,9 @@ const AUDIO_REACTIVE_HAPTICS_SUPPRESS_CLASSIC_RUMBLE_MODE_FLAG = 0x80;
  */
 export function hapticsBufferCommandValue(
   settings: Pick<CompanionSettings, 'hapticsBufferAuto' | 'hapticsBufferLength'>,
-  platform: NodeJS.Platform = process.platform
+  vdsd: boolean = vdsdBackendActive()
 ): number {
-  return platform === 'linux' && settings.hapticsBufferAuto ? 0 : settings.hapticsBufferLength;
+  return vdsd && settings.hapticsBufferAuto ? 0 : settings.hapticsBufferLength;
 }
 const SONY_VENDOR_ID = 0x054c;
 const DUALSENSE_PRODUCT_IDS = new Set([0x0ce6, 0x0df2]);
@@ -3063,7 +3064,7 @@ export class BridgeService extends EventEmitter {
 
   async setProfileShortcutEnabled(enabled: boolean): Promise<BridgeSnapshot> {
     this.snapshot.settings = this.settingsStore.update({ profileShortcutEnabled: enabled });
-    if (this.snapshot.state === 'connected' && process.platform !== 'win32') {
+    if (this.snapshot.state === 'connected' && this.vdsMicSwitch) {
       await this.sendCommand(COMMAND_ID.SET_PROFILE_SHORTCUT_ENABLED, enabled ? 1 : 0, {});
     }
     this.emitSnapshot();
@@ -4123,9 +4124,9 @@ export class BridgeService extends EventEmitter {
       settings.speakerVolumeShortcutEnabled ? 1 : 0,
       { expectSettingsRevisionChange }
     );
-    if (process.platform !== 'win32') {
+    if (this.vdsMicSwitch) {
       try {
-        // Linux-port extension (vdsd only); an older daemon rejects it, which
+        // vdsd extension; an older daemon rejects it, which
         // must not stop the rest of the settings from applying.
         await this.sendCommand(
           COMMAND_ID.SET_PROFILE_SHORTCUT_ENABLED,

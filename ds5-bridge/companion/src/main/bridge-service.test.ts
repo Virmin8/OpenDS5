@@ -103,6 +103,8 @@ type StatusOverrides = {
   micMuted?: boolean;
 };
 
+// The Pico firmware path (serviceFixture without vdsd): no vdsd extensions
+// such as the profile shortcut.
 const FULL_REAPPLY_COMMANDS = [
   COMMAND_ID.SET_LIGHTBAR_COLOR,
   COMMAND_ID.SET_LIGHTBAR_OVERRIDE,
@@ -126,7 +128,6 @@ const FULL_REAPPLY_COMMANDS = [
   COMMAND_ID.SET_USB_SUSPEND_DISCONNECT_ENABLED,
   COMMAND_ID.SET_SLEEP_KEYBIND_ENABLED,
   COMMAND_ID.SET_SPEAKER_VOLUME_SHORTCUT_ENABLED,
-  ...(process.platform === 'win32' ? [] : [COMMAND_ID.SET_PROFILE_SHORTCUT_ENABLED]), // Linux-port extension
   COMMAND_ID.SET_BUTTON_REMAP,
   COMMAND_ID.SET_CHORD_BINDINGS,
   COMMAND_ID.SET_POLLING_RATE_MODE,
@@ -2910,12 +2911,12 @@ describe('BridgeService', () => {
 });
 
 describe('hapticsBufferCommandValue', () => {
-  it('asks vdsd on Linux to tune the buffer while automatic is on', () => {
-    expect(hapticsBufferCommandValue({ hapticsBufferAuto: true, hapticsBufferLength: 64 }, 'linux')).toBe(0);
-    expect(hapticsBufferCommandValue({ hapticsBufferAuto: false, hapticsBufferLength: 48 }, 'linux')).toBe(48);
+  it('asks vdsd to tune the buffer while automatic is on', () => {
+    expect(hapticsBufferCommandValue({ hapticsBufferAuto: true, hapticsBufferLength: 64 }, true)).toBe(0);
+    expect(hapticsBufferCommandValue({ hapticsBufferAuto: false, hapticsBufferLength: 48 }, true)).toBe(48);
   });
 
-  it('always sends the fixed length to the Windows firmware, which rejects 0', () => {
-    expect(hapticsBufferCommandValue({ hapticsBufferAuto: true, hapticsBufferLength: 64 }, 'win32')).toBe(64);
+  it('always sends the fixed length to the Pico firmware, which rejects 0', () => {
+    expect(hapticsBufferCommandValue({ hapticsBufferAuto: true, hapticsBufferLength: 64 }, false)).toBe(64);
   });
 });

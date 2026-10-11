@@ -422,15 +422,21 @@ const MUTE_KEYBOARD_BEHAVIOR_OPTIONS: Array<[string, MuteKeyboardBehavior]> = [
   ['Tap Once', 'tap'],
   ['Hold While Pressed', 'hold']
 ];
-// vds (the Linux virtual DualSense bridge) only exists on Linux. Settings the
-// Bluetooth path cannot honour (polling rate, keyboard/quiet Mute modes) are
-// hidden there; the Windows DS5 Bridge firmware keeps them.
+// vds (the virtual DualSense bridge) runs on Linux, and on Windows once vdsd
+// is installed; otherwise Windows uses the DS5 Bridge Pico dongle. Settings
+// the Bluetooth path cannot honour (polling rate, keyboard/quiet Mute modes)
+// are hidden with vds; the Pico firmware keeps them.
 const OPENDS5_REPOSITORY_URL = 'https://github.com/Virmin8/OpenDS5';
 // The LordVicky/OpenDS5 release this fork is based on.
 const UPSTREAM_OPENDS5_VERSION = '1.8.1';
-const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.platform === 'linux';
-// A distribution package removes the driver and vdsd itself, so the in-app uninstaller is hidden.
-const SYSTEM_UNINSTALL_AVAILABLE = VDS_AVAILABLE && !window.vds.systemPackage;
+const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.vdsd === true;
+const VDS_LINUX = VDS_AVAILABLE && window.vds.platform === 'linux';
+// The touchpad moves the cursor through Linux's DualSense driver (vdsd can
+// grab it) or the Pico firmware; vdsd on Windows has no pointer to toggle.
+const TOUCHPAD_MOUSE_AVAILABLE = !VDS_AVAILABLE || VDS_LINUX;
+// A distribution package removes the driver and vdsd itself, so the in-app
+// uninstaller is hidden; on Windows OpenDS5 is removed from the Apps list.
+const SYSTEM_UNINSTALL_AVAILABLE = VDS_LINUX && !window.vds.systemPackage;
 // vdsd handles Mute as mic mute (Normal) or a chord starter (Chord); it has no
 // keyboard emulation or quiet mode.
 const MUTE_BUTTON_MODE_OPTIONS = ALL_MUTE_BUTTON_MODE_OPTIONS.filter(
@@ -768,7 +774,6 @@ const REMAP_EDGE_LINE_POINTS: Record<DualSenseEdgeRemapButtonId, [[number, numbe
   lfn: [[227.5, 368.88], [227.68, 296.98]],
   rfn: [[370.46, 368.88], [370.64, 296.98]]
 };
-// vds (the Linux virtual DualSense bridge) only exists on Linux.
 // Volume/profile/turn-off shortcuts: vdsd uses a touchpad click as the modifier
 // (Mute is the mic mute; holding PS powers the DualSense off); the DS5 Bridge
 // firmware uses PS.
@@ -7964,21 +7969,23 @@ export function App() {
                   <div>
                     <h3>Quick Controls</h3>
                   </div>
-                  <div className="overview-heading-toggle">
-                    <span>Touchpad Mouse</span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={snapshot.settings.touchpadMouseEnabled}
-                      className={`switch ${snapshot.settings.touchpadMouseEnabled ? 'on' : ''}`}
-                      disabled={!connected || pendingAction !== null}
-                      onClick={() => void runAction('touchpad-mouse', () => (
-                        window.bridge.setTouchpadMouseEnabled(!snapshot.settings.touchpadMouseEnabled)
-                      ))}
-                    >
-                      <span />
-                    </button>
-                  </div>
+                  {TOUCHPAD_MOUSE_AVAILABLE && (
+                    <div className="overview-heading-toggle">
+                      <span>Touchpad Mouse</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={snapshot.settings.touchpadMouseEnabled}
+                        className={`switch ${snapshot.settings.touchpadMouseEnabled ? 'on' : ''}`}
+                        disabled={!connected || pendingAction !== null}
+                        onClick={() => void runAction('touchpad-mouse', () => (
+                          window.bridge.setTouchpadMouseEnabled(!snapshot.settings.touchpadMouseEnabled)
+                        ))}
+                      >
+                        <span />
+                      </button>
+                    </div>
+                  )}
                   {VDS_AVAILABLE && (
                     <div className="overview-heading-toggle">
                       <span>Microphone</span>
@@ -8917,7 +8924,7 @@ export function App() {
                         <div className="mic-switch-row">
                           <span>Microphone</span>
                           <span className="mic-switch-state">
-                            {microphoneOn ? 'On' : 'Off · muted in Linux'}
+                            {microphoneOn ? 'On' : VDS_LINUX ? 'Off · muted in Linux' : 'Off'}
                           </span>
                           <button
                             type="button"
@@ -12739,24 +12746,26 @@ export function App() {
                     <span />
                   </button>
                 </div>
-                <div className="settings-menu-row">
-                  <div className="settings-menu-copy">
-                    <strong>Touchpad Mouse Input</strong>
-                    <span>Let the touchpad move the desktop cursor. Turn off to stop games treating touchpad gestures as camera movement; in-game touch features keep working</span>
+                {TOUCHPAD_MOUSE_AVAILABLE && (
+                  <div className="settings-menu-row">
+                    <div className="settings-menu-copy">
+                      <strong>Touchpad Mouse Input</strong>
+                      <span>Let the touchpad move the desktop cursor. Turn off to stop games treating touchpad gestures as camera movement; in-game touch features keep working</span>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={snapshot.settings.touchpadMouseEnabled}
+                      className={`switch ${snapshot.settings.touchpadMouseEnabled ? 'on' : ''}`}
+                      disabled={pendingAction !== null}
+                      onClick={() => void runAction('touchpad-mouse', () => (
+                        window.bridge.setTouchpadMouseEnabled(!snapshot.settings.touchpadMouseEnabled)
+                      ))}
+                    >
+                      <span />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={snapshot.settings.touchpadMouseEnabled}
-                    className={`switch ${snapshot.settings.touchpadMouseEnabled ? 'on' : ''}`}
-                    disabled={pendingAction !== null}
-                    onClick={() => void runAction('touchpad-mouse', () => (
-                      window.bridge.setTouchpadMouseEnabled(!snapshot.settings.touchpadMouseEnabled)
-                    ))}
-                  >
-                    <span />
-                  </button>
-                </div>
+                )}
                 <div className="settings-menu-row">
                   <div className="settings-menu-copy">
                     <strong>Player Slot LED</strong>

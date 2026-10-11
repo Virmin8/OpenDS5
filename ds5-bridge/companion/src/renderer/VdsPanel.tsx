@@ -78,6 +78,8 @@ export function VdsPanel({ active }: { active: boolean }) {
     () => window.vds.setBluetoothAuto(enabled, idleSeconds)
   );
 
+  // Bluetooth modes switch BlueZ's input plugin; Windows only attaches.
+  const bluetoothModes = window.vds.platform === 'linux';
   let modeDescription = 'Checking vdsd…';
   if (status?.accessHint) {
     modeDescription = status.accessHint;
@@ -106,7 +108,9 @@ export function VdsPanel({ active }: { active: boolean }) {
       <div className="feature-heading system-heading">
         <div>
           <h2>Bluetooth</h2>
-          <p>Control the vds controller bridge and system Bluetooth.</p>
+          <p>{bluetoothModes
+            ? 'Control the vds controller bridge and system Bluetooth.'
+            : 'Attach paired controllers to the vds controller bridge.'}</p>
         </div>
         <div className="profile-controls">
           <button className="heading-action" type="button" disabled={pending !== null} onClick={() => void refresh()}>
@@ -117,84 +121,86 @@ export function VdsPanel({ active }: { active: boolean }) {
       </div>
 
       <div className="feature-card-grid">
-        <section className="system-card">
-          <div className="feature-card-title system-card-heading">
-            <span className="feature-icon system-icon icon-wide"><IconBluetooth size={20} /></span>
-            <div className="title-copy">
-              <h3>Bluetooth Mode</h3>
-              <p>{modeDescription}</p>
-            </div>
-          </div>
-          <div className="system-fields">
-            <div className="modifier-block">
-              <div className="modifier-grid" aria-label="Bluetooth mode">
-                <button
-                  type="button"
-                  className={bluetooth && !normalMode ? 'active' : ''}
-                  aria-pressed={Boolean(bluetooth) && !normalMode}
-                  disabled={!bluetooth || busy}
-                  onClick={() => normalMode && setMode('vds')}
-                >
-                  <IconDeviceGamepad2 size={16} />
-                  OpenDS5
-                </button>
-                <button
-                  type="button"
-                  className={normalMode ? 'active' : ''}
-                  aria-pressed={normalMode}
-                  disabled={!bluetooth || busy}
-                  onClick={() => !normalMode && setMode('normal')}
-                >
-                  <IconBluetooth size={16} />
-                  Normal
-                </button>
+        {bluetoothModes && (
+          <section className="system-card">
+            <div className="feature-card-title system-card-heading">
+              <span className="feature-icon system-icon icon-wide"><IconBluetooth size={20} /></span>
+              <div className="title-copy">
+                <h3>Bluetooth Mode</h3>
+                <p>{modeDescription}</p>
               </div>
             </div>
-            <div className="select-row">
-              <span>Auto switch</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={bluetooth?.auto ?? false}
-                aria-label="Automatically switch Bluetooth mode"
-                className={`switch ${bluetooth?.auto ? 'on' : ''}`}
-                disabled={!bluetooth || pending !== null}
-                onClick={() => bluetooth && setAuto(!bluetooth.auto, bluetooth.idleSeconds)}
-              >
-                <span />
-              </button>
-            </div>
-            {bluetooth?.auto && (
-              <>
-                <p className="vds-hint">
-                  Switches to Normal after no controller has been connected for:
-                </p>
-                <div className="modifier-block">
-                  <div className="modifier-grid vds-idle-grid" aria-label="Idle time before switching to normal mode">
-                    {IDLE_OPTIONS.map(([label, seconds]) => (
-                      <button
-                        key={seconds}
-                        type="button"
-                        className={bluetooth.idleSeconds === seconds ? 'active' : ''}
-                        disabled={pending !== null}
-                        onClick={() => setAuto(true, seconds)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+            <div className="system-fields">
+              <div className="modifier-block">
+                <div className="modifier-grid" aria-label="Bluetooth mode">
+                  <button
+                    type="button"
+                    className={bluetooth && !normalMode ? 'active' : ''}
+                    aria-pressed={Boolean(bluetooth) && !normalMode}
+                    disabled={!bluetooth || busy}
+                    onClick={() => normalMode && setMode('vds')}
+                  >
+                    <IconDeviceGamepad2 size={16} />
+                    OpenDS5
+                  </button>
+                  <button
+                    type="button"
+                    className={normalMode ? 'active' : ''}
+                    aria-pressed={normalMode}
+                    disabled={!bluetooth || busy}
+                    onClick={() => !normalMode && setMode('normal')}
+                  >
+                    <IconBluetooth size={16} />
+                    Normal
+                  </button>
                 </div>
-                <p className="vds-hint">
-                  In Normal mode, turning on an attached DualSense switches back to OpenDS5. Bluetooth restarts,
-                  so press PS once more to connect it through OpenDS5.
-                </p>
-              </>
-            )}
-            {bluetooth?.lastError && <p className="vds-error">{bluetooth.lastError}</p>}
-          </div>
-        </section>
+              </div>
+              <div className="select-row">
+                <span>Auto switch</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={bluetooth?.auto ?? false}
+                  aria-label="Automatically switch Bluetooth mode"
+                  className={`switch ${bluetooth?.auto ? 'on' : ''}`}
+                  disabled={!bluetooth || pending !== null}
+                  onClick={() => bluetooth && setAuto(!bluetooth.auto, bluetooth.idleSeconds)}
+                >
+                  <span />
+                </button>
+              </div>
+              {bluetooth?.auto && (
+                <>
+                  <p className="vds-hint">
+                    Switches to Normal after no controller has been connected for:
+                  </p>
+                  <div className="modifier-block">
+                    <div className="modifier-grid vds-idle-grid" aria-label="Idle time before switching to normal mode">
+                      {IDLE_OPTIONS.map(([label, seconds]) => (
+                        <button
+                          key={seconds}
+                          type="button"
+                          className={bluetooth.idleSeconds === seconds ? 'active' : ''}
+                          disabled={pending !== null}
+                          onClick={() => setAuto(true, seconds)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="vds-hint">
+                    In Normal mode, turning on an attached DualSense switches back to OpenDS5. Bluetooth restarts,
+                    so press PS once more to connect it through OpenDS5.
+                  </p>
+                </>
+              )}
+              {bluetooth?.lastError && <p className="vds-error">{bluetooth.lastError}</p>}
+            </div>
+          </section>
+        )}
 
-        <section className="system-card">
+        <section className={`system-card ${bluetoothModes ? '' : 'system-card-full'}`}>
           <div className="feature-card-title system-card-heading">
             <span className="feature-icon system-icon icon-wide"><IconDeviceGamepad2 size={20} /></span>
             <div className="title-copy">
@@ -203,6 +209,9 @@ export function VdsPanel({ active }: { active: boolean }) {
             </div>
           </div>
           <div className="system-fields">
+            {!bluetoothModes && status && (status.accessHint || !status.available) && (
+              <p className="vds-error">{status.accessHint ?? `vdsd is not reachable: ${status.error}`}</p>
+            )}
             {status?.available && status.controllers.length === 0 && (
               <p className="vds-hint">
                 No paired controllers found. Pair the DualSense in your Bluetooth settings first

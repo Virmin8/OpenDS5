@@ -87,6 +87,10 @@ function parseBluetooth(reply: JsonObject): VdsBluetoothStatus {
 }
 
 async function getBluetooth(): Promise<VdsBluetoothStatus | null> {
+  // Bluetooth modes switch BlueZ's input plugin; Windows has no equivalent.
+  if (process.platform === 'win32') {
+    return null;
+  }
   try {
     return parseBluetooth(await requestOk({ command: 'bluetooth', op: 'get' }));
   } catch (error) {
@@ -117,6 +121,9 @@ export function vdsSocketAccessHint(groupFile: string, user: string, sessionGids
 }
 
 function socketAccessHint(): string {
+  if (process.platform === 'win32') {
+    return 'Windows did not let OpenDS5 open the vdsd pipe. Reinstall OpenDS5 to update vdsd.';
+  }
   try {
     return vdsSocketAccessHint(fs.readFileSync('/etc/group', 'utf8'), os.userInfo().username, process.getgroups?.() ?? []);
   } catch {

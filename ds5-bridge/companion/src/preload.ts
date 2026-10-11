@@ -401,6 +401,8 @@ contextBridge.exposeInMainWorld('appInfo', appInfoApi);
 
 const vdsApi = {
   platform: process.platform,
+  /** The companion talks to vdsd (Linux, or Windows with vdsd installed). */
+  vdsd: process.env.OPENDS5_VDSD === '1',
   /** Installed by a distribution package, which owns the driver and vdsd (see main.ts). */
   systemPackage: Boolean(process.env.OPENDS5_LAUNCHER),
   getStatus: (): Promise<VdsStatus> => ipcRenderer.invoke('vds:getStatus'),

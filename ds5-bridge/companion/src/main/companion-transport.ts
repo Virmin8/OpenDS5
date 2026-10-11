@@ -2,6 +2,7 @@ import type { EventEmitter } from 'node:events';
 import { WinUsbCompanionTransport } from './winusb-companion-transport';
 import { VdsdCompanionTransport } from './vdsd-companion-transport';
 import { MockCompanionTransport } from './mock-companion-transport';
+import { vdsdBackendActive } from './vdsd-backend';
 
 export type CompanionTransportOpenOptions = {
   retryTimeoutMs?: number;
@@ -9,8 +10,8 @@ export type CompanionTransportOpenOptions = {
 };
 
 /**
- * Shared surface of the platform companion transports: the Pico WinUSB
- * helper on Windows and the vdsd control socket on Linux.
+ * Shared surface of the companion transports: vdsd's control socket/pipe
+ * (Linux, and Windows with vdsd installed) and the Pico WinUSB helper.
  */
 export interface CompanionTransport extends EventEmitter {
   readonly path: string;
@@ -26,7 +27,7 @@ export function openCompanionTransport(
   if (process.env.DS5_BRIDGE_MOCK_CONTROLLER === '1') {
     return MockCompanionTransport.open(options);
   }
-  if (process.platform === 'win32') {
+  if (process.platform === 'win32' && !vdsdBackendActive()) {
     return WinUsbCompanionTransport.open(options);
   }
   return VdsdCompanionTransport.open(options);

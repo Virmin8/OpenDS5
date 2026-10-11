@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { createConnection } from 'node:net';
+import { WINDOWS_VDSD_PIPE } from './vdsd-backend';
 
 type OpenOptions = {
   retryTimeoutMs?: number;
@@ -19,7 +20,7 @@ const REPORT_LENGTH = 64;
 const DEFAULT_SOCKET_PATH = '/run/vdsd.sock';
 
 export function defaultVdsdSocketPath(): string {
-  return process.env.VDSD_SOCKET ?? DEFAULT_SOCKET_PATH;
+  return process.env.VDSD_SOCKET ?? (process.platform === 'win32' ? WINDOWS_VDSD_PIPE : DEFAULT_SOCKET_PATH);
 }
 
 /**

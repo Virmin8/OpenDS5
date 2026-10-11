@@ -73,6 +73,7 @@ import type {
   UiScalePercent,
   UiThemePreset
 } from '../shared/types';
+import { vdsdBackendActive } from './vdsd-backend';
 
 const APP_NAME = 'OpenDS5';
 /**
@@ -81,6 +82,9 @@ const APP_NAME = 'OpenDS5';
  * installer, which only ships inside the AppImage, is never offered.
  */
 const SYSTEM_PACKAGE_LAUNCHER = process.platform === 'linux' ? process.env.OPENDS5_LAUNCHER ?? '' : '';
+// The renderer reads this (through the preload) to show the vdsd features.
+const VDSD_BACKEND = vdsdBackendActive();
+process.env.OPENDS5_VDSD = VDSD_BACKEND ? '1' : '0';
 const WINDOWS_APP_USER_MODEL_ID = 'io.github.sundaymoments.ds5bridge';
 const WINDOWS_TOAST_ACTIVATOR_CLSID = '{A8B3700D-4BB5-4E22-BF57-0C43B7C2FDF6}';
 const APP_MARK_PNG = path.join('assets', 'controllers', 'opends5_mark.png');
@@ -1803,7 +1807,12 @@ app.whenReady().then(async () => {
   if (startupProfileId && settingsStore.get().controllerProfiles.some((profile) => profile.id === startupProfileId)) {
     settingsStore.selectControllerProfile(startupProfileId);
   }
-  bridgeService = new BridgeService(settingsStore, { vdsMicSwitch: process.platform === 'linux' });
+  bridgeService = new BridgeService(settingsStore, {
+    vdsMicSwitch: VDSD_BACKEND,
+    // Windows has no pactl; with the mic off vdsd keeps the controller mic
+    // closed, so the input is silent anyway.
+    ...(process.platform === 'linux' ? {} : { setLinuxMicMuted: async () => 0 })
+  });
   const triggerProfileStore = new TriggerProfileStore(
     path.join(app.getPath('userData'), 'trigger-profiles')
   );
