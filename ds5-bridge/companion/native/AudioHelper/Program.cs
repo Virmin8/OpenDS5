@@ -242,7 +242,7 @@ static class AudioHelperTestHaptics
         var pcm = BuildTestPcm(format, options.HapticsGainPercent);
         var waveProvider = new BufferedWaveProvider(format)
         {
-            BufferDuration = TimeSpan.FromSeconds(1),
+            BufferDuration = TimeSpan.FromSeconds(AudioHelperTestHaptics.TestWaveSeconds + 0.5),
             DiscardOnBufferOverflow = false,
             ReadFully = true
         };
@@ -290,36 +290,36 @@ static class AudioHelperTestHaptics
         return frames;
     }
 
+    // The same pattern as the Linux helper (audio-helper-linux.mjs
+    // buildHapticsTestWave): a low 40 Hz swell, a short gap, then a punchier
+    // 80 Hz pulse train, on the haptics channels (3 and 4).
+    internal const double TestWaveSeconds = 1.6;
+    private const int MaxRenderGainPercent = 400;
+
     internal static byte[] BuildTestPcm(WaveFormat format, int gainPercent)
     {
-        var framesPerPacket = Math.Max(
-            1,
-            (int)Math.Round(format.SampleRate * AudioConstants.PicoInputBlockFrames / (double)AudioConstants.TargetSampleRate)
-        );
-        var packetTotal = PrerollPacketCount + PacketCount + NeutralPacketCount;
-        var buffer = new byte[packetTotal * framesPerPacket * format.BlockAlign];
+        var gain = Math.Clamp(gainPercent, 0, MaxRenderGainPercent) / 100.0;
+        var frames = (int)Math.Round(TestWaveSeconds * format.SampleRate);
+        var buffer = new byte[frames * format.BlockAlign];
         var bytesPerSample = Math.Max(1, format.BitsPerSample / 8);
-        var gain = Math.Clamp(gainPercent, 0, MaxGainPercent);
 
-        for (var packet = 0; packet < PacketCount; packet++)
+        for (var frame = 0; frame < frames; frame++)
         {
-            var amplitude = TestAmplitude(BaseAmplitude, gain, TestEnvelopePercent(packet, PacketCount)) / 127.0f;
-            if (amplitude <= 0)
+            var t = frame / (double)format.SampleRate;
+            var amp = 0.0;
+            if (t < 0.7)
             {
-                continue;
+                amp = Math.Sin(Math.PI * (t / 0.7)) * Math.Sin(2 * Math.PI * 40 * t);
             }
-            var packetsRemaining = PacketCount - packet;
-            var positivePhase = (packetsRemaining & 1) != 0;
-            var left = positivePhase ? amplitude : -amplitude;
-            var right = positivePhase ? -amplitude : amplitude;
-            var packetFrameStart = (PrerollPacketCount + packet) * framesPerPacket;
-
-            for (var frame = 0; frame < framesPerPacket; frame++)
+            else if (t >= 0.8)
             {
-                var offset = (packetFrameStart + frame) * format.BlockAlign;
-                WriteSample(buffer, offset + bytesPerSample * 2, format, left);
-                WriteSample(buffer, offset + bytesPerSample * 3, format, right);
+                var pulse = Math.Exp(-6 * ((t - 0.8) % 0.25));
+                amp = pulse * Math.Sin(2 * Math.PI * 80 * t);
             }
+            var sample = (float)Math.Tanh(amp * gain);
+            var offset = frame * format.BlockAlign;
+            WriteSample(buffer, offset + bytesPerSample * 2, format, sample);
+            WriteSample(buffer, offset + bytesPerSample * 3, format, sample);
         }
 
         return buffer;
