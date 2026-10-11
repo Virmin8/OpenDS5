@@ -6952,6 +6952,46 @@ export function App() {
   }
 
 
+  // vdsd mic processing, shown on the Audio page's Mic view.
+  function renderMicProcessingCard() {
+    if (!snapshot) {
+      return null;
+    }
+    return (
+      <section className="system-card audio-processing-card">
+        <div className="feature-card-title system-card-heading">
+          <span className="feature-icon system-icon icon-wide"><SlidersHorizontal size={20} /></span>
+          <div className="title-copy">
+            <h3>Mic Processing</h3>
+            <p>Controller sound processing while the mic is on.</p>
+          </div>
+        </div>
+        <div className="segmented-row mic-processing-grid" role="radiogroup" aria-label="Mic processing">
+          {MIC_PROCESSING_OPTIONS.map(([label, value]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={snapshot.settings.micProcessing === value}
+              className={snapshot.settings.micProcessing === value ? 'active' : ''}
+              disabled={!controllerControlsAvailable || pendingAction !== null}
+              onClick={() => void runAction('mic-processing', () => window.bridge.setMicProcessing(value))}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="mic-speaker-warning">
+          <IconAlertTriangle size={16} stroke={2.2} aria-hidden="true" />
+          <span>
+            Noise cancelling and a high Mic-On Gain lower the controller speaker&apos;s quality while
+            the mic is on. Echo cancelling keeps it clean.
+          </span>
+        </p>
+      </section>
+    );
+  }
+
   // Mute Button settings, shown on the Audio page's Mic view.
   function renderMuteButtonCard() {
     if (!snapshot) {
@@ -8695,8 +8735,8 @@ export function App() {
                   </div>
                   {VDS_AVAILABLE && (
                     <div
-                      className="chords-field chords-inline-field audio-speaker-gain-field"
-                      title="Speaker gain while the microphone is on. Same keeps the Speaker Gain."
+                      className="chords-field chords-inline-field audio-speaker-gain-field audio-mic-gain-field"
+                      title="Speaker gain while the microphone is on. Same keeps the Speaker Gain; higher levels lower the speaker's quality."
                     >
                       <span>Mic-On Gain</span>
                       <CustomSelect
@@ -8874,7 +8914,6 @@ export function App() {
                         ))}
                       </div>
                       {VDS_AVAILABLE ? (
-                        <>
                         <div className="mic-switch-row">
                           <span>Microphone</span>
                           <span className="mic-switch-state">
@@ -8892,27 +8931,6 @@ export function App() {
                             <span />
                           </button>
                         </div>
-                        <div
-                          className="segmented-row mic-processing-row"
-                          role="radiogroup"
-                          aria-label="Mic processing"
-                          title="Controller processing while the microphone is on. Noise cancelling distorts the controller speaker."
-                        >
-                          {MIC_PROCESSING_OPTIONS.map(([label, value]) => (
-                            <button
-                              key={value}
-                              type="button"
-                              role="radio"
-                              aria-checked={snapshot.settings.micProcessing === value}
-                              className={snapshot.settings.micProcessing === value ? 'active' : ''}
-                              disabled={!controllerControlsAvailable || pendingAction !== null}
-                              onClick={() => void runAction('mic-processing', () => window.bridge.setMicProcessing(value))}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        </>
                       ) : (
                         <div className="mic-option-grid">
                           <button
@@ -9099,7 +9117,12 @@ export function App() {
                   </div>
                 </section>
               </div>
-              {showMicrophoneControl ? renderMuteButtonCard() : <FeatureTipsPanel tab="audio" />}
+              {showMicrophoneControl ? (
+                <div className={`feature-card-grid audio-mic-extra-grid ${VDS_AVAILABLE ? '' : 'single'}`}>
+                  {VDS_AVAILABLE && renderMicProcessingCard()}
+                  {renderMuteButtonCard()}
+                </div>
+              ) : <FeatureTipsPanel tab="audio" />}
           </div>
 
           <div
