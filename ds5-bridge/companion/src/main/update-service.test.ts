@@ -36,7 +36,8 @@ describe('isCheckDue', () => {
 });
 
 describe('isNixOS', () => {
-  it('recognizes an os-release file with ID=nixos', () => {
+  // isNixOS is false off Linux without reading os-release.
+  it.skipIf(process.platform !== 'linux')('recognizes an os-release file with ID=nixos', () => {
     expect(isNixOS(() => 'NAME="NixOS"\nID=nixos\n')).toBe(true);
   });
 

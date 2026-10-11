@@ -42,7 +42,9 @@ describe('canSelfReplace', () => {
     expect(canSelfReplace(target)).toBe(true);
   });
 
-  it('rejects an AppImage in a read-only directory', () => {
+  // AppImage updates are Linux-only; Windows ignores directory modes, inode numbers and
+  // refuses to rename over an open file.
+  it.skipIf(process.platform === 'win32')('rejects an AppImage in a read-only directory', () => {
     const readonly = path.join(dir, 'opt');
     fs.mkdirSync(readonly);
     const target = path.join(readonly, 'OpenDS5.AppImage');
@@ -229,7 +231,7 @@ describe('downloadTo', () => {
 });
 
 describe('swapInPlace', () => {
-  it('replaces the target atomically and marks it executable', () => {
+  it.skipIf(process.platform === 'win32')('replaces the target atomically and marks it executable', () => {
     const target = path.join(dir, 'OpenDS5.AppImage');
     const temp = path.join(dir, 'OpenDS5.AppImage.download');
     fs.writeFileSync(target, 'old');
@@ -249,7 +251,7 @@ describe('swapInPlace', () => {
     expect(fs.statSync(target).ino).not.toBe(targetIno);
   });
 
-  it('leaves an already-open fd on the old target reading the old bytes', () => {
+  it.skipIf(process.platform === 'win32')('leaves an already-open fd on the old target reading the old bytes', () => {
     const target = path.join(dir, 'OpenDS5.AppImage');
     const temp = path.join(dir, 'OpenDS5.AppImage.download');
     fs.writeFileSync(target, 'old');

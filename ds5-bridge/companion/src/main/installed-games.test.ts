@@ -85,7 +85,8 @@ describe('rankProcessCandidates', () => {
     expect(ranked[0]).toBe('MainBinary.exe');
   });
 
-  it('finds Linux-native ELF binaries and ignores non-executable files', () => {
+  // Windows has no executable mode bit, so ELF detection is Linux-only.
+  it.skipIf(process.platform === 'win32')('finds Linux-native ELF binaries and ignores non-executable files', () => {
     const game = path.join(dir, 'Stray');
     writeElf(path.join(game, 'stray'), 8 * 1024 * 1024);
     writeFileSync(path.join(game, 'readme.txt'), 'hi');
@@ -128,7 +129,10 @@ describe('InstalledGamesScanner', () => {
 
   function makeSteamRoot(root: string, libraries: string[]): void {
     mkdirSync(path.join(root, 'steamapps'), { recursive: true });
-    const blocks = libraries.map((library, index) => `"${index}"{"path" "${library}"}`).join('');
+    // Steam escapes backslashes in Windows library paths ("C:\\Program Files (x86)\\Steam").
+    const blocks = libraries
+      .map((library, index) => `"${index}"{"path" "${library.replace(/\\/g, '\\\\')}"}`)
+      .join('');
     writeFileSync(path.join(root, 'steamapps', 'libraryfolders.vdf'), `"libraryfolders"{${blocks}}`);
   }
 

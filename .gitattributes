@@ -1,0 +1,6 @@
+# LF everywhere, also in Windows checkouts: the tests read sources and match
+# multi-line text, and the bundled shell scripts must run on Linux.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.icns binary

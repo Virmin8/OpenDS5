@@ -1,13 +1,18 @@
 import { createServer, type Server } from 'node:net';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { VdsdCompanionTransport } from './vdsd-companion-transport';
 
 const REPORT_LENGTH = 64;
 
-type Handler = (request: Record<string, unknown>) => Record<string, unknown>;
+/** A Unix socket in `dir`, or on Windows a named pipe (vdsd listens on \\.\pipe\vdsd). */
+function ipcPath(dir: string, name: string): string {
+  return process.platform === 'win32' ? join('\\\\.\\pipe', `${basename(dir)}-${name}`) : join(dir, name);
+}
+
+type Handler =(request: Record<string, unknown>) => Record<string, unknown>;
 
 function statusReport(): number[] {
   const report = new Array<number>(REPORT_LENGTH).fill(0);
@@ -27,7 +32,7 @@ describe('VdsdCompanionTransport', () => {
 
   beforeEach(async () => {
     dir = mkdtempSync(join(tmpdir(), 'vdsd-transport-'));
-    socketPath = join(dir, 'vdsd.sock');
+    socketPath = ipcPath(dir, 'vdsd.sock');
     requests = [];
     handler = () => ({ OK: true, report: statusReport() });
     server = createServer((socket) => {
@@ -100,7 +105,7 @@ describe('VdsdCompanionTransport', () => {
 
   it('fails to open when the socket is missing and no retry window is set', async () => {
     await expect(
-      VdsdCompanionTransport.open({ socketPath: join(dir, 'missing.sock') })
+      VdsdCompanionTransport.open({ socketPath: ipcPath(dir, 'missing.sock') })
     ).rejects.toThrow();
   });
 });

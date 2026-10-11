@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { resolveInstallerPath, shouldRunSystemInstall } from './install-system-cli';
 
@@ -8,6 +9,6 @@ describe('install-system CLI', () => {
   });
 
   it('resolves the bundled installer under resources', () => {
-    expect(resolveInstallerPath('/tmp/res')).toBe('/tmp/res/installer/opends5-install');
+    expect(resolveInstallerPath('/tmp/res')).toBe(path.join('/tmp/res', 'installer', 'opends5-install'));
   });
 });

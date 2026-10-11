@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -48,6 +48,10 @@ describe('release candidate toolchain', () => {
     const repoRoot = path.resolve(testDir, '..', '..', '..');
     const outputRoot = tempOutputRoot();
     const scriptPath = path.join(repoRoot, 'tools', 'create-release-candidate.ps1');
+    // DS5_Bridge's Pico release tooling is not part of OpenDS5.
+    if (!existsSync(scriptPath)) {
+      return;
+    }
     const result = spawnSync(powerShell, [
       '-NoProfile',
       '-ExecutionPolicy',
