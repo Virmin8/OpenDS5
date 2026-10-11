@@ -39,6 +39,8 @@ export function reduceProgress(state: ProgressState, e: SetupProgressEvent): Pro
 
 type Screen = 'welcome' | 'review' | 'progress';
 
+const WINDOWS = typeof window !== 'undefined' && window.setup?.platform === 'win32';
+
 export function SetupWizard() {
   const [screen, setScreen] = useState<Screen>('welcome');
   const [plan, setPlan] = useState<string[]>([]);
@@ -66,10 +68,18 @@ export function SetupWizard() {
       {screen === 'welcome' && (
         <section className="setup-card">
           <h1>Welcome to OpenDS5</h1>
-          <p>
-            To bridge your DualSense over Bluetooth with full haptics, OpenDS5 installs a kernel
-            module and a background service. This needs your administrator password once.
-          </p>
+          {WINDOWS ? (
+            <p>
+              To bridge your DualSense over Bluetooth with full haptics, OpenDS5 installs USB/IP and
+              HidHide and a background service. Windows asks for administrator rights once. Using
+              the DS5 Bridge dongle instead? Skip this.
+            </p>
+          ) : (
+            <p>
+              To bridge your DualSense over Bluetooth with full haptics, OpenDS5 installs a kernel
+              module and a background service. This needs your administrator password once.
+            </p>
+          )}
           <div className="setup-actions">
             <button onClick={() => void toReview()}>Set up</button>
             <button onClick={() => void window.setup.skip()}>Skip for now</button>
@@ -134,7 +144,11 @@ export function SetupWizard() {
           </ul>
           {progress.outcome === 'success' && (
             <>
-              <p>Log out and back in once so group permissions apply to game input features.</p>
+              <p>
+                {WINDOWS
+                  ? 'OpenDS5 restarts to connect to the new service.'
+                  : 'Log out and back in once so group permissions apply to game input features.'}
+              </p>
               <div className="setup-actions">
                 <button onClick={() => void window.setup.finish()}>Open OpenDS5</button>
               </div>
@@ -143,8 +157,9 @@ export function SetupWizard() {
           {progress.outcome === 'reboot' && (
             <>
               <p>
-                Your Secure Boot key was enrolled. Reboot, choose “Enroll MOK” in the blue screen,
-                and the driver loads automatically. You can use the app after that.
+                {WINDOWS
+                  ? 'Restart Windows to finish installing USB/IP. The OpenDS5 service starts automatically after that.'
+                  : 'Your Secure Boot key was enrolled. Reboot, choose “Enroll MOK” in the blue screen, and the driver loads automatically. You can use the app after that.'}
               </p>
               <div className="setup-actions">
                 <button onClick={() => void window.setup.finish()}>Close</button>

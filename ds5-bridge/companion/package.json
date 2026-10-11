@@ -105,6 +105,24 @@
       ],
       "extraResources": [
         {
+          "from": "../../installer/windows",
+          "to": "installer/windows",
+          "filter": [
+            "opends5-setup.ps1"
+          ]
+        },
+        {
+          "from": "../../vds-win",
+          "to": "vds-win"
+        },
+        {
+          "from": "../../vds/packaging/windows",
+          "to": "vds-win",
+          "filter": [
+            "install_dependencies.ps1"
+          ]
+        },
+        {
           "from": "native/AudioHelper/bin/publish/win-x64",
           "to": "native/AudioHelper",
           "filter": [

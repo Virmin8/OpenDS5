@@ -446,8 +446,9 @@ const VDS_LINUX = VDS_AVAILABLE && window.vds.platform === 'linux';
 // grab it) or the Pico firmware; vdsd on Windows has no pointer to toggle.
 const TOUCHPAD_MOUSE_AVAILABLE = !VDS_AVAILABLE || VDS_LINUX;
 // A distribution package removes the driver and vdsd itself, so the in-app
-// uninstaller is hidden; on Windows OpenDS5 is removed from the Apps list.
-const SYSTEM_UNINSTALL_AVAILABLE = VDS_LINUX && !window.vds.systemPackage;
+// uninstaller is hidden. On Windows it removes the vdsd service; the app
+// itself goes from the Apps list.
+const SYSTEM_UNINSTALL_AVAILABLE = VDS_AVAILABLE && !window.vds.systemPackage;
 // vdsd handles Mute as mic mute (Normal) or a chord starter (Chord); it has no
 // keyboard emulation or quiet mode.
 const MUTE_BUTTON_MODE_OPTIONS = ALL_MUTE_BUTTON_MODE_OPTIONS.filter(
@@ -11898,13 +11899,21 @@ export function App() {
             </div>
             {uninstallDialog.phase === 'confirm' && (
               <>
-                <p className="remap-profile-dialog-copy">
-                  This removes everything the installer set up: the vds_hcd kernel module (DKMS),
-                  vdsd and vdsctl, the systemd service, udev rules, the WirePlumber config, the
-                  vds group, the Bluetooth override (other Bluetooth input devices work again),
-                  and the OpenDS5 AppImage, menu entry and autostart entry. You will be asked for
-                  your password once.
-                </p>
+                {VDS_LINUX ? (
+                  <p className="remap-profile-dialog-copy">
+                    This removes everything the installer set up: the vds_hcd kernel module (DKMS),
+                    vdsd and vdsctl, the systemd service, udev rules, the WirePlumber config, the
+                    vds group, the Bluetooth override (other Bluetooth input devices work again),
+                    and the OpenDS5 AppImage, menu entry and autostart entry. You will be asked for
+                    your password once.
+                  </p>
+                ) : (
+                  <p className="remap-profile-dialog-copy">
+                    This stops and removes the vdsd service and its files in Program Files. USB/IP
+                    and HidHide stay installed (remove them from Apps if nothing else uses them),
+                    and OpenDS5 itself is removed from Apps. Windows asks for administrator rights once.
+                  </p>
+                )}
                 <label className="uninstall-purge-option">
                   <input
                     type="checkbox"
@@ -11944,10 +11953,12 @@ export function App() {
                   <>
                     <p className="remap-profile-dialog-copy">
                       {uninstallDialog.exit === 0
-                        ? 'OpenDS5 has been removed. Log out and back in to drop the vds group from your session. Run the AppImage again any time to reinstall.'
+                        ? VDS_LINUX
+                          ? 'OpenDS5 has been removed. Log out and back in to drop the vds group from your session. Run the AppImage again any time to reinstall.'
+                          : 'The vdsd service has been removed. Restart OpenDS5 to set it up again, or remove OpenDS5 from Apps.'
                         : uninstallDialog.exit === 126 || uninstallDialog.exit === 127
                           ? 'Uninstall was cancelled before anything was changed.'
-                          : 'Some steps failed — see /var/log/opends5/uninstall.log. Everything else was removed.'}
+                          : `Some steps failed — see ${VDS_LINUX ? '/var/log/opends5/uninstall.log' : '%ProgramData%\\OpenDS5\\logs\\uninstall.log'}. Everything else was removed.`}
                     </p>
                     <div className="remap-profile-dialog-actions">
                       <button type="button" className="secondary-action" onClick={() => setUninstallDialog(null)}>
@@ -12767,7 +12778,7 @@ export function App() {
                     <div className="settings-menu-row">
                       <div className="settings-menu-copy">
                         <strong>Uninstall OpenDS5</strong>
-                        <span>Remove the driver, daemon and launcher</span>
+                        <span>{VDS_LINUX ? 'Remove the driver, daemon and launcher' : 'Remove the vdsd service'}</span>
                       </div>
                       <button
                         type="button"

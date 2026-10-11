@@ -1,0 +1,84 @@
+name: windows-installer
+
+# Builds the Windows installer (OpenDS5-Companion-Setup-x.y.z.exe): the app,
+# the WASAPI audio helper and a self-contained vdsd (static C++ runtime and
+# Opus), which the app's setup wizard installs as a service together with
+# USB/IP and HidHide. Uploaded as an artifact; not published to Releases yet.
+
+on:
+  push:
+    branches: [windows]
+    paths:
+      - 'ds5-bridge/**'
+      - 'vds'
+      - 'installer/windows/**'
+      - '.github/workflows/windows-installer.yml'
+  workflow_dispatch:
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: locate vcpkg
+        shell: pwsh
+        run: |
+          $Vcpkg = Get-Command vcpkg.exe -ErrorAction SilentlyContinue
+          $VcpkgPath = if ($Vcpkg) { $Vcpkg.Source } else { "C:\vcpkg\vcpkg.exe" }
+          "VDS_VCPKG_ROOT=$(Split-Path -Parent $VcpkgPath)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # vds-win/ is gitignored and consumed via extraResources.
+      - name: build vdsd
+        shell: pwsh
+        run: |
+          cmake -S vds -B vds\build-win `
+            -DVDS_STATIC_MSVC_RUNTIME=ON `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VDS_VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+          cmake --build vds\build-win --config Release --parallel --target vdsd vdsctl
+          New-Item -ItemType Directory -Force -Path vds-win | Out-Null
+          Copy-Item vds\build-win\Release\vdsd.exe, vds\build-win\Release\vdsctl.exe vds-win\
+          $Dlls = Get-ChildItem vds\build-win\Release\*.dll -ErrorAction SilentlyContinue
+          if ($Dlls) { throw "vdsd is not self-contained; it needs: $($Dlls.Name -join ', ')" }
+
+      - name: check setup script syntax
+        shell: pwsh
+        run: |
+          foreach ($Script in @('installer\windows\opends5-setup.ps1', 'vds\packaging\windows\install_dependencies.ps1')) {
+            $Errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $Script), [ref]$null, [ref]$Errors)
+            if ($Errors) { $Errors | ForEach-Object { Write-Error "${Script}: $_" }; exit 1 }
+          }
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ds5-bridge/companion/package-lock.json
+
+      - name: install
+        working-directory: ds5-bridge/companion
+        run: npm ci
+
+      - name: test
+        working-directory: ds5-bridge/companion
+        run: npx vitest run src
+
+      - name: build installer
+        working-directory: ds5-bridge/companion
+        run: |
+          npm run build
+          npx electron-builder --win nsis --x64 --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenDS5-Windows-Setup
+          path: ds5-bridge/companion/artifacts/installer/*.exe
+          if-no-files-found: error

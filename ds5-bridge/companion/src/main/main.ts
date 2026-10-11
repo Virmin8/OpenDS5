@@ -10,7 +10,7 @@ import {
   shouldRunSystemInstall,
   shouldRunSystemUninstall
 } from './install-system-cli';
-import { isSetupNeeded, SetupService } from './setup-service';
+import { isSetupNeeded, isWindowsSetupNeeded, SetupService } from './setup-service';
 import { openSetupWindow, shouldShowSetupWizard } from './setup-window';
 import {
   PICO_UNIVERSAL_FLASH_NUKE_FILE,
@@ -1696,17 +1696,36 @@ if (shouldRunSystemInstall(process.argv)) {
   app.exit(runSystemInstall(process.resourcesPath, app.getVersion(), ['--uninstall', ...extraArgs]));
 }
 
+// dev run from the repo checkout: ds5-bridge/companion/dist/main/main -> repo root
+const REPO_ROOT = path.join(__dirname, '..', '..', '..', '..', '..');
+
 function resolveInstallerScriptPath(): string {
+  if (process.platform === 'win32') {
+    const packaged = path.join(process.resourcesPath, 'installer', 'windows', 'opends5-setup.ps1');
+    return fs.existsSync(packaged) ? packaged : path.join(REPO_ROOT, 'installer', 'windows', 'opends5-setup.ps1');
+  }
   const packaged = resolveInstallerPath(process.resourcesPath);
   if (fs.existsSync(packaged)) {
     return packaged;
   }
-  // dev run from the repo checkout: ds5-bridge/companion/dist/main/main -> repo root
-  return path.join(__dirname, '..', '..', '..', '..', '..', 'installer', 'opends5-install');
+  return path.join(REPO_ROOT, 'installer', 'opends5-install');
+}
+
+/** The vdsd.exe this build ships (resources\vds-win, or vds-win\ in a dev checkout). */
+function resolveBundledWindowsVdsd(): string {
+  const packaged = path.join(process.resourcesPath, 'vds-win', 'vdsd.exe');
+  return fs.existsSync(packaged) ? packaged : path.join(REPO_ROOT, 'vds-win', 'vdsd.exe');
+}
+
+function systemSetupNeeded(): boolean {
+  if (process.platform === 'win32') {
+    return isWindowsSetupNeeded({ bundledVdsd: resolveBundledWindowsVdsd() });
+  }
+  return process.platform === 'linux' && !SYSTEM_PACKAGE_LAUNCHER ? isSetupNeeded() : false;
 }
 
 function runSetupWizardIfNeeded(settingsStore: SettingsStore, service: SetupService): Promise<void> {
-  const needed = process.platform === 'linux' && !SYSTEM_PACKAGE_LAUNCHER ? isSetupNeeded() : false;
+  const needed = systemSetupNeeded();
   if (
     !shouldShowSetupWizard({
       platform: process.platform,
@@ -1728,6 +1747,13 @@ function runSetupWizardIfNeeded(settingsStore: SettingsStore, service: SetupServ
       },
       onFinish: () => {
         settingsStore.update({ setupSkipped: false });
+        if (process.platform === 'win32') {
+          // The companion picks vdsd or the Pico dongle at startup (see
+          // vdsd-backend.ts); start over so it finds the new service.
+          app.relaunch();
+          app.exit(0);
+          return;
+        }
         resolve();
       },
       onDismiss: () => resolve()
@@ -1738,7 +1764,7 @@ function runSetupWizardIfNeeded(settingsStore: SettingsStore, service: SetupServ
 function registerUninstallIpc(settingsStore: SettingsStore, setupService: SetupService): void {
   let running = false;
   ipcMain.handle('vds:uninstallSystem', async (event, purge: boolean) => {
-    if (running || process.platform !== 'linux' || SYSTEM_PACKAGE_LAUNCHER) return 1;
+    if (running || (process.platform !== 'linux' && process.platform !== 'win32') || SYSTEM_PACKAGE_LAUNCHER) return 1;
     running = true;
     try {
       const exit = await setupService.uninstall(Boolean(purge), (progress) => {

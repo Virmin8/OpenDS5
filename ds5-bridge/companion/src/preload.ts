@@ -362,6 +362,7 @@ const api = {
 contextBridge.exposeInMainWorld('bridge', api);
 
 const setupApi = {
+  platform: process.platform,
   getPlan: (): Promise<{ steps: string[] } | { unsupported: string }> =>
     ipcRenderer.invoke(SETUP_CHANNELS.getPlan),
   install: (): Promise<void> => ipcRenderer.invoke(SETUP_CHANNELS.install),

@@ -1,5 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
 
 export type SetupProgressEvent =
   | { event: 'plan'; total: number; steps: string[]; log: string }
@@ -32,6 +34,72 @@ export function isSetupNeeded(opts?: {
   return !serviceActive();
 }
 
+/** Where Windows setup installs vdsd (admin-only, see opends5-setup.ps1). */
+export function windowsInstalledVdsdPath(env: NodeJS.ProcessEnv = process.env): string {
+  const programFiles = env.ProgramW6432 ?? env.ProgramFiles ?? 'C:\\Program Files';
+  return path.win32.join(programFiles, 'OpenDS5', 'vds', 'vdsd.exe');
+}
+
+function fileDigest(filePath: string): string | null {
+  try {
+    return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Windows: setup is needed while the vdsd service is missing, or when this app
+ * version bundles a different vdsd than the one installed (after an update).
+ */
+export function isWindowsSetupNeeded(opts: {
+  bundledVdsd: string;
+  installedVdsd?: string;
+  serviceInstalled?: () => boolean;
+}): boolean {
+  const serviceInstalled =
+    opts.serviceInstalled ??
+    (() => spawnSync('sc.exe', ['query', 'vdsd'], { stdio: 'ignore', windowsHide: true }).status === 0);
+  if (!serviceInstalled()) return true;
+  const bundled = fileDigest(opts.bundledVdsd);
+  // A dev run without a bundled vdsd never nags about updating the service.
+  if (bundled === null) return false;
+  return bundled !== fileDigest(opts.installedVdsd ?? windowsInstalledVdsdPath());
+}
+
+// opends5-install's flags as opends5-setup.ps1 switches.
+const WINDOWS_INSTALLER_SWITCHES: Record<string, string> = {
+  '--dry-run': '-DryRun',
+  '--yes': '-Yes',
+  '--json-progress': '-JsonProgress',
+  '--uninstall': '-Uninstall',
+  '--purge': '-Purge',
+  '--rebuild-module': '-RebuildModule'
+};
+
+/** How to run the platform installer: bash on Linux, PowerShell on Windows. */
+export function installerCommand(
+  installerPath: string,
+  args: string[],
+  platform: NodeJS.Platform = process.platform,
+): { command: string; args: string[] } {
+  if (platform !== 'win32') {
+    return { command: 'bash', args: [installerPath, ...args] };
+  }
+  return {
+    command: 'powershell.exe',
+    args: [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      installerPath,
+      ...args.map((arg) => WINDOWS_INSTALLER_SWITCHES[arg] ?? arg),
+    ],
+  };
+}
+
 export class SetupService {
   constructor(
     private readonly installerPath: string,
@@ -44,7 +112,8 @@ export class SetupService {
 
   dryRunPlan(): Promise<string> {
     return new Promise((resolve, reject) => {
-      const child = spawn('bash', [this.installerPath, '--dry-run', '--yes'], { env: this.env() });
+      const launch = installerCommand(this.installerPath, ['--dry-run', '--yes']);
+      const child = spawn(launch.command, launch.args, { env: this.env(), windowsHide: true });
       let out = '';
       let err = '';
       child.stdout.on('data', (d: Buffer) => (out += d));
@@ -56,7 +125,8 @@ export class SetupService {
   }
 
   /**
-   * Runs the installer unprivileged; it escalates itself once via pkexec.
+   * Runs the installer unprivileged; it escalates itself once (pkexec on
+   * Linux, UAC on Windows).
    * Resolves with the installer's exit code; progress events stream to onEvent.
    */
   /**
@@ -77,8 +147,10 @@ export class SetupService {
 
   private run(args: string[], onEvent: (e: SetupProgressEvent) => void): Promise<number> {
     return new Promise((resolve) => {
-      const child = spawn('bash', [this.installerPath, ...args], {
+      const launch = installerCommand(this.installerPath, args);
+      const child = spawn(launch.command, launch.args, {
         env: this.env(),
+        windowsHide: true,
       });
       let buffer = '';
       child.stdout.on('data', (chunk: Buffer) => {

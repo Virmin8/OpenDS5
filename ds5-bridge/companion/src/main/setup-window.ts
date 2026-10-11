@@ -8,7 +8,7 @@ export function shouldShowSetupWizard(opts: {
   needed: boolean;
   skipped: boolean;
 }): boolean {
-  return opts.platform === 'linux' && opts.needed && !opts.skipped;
+  return (opts.platform === 'linux' || opts.platform === 'win32') && opts.needed && !opts.skipped;
 }
 
 export function openSetupWindow(opts: {
