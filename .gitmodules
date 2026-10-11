@@ -1,4 +1,4 @@
 [submodule "vds"]
 	path = vds
 	url = https://github.com/Virmin8/vds.git
-	branch = opends5
+	branch = main
