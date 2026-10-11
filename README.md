@@ -19,6 +19,8 @@ controller's adaptive triggers, haptics, audio, lighting and buttons from one
 app, while games see a wired DualSense with all its native features, even over
 Bluetooth.
 
+<sub>🤖 Built with help from [Claude](https://claude.com/claude-code), Anthropic's AI coding assistant.</sub>
+
 <p align="center">
   <img src="docs/screenshots/overview.png" alt="OpenDS5 Overview — connection status, quick actions and quick controls" width="850">
 </p>
