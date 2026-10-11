@@ -90,6 +90,7 @@ import r1GlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/R1.
 import r2GlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/R2.svg';
 import rightStickClickGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Right Stick Click.svg';
 import squareGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Square.svg';
+import touchpadPressGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Touch Pad Press.svg';
 import triangleGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Triangle.svg';
 import testSpeakerToneUrl from './assets/test-speaker-tone-silence-tail.mp3';
 import {
@@ -411,7 +412,7 @@ const STATE_SWITCH_BUTTON_GLYPHS: Record<string, string> = {
   create: 'CR', options: 'OP', ps: 'PS',
   'dpad-up': '↑', 'dpad-down': '↓', 'dpad-left': '←', 'dpad-right': '→'
 };
-const MUTE_BUTTON_MODE_OPTIONS: Array<[string, MuteButtonMode]> = [
+const ALL_MUTE_BUTTON_MODE_OPTIONS: Array<[string, MuteButtonMode]> = [
   ['Normal', 'normal'],
   ['Keyboard Key', 'keyboard'],
   ['Quiet Toggle', 'quiet'],
@@ -422,14 +423,19 @@ const MUTE_KEYBOARD_BEHAVIOR_OPTIONS: Array<[string, MuteKeyboardBehavior]> = [
   ['Hold While Pressed', 'hold']
 ];
 // vds (the Linux virtual DualSense bridge) only exists on Linux. Settings the
-// Bluetooth path cannot honour (polling rate, microphone, mute button modes)
-// are hidden there; the Windows DS5 Bridge firmware keeps them.
+// Bluetooth path cannot honour (polling rate, keyboard/quiet Mute modes) are
+// hidden there; the Windows DS5 Bridge firmware keeps them.
 const OPENDS5_REPOSITORY_URL = 'https://github.com/Virmin8/OpenDS5';
 // The LordVicky/OpenDS5 release this fork is based on.
 const UPSTREAM_OPENDS5_VERSION = '1.8.1';
 const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.platform === 'linux';
 // A distribution package removes the driver and vdsd itself, so the in-app uninstaller is hidden.
 const SYSTEM_UNINSTALL_AVAILABLE = VDS_AVAILABLE && !window.vds.systemPackage;
+// vdsd handles Mute as mic mute (Normal) or a chord starter (Chord); it has no
+// keyboard emulation or quiet mode.
+const MUTE_BUTTON_MODE_OPTIONS = ALL_MUTE_BUTTON_MODE_OPTIONS.filter(
+  ([, mode]) => !VDS_AVAILABLE || mode === 'normal' || mode === 'chord'
+);
 const POLLING_RATE_OPTIONS: Array<[string, PollingRateMode]> = [
   ['1000 Hz / Real-time', '1000'],
   ['500 Hz', '500'],
@@ -603,11 +609,11 @@ const ALL_CHORD_NOTCH_TARGETS: ChordNotchTarget[] = [
   { id: 'triggers', label: 'Triggers', downAction: 'triggers-down', upAction: 'triggers-up' },
   { id: 'lighting', label: 'Lighting', downAction: 'lighting-down', upAction: 'lighting-up' }
 ];
-const CHORD_NOTCH_TARGETS = ALL_CHORD_NOTCH_TARGETS.filter((target) => !(VDS_AVAILABLE && target.id === 'mic'));
+const CHORD_NOTCH_TARGETS = ALL_CHORD_NOTCH_TARGETS;
 const CHORD_CONTROLLER_SETTING_ACTION_OPTIONS: Array<[string, ChordControllerSettingSelectValue]> = [
   ['Audio Haptics', 'toggle-audio-haptics'],
   ['Lightbar Override', 'toggle-lightbar-override'],
-  ...(VDS_AVAILABLE ? [] : [['Mic Mute', 'toggle-mic-mute'] as [string, ChordControllerSettingSelectValue]]),
+  ['Mic Mute', 'toggle-mic-mute'],
   ['Turn Off Controller', 'sleep-controller'],
   ['DualSense', 'persona-dualsense'],
   ['DualShock 4', 'persona-ds4'],
@@ -763,15 +769,16 @@ const REMAP_EDGE_LINE_POINTS: Record<DualSenseEdgeRemapButtonId, [[number, numbe
   rfn: [[370.46, 368.88], [370.64, 296.98]]
 };
 // vds (the Linux virtual DualSense bridge) only exists on Linux.
-// Volume/profile/turn-off shortcuts: vdsd uses Mute as the modifier (holding PS powers
-// the DualSense off); the DS5 Bridge firmware uses PS.
-const SHORTCUT_MODIFIER_LABEL = VDS_AVAILABLE ? 'Mute' : 'PlayStation Home';
+// Volume/profile/turn-off shortcuts: vdsd uses a touchpad click as the modifier
+// (Mute is the mic mute; holding PS powers the DualSense off); the DS5 Bridge
+// firmware uses PS.
+const SHORTCUT_MODIFIER_LABEL = VDS_AVAILABLE ? 'Touchpad' : 'PlayStation Home';
 
 function ShortcutModifierGlyph() {
   return (
     <span className="shortcut-glyph-key">
       {VDS_AVAILABLE
-        ? <MicOff size={16} aria-label="Mute" />
+        ? <img src={touchpadPressGlyphUrl} alt="Touchpad press" />
         : <img src={psHomeGlyphUrl} alt="PlayStation Home" />}
     </span>
   );
@@ -1603,8 +1610,13 @@ function lightbarColorLabel(color: string): string {
   return LIGHTBAR_COLOR_NAMES[color.toLowerCase()] ?? color.toUpperCase();
 }
 
+// Under vdsd only Normal and Chord exist; other saved modes act as Normal.
+function effectiveMuteButtonMode(mode: MuteButtonMode): MuteButtonMode {
+  return VDS_AVAILABLE && mode !== 'chord' ? 'normal' : mode;
+}
+
 function muteButtonSummary(settings: ControllerProfileSettings): string {
-  if (settings.muteButtonMode === 'normal') {
+  if (effectiveMuteButtonMode(settings.muteButtonMode) === 'normal') {
     return 'Normal';
   }
   if (settings.muteButtonMode === 'quiet') {
@@ -1651,12 +1663,8 @@ function SystemProfileSummary({
         </div>
         <dl>
           <div><dt>Speaker</dt><dd>{settings.speakerEnabled ? percentLabel(settings.speakerVolumePercent) : 'Off'}</dd></div>
-          {!VDS_AVAILABLE && (
-            <>
-              <div><dt>Mic</dt><dd>{settings.micMuted ? 'Muted' : percentLabel(settings.micVolumePercent)}</dd></div>
-              <div><dt>Pass-through</dt><dd>{enabledLabel(settings.duplexMicEnabled)}</dd></div>
-            </>
-          )}
+          <div><dt>Mic</dt><dd>{settings.micMuted ? 'Muted' : percentLabel(settings.micVolumePercent)}</dd></div>
+          <div><dt>Pass-through</dt><dd>{enabledLabel(settings.duplexMicEnabled)}</dd></div>
         </dl>
       </div>
 
@@ -1690,11 +1698,9 @@ function SystemProfileSummary({
           <h3>System</h3>
         </div>
         <dl>
+          <div><dt>Mute</dt><dd>{muteButtonSummary(settings)}</dd></div>
           {!VDS_AVAILABLE && (
-            <>
-              <div><dt>Mute</dt><dd>{muteButtonSummary(settings)}</dd></div>
-              <div><dt>Polling</dt><dd>{optionLabel(POLLING_RATE_OPTIONS, settings.pollingRateMode)}</dd></div>
-            </>
+            <div><dt>Polling</dt><dd>{optionLabel(POLLING_RATE_OPTIONS, settings.pollingRateMode)}</dd></div>
           )}
           <div><dt>Power Save</dt><dd>{enabledLabel(settings.controllerPowerSavingEnabled)}</dd></div>
         </dl>
@@ -3332,11 +3338,10 @@ export function App() {
   const remappingLayoutAsset = showDualSenseEdgeRemapButtons ? REMAP_EDGE_LAYOUT_ASSET : REMAP_STANDARD_LAYOUT_ASSET;
   const chordFunctions = snapshot?.settings.chordFunctions ?? [];
   const chordAssignments = snapshot?.settings.chordAssignments ?? [];
-  // Under vds Mute has no mic to control, so it is always free as a starter.
-  const muteButtonChordStarterActive = VDS_AVAILABLE
-    || snapshot?.settings.muteButtonMode === 'chord'
+  const muteButtonChordStarterActive = snapshot?.settings.muteButtonMode === 'chord'
     || (
-      snapshot?.settings.muteButtonMode === 'keyboard'
+      !VDS_AVAILABLE
+      && snapshot?.settings.muteButtonMode === 'keyboard'
       && snapshot.settings.muteKeyboardChordStarterEnabled
     );
   const selectedChordFunction = chordFunctions.find((func) => func.id === selectedChordFunctionId) ?? chordFunctions[0] ?? null;
@@ -3358,17 +3363,21 @@ export function App() {
       }
     }
     const shortcutKeys = new Set<string>();
-    const shortcutModifier: ChordStarterId = VDS_AVAILABLE ? CHORD_MUTE_STARTER_ID : 'ps';
-    if (snapshot?.settings.sleepKeybindEnabled) {
-      shortcutKeys.add(chordBindingKey(shortcutModifier, 'triangle'));
-    }
-    if (snapshot?.settings.speakerVolumeShortcutEnabled) {
-      shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-up'));
-      shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-down'));
-    }
-    if (snapshot?.settings.profileShortcutEnabled) {
-      shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-left'));
-      shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-right'));
+    // The firmware's shortcuts use PS, a chord starter; vdsd's use a touchpad
+    // click, which cannot collide with chords.
+    if (!VDS_AVAILABLE) {
+      const shortcutModifier: ChordStarterId = 'ps';
+      if (snapshot?.settings.sleepKeybindEnabled) {
+        shortcutKeys.add(chordBindingKey(shortcutModifier, 'triangle'));
+      }
+      if (snapshot?.settings.speakerVolumeShortcutEnabled) {
+        shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-up'));
+        shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-down'));
+      }
+      if (snapshot?.settings.profileShortcutEnabled) {
+        shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-left'));
+        shortcutKeys.add(chordBindingKey(shortcutModifier, 'dpad-right'));
+      }
     }
     for (const assignment of chordAssignments) {
       const key = chordAssignmentKey(assignment);
@@ -7843,7 +7852,6 @@ export function App() {
                     </div>
                     <strong>{speakerVolumeValue}%</strong>
                   </label>
-                  {!VDS_AVAILABLE && (
                   <label className={`overview-slider-row ${(!connected || !duplexMicEnabled || micVolumeCommitPending) ? 'disabled' : ''}`}>
                     <span>Mic</span>
                     <div className="overview-range-control">
@@ -7880,7 +7888,6 @@ export function App() {
                     </div>
                     <strong>{micVolumeValue}%</strong>
                   </label>
-                  )}
                   <label className={`overview-slider-row ${(!connected || !lightbarSupported || !snapshot.settings.lightbarEnabled || lightbarCommitPending) ? 'disabled' : ''}`}>
                     <span>Lightbar</span>
                     <div className="overview-range-control">
@@ -8484,7 +8491,7 @@ export function App() {
               <div className="feature-heading">
                 <div>
                   <h2>Audio</h2>
-                  <p>{VDS_AVAILABLE ? `Adjust the controller ${outputControlLower}.` : `Adjust controller ${outputControlLower} and microphone levels.`}</p>
+                  <p>{`Adjust controller ${outputControlLower} and microphone levels.`}</p>
                 </div>
                 <div className="audio-heading-actions">
                   <div className="chords-field chords-inline-field audio-speaker-gain-field">
@@ -8559,7 +8566,6 @@ export function App() {
                           : `${outputControlLabel} level`}
                       </p>
                     </div>
-                    {!VDS_AVAILABLE && (
                     <div className="dual-selector audio-mode-selector" role="tablist" aria-label="Audio control mode">
                       <button
                         type="button"
@@ -8580,7 +8586,6 @@ export function App() {
                         Mic
                       </button>
                     </div>
-                    )}
                   </div>
                   <div className="framed-slider">
                     <label className="slider-row">
@@ -10821,7 +10826,6 @@ export function App() {
               </div>
 
               <div className="feature-card-grid">
-                {!VDS_AVAILABLE && (
                 <section className="system-card mute-card">
                   <div className="feature-card-title system-card-heading">
                     <span className="feature-icon system-icon icon-wide"><MicOff size={20} /></span>
@@ -10834,14 +10838,14 @@ export function App() {
                     <div className="select-row">
                       <span>Behavior</span>
                       <CustomSelect
-                        value={snapshot.settings.muteButtonMode}
+                        value={effectiveMuteButtonMode(snapshot.settings.muteButtonMode)}
                         disabled={!connected || !muteButtonActionsSupported || pendingAction !== null}
                         options={MUTE_BUTTON_MODE_OPTIONS}
                         ariaLabel="Mute button behavior"
                         onChange={(mode) => setMuteButtonAction(mode)}
                       />
                     </div>
-                    {snapshot.settings.muteButtonMode === 'keyboard' && (
+                    {effectiveMuteButtonMode(snapshot.settings.muteButtonMode) === 'keyboard' && (
                       <>
                         <div className="select-row">
                           <span>Key</span>
@@ -10924,7 +10928,6 @@ export function App() {
                     )}
                   </div>
                 </section>
-                )}
 
                 <section className={`system-card device-card ${showDiagnostics ? 'expanded' : ''} ${VDS_AVAILABLE ? 'system-card-full' : ''}`}>
                   <div className="feature-card-title system-card-heading">

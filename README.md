@@ -46,10 +46,11 @@ Bluetooth.
 - 🎭 **Controller personas** — appear as a **DualShock 4** or **Xbox 360** controller for games without DualSense support.
 - 🎯 **Game-linked profiles** — switch profiles automatically while a game runs; finds **Steam, Heroic and Lutris** games.
 - 🔊 **Audio** — controller speaker and headphone jack, with a loudness boost for the built-in speaker.
+- 🎙️ **Microphone** — optional mic pass-through (controller or headset mic), with level, mute and the Mute button.
 - 💡 **Lighting** — lightbar and player LEDs.
 - 🎛️ **Remapping & chords** — remap buttons and trigger actions with button combos.
 - 📶 **Bluetooth modes** — switch between OpenDS5 mode and normal mode (keyboards and mice work again), or automatically.
-- 🕹️ **Controller shortcuts** — volume, profile and power on the Mute button, mid-game.
+- 🕹️ **Controller shortcuts** — volume, profile and power with a touchpad click, mid-game.
 - 📦 **Easy install & uninstall** — AppImage with a setup wizard, a pacman package for Arch, or a NixOS flake.
 
 ## 📸 Screenshots
@@ -155,14 +156,15 @@ uninstaller. Details, logs and exit codes are in
 
 ## 🕹️ Controller shortcuts
 
-Turn them on in **Settings → Shortcuts**. Hold **Mute**, then press the second
-button (PS isn't used, because holding it powers the controller off).
+Turn them on in **Settings → Shortcuts**. Hold the **touchpad** pressed in,
+then press the second button (PS isn't used, because holding it powers the
+controller off; Mute is the mic mute).
 
 | Shortcut | Buttons | What it does |
 | --- | --- | --- |
-| **Volume** | **Mute** + **D-pad Up / Down** | Speaker volume in 10% steps; hold to repeat |
-| **Profile** | **Mute** + **D-pad Left / Right** | Previous / next controller profile |
-| **Turn off** | **Mute** + **Triangle** | Turn the controller off (**PS** turns it back on) |
+| **Volume** | **Touchpad** + **D-pad Up / Down** | Speaker volume in 10% steps; hold to repeat |
+| **Profile** | **Touchpad** + **D-pad Left / Right** | Previous / next controller profile |
+| **Turn off** | **Touchpad** + **Triangle** | Turn the controller off (**PS** turns it back on) |
 
 Shortcut buttons are hidden from the game. Build your own combos on the
 **Chords** page.
@@ -246,7 +248,9 @@ This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
 
 **🎮 Controller**
 - **Personas** — appear as a DualShock 4 or Xbox 360 controller.
-- **Mute-button shortcuts** — speaker volume, next/previous profile, turn off.
+- **Touchpad shortcuts** — speaker volume, next/previous profile, turn off.
+- **Microphone pass-through** — off by default (the controller's mic stream
+  costs speaker quality); turn it on on the **Audio** page.
 - **Turn Off Controller** quick action.
 - **Lights restored** when a game that used the lightbar exits.
 

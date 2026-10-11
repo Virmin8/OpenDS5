@@ -2861,7 +2861,7 @@ export class BridgeService extends EventEmitter {
     await this.setSpeakerVolume(nextVolume);
   }
 
-  /** Profile shortcut (Mute + D-pad left/right under vdsd): step through the user's own profiles (game-owned excluded), wrapping. */
+  /** Profile shortcut (Touchpad click + D-pad left/right under vdsd): step through the user's own profiles (game-owned excluded), wrapping. */
   private async cycleControllerProfile(direction: 1 | -1): Promise<void> {
     const settings = this.settingsStore.get();
     if (!settings.profileShortcutEnabled) {
