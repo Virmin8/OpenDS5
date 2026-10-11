@@ -17,6 +17,16 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.6] - 2026-10-11 — Windows: controller reconnects on its own
+
+On Windows, a controller that is turned back on attaches to vds again by
+itself. **Update from inside the app.** Nothing changes on Linux.
+
+### 🐛 Fixed
+- **Reconnecting on Windows** — `vdsd` missed a controller that was turned back on while the app was open, so it stayed unattached until you detached and attached it again on the Bluetooth tab.
+
+---
+
 ## [1.9.5] - 2026-10-11 — OpenDS5 on Windows
 
 OpenDS5 now runs on Windows 10 and 11, with no kernel driver of its own: vds
