@@ -406,6 +406,7 @@ const vdsApi = {
   /** Installed by a distribution package, which owns the driver and vdsd (see main.ts). */
   systemPackage: Boolean(process.env.OPENDS5_LAUNCHER),
   getStatus: (): Promise<VdsStatus> => ipcRenderer.invoke('vds:getStatus'),
+  getVersion: (): Promise<string | null> => ipcRenderer.invoke('vds:getVersion'),
   attach: (address: string): Promise<VdsStatus> => ipcRenderer.invoke('vds:attach', address),
   detach: (address: string): Promise<VdsStatus> => ipcRenderer.invoke('vds:detach', address),
   setBluetoothMode: (mode: VdsBluetoothMode): Promise<VdsStatus> => ipcRenderer.invoke('vds:setBluetoothMode', mode),

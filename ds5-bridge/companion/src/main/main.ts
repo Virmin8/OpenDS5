@@ -59,6 +59,7 @@ import {
   getVdsAudioStats,
   getVdsDaemonLog,
   getVdsStatus,
+  getVdsVersion,
   setVdsDaemonTrace,
   setVdsBluetoothAuto,
   setVdsBluetoothMode
@@ -1409,6 +1410,7 @@ function registerIpc(
 
   ipcMain.handle('bridge:getStatus', () => service.getSnapshot());
   ipcMain.handle('vds:getStatus', () => getVdsStatus());
+  ipcMain.handle('vds:getVersion', () => getVdsVersion());
   ipcMain.handle('vds:getDaemonLog', (_event, lines?: number) => getVdsDaemonLog(Number(lines) || 200));
   ipcMain.handle('vds:getAudioStats', () => getVdsAudioStats());
   ipcMain.handle('vds:setDaemonTrace', (_event, scope: VdsTraceScope, enabled: boolean) => (

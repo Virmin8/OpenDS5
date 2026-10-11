@@ -4503,6 +4503,19 @@ export function App() {
   const customColorPickerDisabled = !connected || !lightbarSupported || !lightbarEnabled;
   const diagnosticsVisible = activeControlTab === 'system' && showDiagnostics;
   const [vdsDiagnostics, setVdsDiagnostics] = useState<VdsStatus | null>(null);
+  const [vdsVersion, setVdsVersion] = useState<string | null>(null);
+  const bridgeState = snapshot?.state;
+  useEffect(() => {
+    // Re-read on each (re)connect: an update may have restarted a newer vdsd.
+    if (!VDS_AVAILABLE || bridgeState !== 'connected') return undefined;
+    let cancelled = false;
+    void window.vds.getVersion().then((version) => {
+      if (!cancelled) setVdsVersion(version);
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [bridgeState]);
   const [vdsDaemonLog, setVdsDaemonLog] = useState<VdsDaemonLog | null>(null);
   const [vdsAudioStats, setVdsAudioStats] = useState<VdsAudioStats | null>(null);
   const [vdsTracePending, setVdsTracePending] = useState(false);
@@ -11340,7 +11353,11 @@ export function App() {
                     <div className="device-list">
                       <div className="device-row">
                         <span>{VDS_AVAILABLE ? 'Bridge' : 'Firmware'}</span>
-                        <strong>{VDS_AVAILABLE ? 'vds' : snapshot.status?.firmwareVersion ?? '--'}</strong>
+                        <strong>
+                          {VDS_AVAILABLE
+                            ? `vds${vdsVersion ? ` ${vdsVersion}` : ''}`
+                            : snapshot.status?.firmwareVersion ?? '--'}
+                        </strong>
                       </div>
                       <div className="device-row">
                         <span>Controller</span>

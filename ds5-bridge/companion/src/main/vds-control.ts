@@ -249,6 +249,16 @@ function asNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+/** vdsd's build version; null when it is unreachable or predates the request. */
+export async function getVdsVersion(): Promise<string | null> {
+  try {
+    const version = asString((await requestOk({ command: 'version' })).version);
+    return version || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Audio delivery stats per bridged controller; resets vdsd's per-poll window. */
 export async function getVdsAudioStats(): Promise<VdsAudioStats> {
   try {
