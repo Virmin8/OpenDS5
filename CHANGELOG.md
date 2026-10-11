@@ -17,6 +17,27 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.7] - 2026-10-12 — Smoother audio on Linux, clearer speaker
+
+Linux audio reaches the controller more evenly, the speaker boost is now a
+setting with a cleaner default, and the app tells you about new releases.
+**Update as usual.**
+
+### 🐛 Fixed
+- **Audio timing on Linux** — `vdsd` paused for a few ms every time the app asked it something (every 50 ms), so some audio arrived late and Auto set a larger audio buffer (48–56). It no longer waits on the app, and Auto now settles at 40–41, like on Windows.
+- **A stuck app connection can't freeze `vdsd`** — a connection that sends nothing is dropped after a second instead of holding up controller input and audio.
+
+### ✨ Added
+- **Speaker Boost** on the **Audio** page — 1–18 dB of extra loudness for the built-in speaker; headphones bypass it.
+- **Limiter** row under **System → Diagnostics** — shows how much the speaker limiter turns the sound down, and suggests a lower Speaker Boost when it's cutting a lot.
+- **Update notifications** — a desktop notification when a new release is out. Arch package installs (`opends5-bin`) now hear about updates too, with a link to the release.
+
+### 🔧 Changed
+- **Speaker Boost defaults to 6 dB** (was 18). With the system volume up, 18 dB kept the limiter working all the time, which dulled the highs for almost no extra loudness. If you prefer the old level, pick 18 dB.
+- **Daemon Log** in **System → Diagnostics** fills the rest of the card.
+
+---
+
 ## [1.9.6] - 2026-10-11 — Windows: controller reconnects on its own
 
 On Windows, a controller that is turned back on attaches to vds again by
