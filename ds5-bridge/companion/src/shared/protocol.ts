@@ -97,6 +97,10 @@ export const COMMAND_ID = {
   SET_PROFILE_SHORTCUT_ENABLED: 0x42,
   // Linux-port extension: light the Mute button while the mic is off.
   SET_MUTE_LED_ENABLED: 0x43,
+  // Linux-port extensions while the mic is open: processing (bit 0 noise
+  // cancel, bit 1 echo cancel) and speaker gain (0 = the speaker gain).
+  SET_MIC_PROCESSING: 0x44,
+  SET_MIC_SPEAKER_GAIN: 0x45,
   SET_SPEAKER_GAIN: 0x32,
   ENTER_BOOTLOADER: 0x33
 } as const;

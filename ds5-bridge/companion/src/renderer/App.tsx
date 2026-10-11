@@ -1611,6 +1611,18 @@ function lightbarColorLabel(color: string): string {
 }
 
 // Under vdsd only Normal and Chord exist; other saved modes act as Normal.
+const MIC_PROCESSING_OPTIONS: Array<[string, number]> = [
+  ['None', 0],
+  ['Noise cancel', 1],
+  ['Echo cancel', 2],
+  ['Noise + echo cancel', 3]
+];
+
+const MIC_SPEAKER_GAIN_OPTIONS: Array<[string, number]> = [
+  ['Same as speaker', 0],
+  ...[1, 2, 3, 4, 5, 6, 7].map((level): [string, number] => [`Level ${level}`, level])
+];
+
 const VDS_PACKET_MODE_LABELS: Record<string, string> = {
   haptics: 'Haptics only',
   'haptics+speaker': 'Haptics + speaker',
@@ -11155,6 +11167,30 @@ export function App() {
                                 </div>
                               </Fragment>
                             ))}
+                            <div>
+                              <dt>Mic Processing</dt>
+                              <dd title="Controller processing while the mic is open. Testing which setting keeps the speaker clean with the mic on.">
+                                <CustomSelect
+                                  value={snapshot.settings.micProcessing}
+                                  disabled={!connected || pendingAction !== null}
+                                  options={MIC_PROCESSING_OPTIONS}
+                                  ariaLabel="Mic processing"
+                                  onChange={(value) => void runAction('mic-processing', () => window.bridge.setMicProcessing(value))}
+                                />
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Gain (Mic On)</dt>
+                              <dd title="Speaker gain level while the mic is open.">
+                                <CustomSelect
+                                  value={snapshot.settings.micSpeakerGainLevel}
+                                  disabled={!connected || pendingAction !== null}
+                                  options={MIC_SPEAKER_GAIN_OPTIONS}
+                                  ariaLabel="Speaker gain while the mic is on"
+                                  onChange={(value) => void runAction('mic-speaker-gain', () => window.bridge.setMicSpeakerGainLevel(value))}
+                                />
+                              </dd>
+                            </div>
                             {vdsDiagnostics?.bluetooth?.lastError && (
                               <div><dt>Last Error</dt><dd title={vdsDiagnostics.bluetooth.lastError}>{vdsDiagnostics.bluetooth.lastError}</dd></div>
                             )}

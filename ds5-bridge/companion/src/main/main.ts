@@ -1528,6 +1528,12 @@ function registerIpc(
   ipcMain.handle('bridge:setProfileShortcutEnabled', (_event, value: boolean) => (
     service.setProfileShortcutEnabled(Boolean(value))
   ));
+  ipcMain.handle('bridge:setMicProcessing', (_event, value: number) => (
+    service.setMicProcessing(Number(value))
+  ));
+  ipcMain.handle('bridge:setMicSpeakerGainLevel', (_event, value: number) => (
+    service.setMicSpeakerGainLevel(Number(value))
+  ));
   ipcMain.handle('bridge:setMuteLedEnabled', (_event, value: boolean) => (
     service.setMuteLedEnabled(Boolean(value))
   ));

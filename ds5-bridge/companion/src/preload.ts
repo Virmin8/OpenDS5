@@ -157,6 +157,12 @@ const api = {
   setProfileShortcutEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setProfileShortcutEnabled', value)
   ),
+  setMicProcessing: (value: number): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setMicProcessing', value)
+  ),
+  setMicSpeakerGainLevel: (value: number): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setMicSpeakerGainLevel', value)
+  ),
   setMuteLedEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setMuteLedEnabled', value)
   ),

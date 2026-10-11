@@ -3070,6 +3070,26 @@ export class BridgeService extends EventEmitter {
     return this.getSnapshot();
   }
 
+  async setMicProcessing(processing: number): Promise<BridgeSnapshot> {
+    const value = Math.min(3, Math.max(0, Math.round(processing) || 0));
+    this.snapshot.settings = this.settingsStore.update({ micProcessing: value });
+    if (this.snapshot.state === 'connected' && this.vdsMicSwitch) {
+      await this.sendCommand(COMMAND_ID.SET_MIC_PROCESSING, value, {});
+    }
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setMicSpeakerGainLevel(level: number): Promise<BridgeSnapshot> {
+    const value = Math.min(7, Math.max(0, Math.round(level) || 0));
+    this.snapshot.settings = this.settingsStore.update({ micSpeakerGainLevel: value });
+    if (this.snapshot.state === 'connected' && this.vdsMicSwitch) {
+      await this.sendCommand(COMMAND_ID.SET_MIC_SPEAKER_GAIN, value, {});
+    }
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   async setMuteLedEnabled(enabled: boolean): Promise<BridgeSnapshot> {
     this.snapshot.settings = this.settingsStore.update({ muteLedEnabled: enabled });
     if (this.snapshot.state === 'connected' && this.vdsMicSwitch) {
@@ -4118,11 +4138,18 @@ export class BridgeService extends EventEmitter {
     }
     if (this.vdsMicSwitch) {
       try {
+        const appSettings = this.settingsStore.get();
         await this.sendCommand(
           COMMAND_ID.SET_MUTE_LED_ENABLED,
-          this.settingsStore.get().muteLedEnabled ? 1 : 0,
+          appSettings.muteLedEnabled ? 1 : 0,
           { expectSettingsRevisionChange }
         );
+        await this.sendCommand(COMMAND_ID.SET_MIC_PROCESSING, appSettings.micProcessing, {
+          expectSettingsRevisionChange
+        });
+        await this.sendCommand(COMMAND_ID.SET_MIC_SPEAKER_GAIN, appSettings.micSpeakerGainLevel, {
+          expectSettingsRevisionChange
+        });
       } catch {
         // An older vdsd rejects it.
       }

@@ -35,6 +35,10 @@ export interface CompanionSettings {
   profileShortcutEnabled: boolean;
   /** vdsd lights the Mute button while the mic is off (app-wide). */
   muteLedEnabled: boolean;
+  /** vdsd mic processing while the mic is open: bit 0 noise cancel, bit 1 echo cancel. */
+  micProcessing: number;
+  /** vdsd speaker gain level (1-7) while the mic is open; 0 keeps the speaker gain. */
+  micSpeakerGainLevel: number;
   /** Controller profile selected when the app starts; empty = keep the last used one. */
   startupControllerProfileId: string;
   /**

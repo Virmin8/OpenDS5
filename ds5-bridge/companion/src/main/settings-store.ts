@@ -137,6 +137,10 @@ const CONTROLLER_PROFILE_SETTING_KEYS = new Set<keyof ControllerProfileSettings>
   'controllerPowerSavingEnabled'
 ]);
 
+function integerSettingInRange(value: unknown, min: number, max: number, fallback: number): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max ? value : fallback;
+}
+
 export const DEFAULT_SETTINGS: CompanionSettings = {
   selectedPresetId: 'balanced',
   uiScalePercent: 100,
@@ -145,6 +149,8 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   startMinimizedEnabled: false,
   profileShortcutEnabled: false,
   muteLedEnabled: true,
+  micProcessing: 1,
+  micSpeakerGainLevel: 0,
   startupControllerProfileId: '',
   gameProfileLinks: {},
   setupSkipped: false,
@@ -916,6 +922,13 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     muteLedEnabled: typeof value?.muteLedEnabled === 'boolean'
       ? value.muteLedEnabled
       : DEFAULT_SETTINGS.muteLedEnabled,
+    micProcessing: integerSettingInRange(value?.micProcessing, 0, 3, DEFAULT_SETTINGS.micProcessing),
+    micSpeakerGainLevel: integerSettingInRange(
+      value?.micSpeakerGainLevel,
+      0,
+      7,
+      DEFAULT_SETTINGS.micSpeakerGainLevel
+    ),
     gameProfileLinks: normalizeGameProfileLinks(value?.gameProfileLinks),
     startupControllerProfileId: typeof value?.startupControllerProfileId === 'string'
       && value.startupControllerProfileId.length <= 200
