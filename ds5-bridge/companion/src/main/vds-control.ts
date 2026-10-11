@@ -273,6 +273,7 @@ export async function getVdsAudioStats(): Promise<VdsAudioStats> {
           micOpen: port.mic_open === true,
           micPacketsPerSecond: asNumber(port.mic_packets_per_second),
           micPacketsTotal: asNumber(port.mic_packets_total),
+          micStartupMs: typeof port.mic_startup_ms === 'number' ? port.mic_startup_ms : -1,
           micWhileClosedTotal: asNumber(port.mic_while_closed_total),
           blockedTotal: asNumber(port.blocked_total),
           bufferAuto: port.buffer_auto === true,
