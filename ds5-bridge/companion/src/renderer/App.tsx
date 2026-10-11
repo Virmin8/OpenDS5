@@ -44,6 +44,7 @@ import {
   IconMoon as Moon,
   IconPalette as Palette,
   IconPencil as Pencil,
+  IconFolderOpen,
   IconPhoto,
   IconPlayerPlay as Play,
   IconPlus as Plus,
@@ -426,6 +427,16 @@ const MUTE_KEYBOARD_BEHAVIOR_OPTIONS: Array<[string, MuteKeyboardBehavior]> = [
 // is installed; otherwise Windows uses the DS5 Bridge Pico dongle. Settings
 // the Bluetooth path cannot honour (polling rate, keyboard/quiet Mute modes)
 // are hidden with vds; the Pico firmware keeps them.
+const GAME_SOURCE_LABELS: Record<InstalledGamesList['games'][number]['source'], string> = {
+  steam: 'Steam',
+  heroic: 'Heroic',
+  lutris: 'Lutris',
+  epic: 'Epic'
+};
+// Lutris is Linux-only; the Epic Games Launcher is scanned on Windows.
+const GAME_LAUNCHERS_LABEL = typeof window !== 'undefined' && window.vds?.platform === 'win32'
+  ? 'Steam, Epic and Heroic'
+  : 'Steam, Heroic and Lutris';
 const OPENDS5_REPOSITORY_URL = 'https://github.com/Virmin8/OpenDS5';
 // The LordVicky/OpenDS5 release this fork is based on.
 const UPSTREAM_OPENDS5_VERSION = '1.8.1';
@@ -4066,6 +4077,11 @@ export function App() {
     setGameProcessDetectOpen(false);
   }
 
+  async function browseGameExecutableForEditor(): Promise<void> {
+    const picked = await window.bridge.pickGameExecutable();
+    if (picked) setGameProcessEditorInput((current) => mergeDetectedProcessName(current, picked.processName));
+  }
+
   async function saveGameProcessNames(): Promise<void> {
     if (!gameProcessEditor) return;
     const target = triggerProfiles.find((profile) => profile.id === gameProcessEditor.id);
@@ -6403,6 +6419,13 @@ export function App() {
       ticks[candidate] = !game.junkCandidates.includes(candidate);
     }
     setInstalledCandidateTicks(ticks);
+  }
+
+  async function browseGameCreateExecutable() {
+    const picked = await window.bridge.pickGameExecutable();
+    if (!picked) return;
+    setGameCreateProcessesInput((current) => mergeDetectedProcessName(current, picked.processName));
+    if (!gameCreateName.trim()) setGameCreateName(picked.title);
   }
 
   async function detectGameCreateProcesses() {
@@ -11694,11 +11717,11 @@ export function App() {
                 </button>
               </div>
               {installedGamesLoading && installedGames === null ? (
-                <p className="game-create-library-empty">Looking for Steam, Heroic and Lutris games…</p>
+                <p className="game-create-library-empty">Looking for {GAME_LAUNCHERS_LABEL} games…</p>
               ) : installedGames === null || installedGames.games.length === 0 ? (
                 <p className="game-create-library-empty">
-                  No new Steam, Heroic or Lutris games found — every installed game may already
-                  have a profile, or the launchers aren't installed.
+                  No new {GAME_LAUNCHERS_LABEL} games found — every installed game may already
+                  have a profile, or the launchers aren't installed. Use Browse for .exe to add one by hand.
                 </p>
               ) : (
                 <div className="game-create-library-grid" role="listbox" aria-label="Installed games">
@@ -11722,7 +11745,7 @@ export function App() {
                       </span>
                       <span className="game-create-library-name">{game.name}</span>
                       <span className={`game-create-library-badge ${game.source}`}>
-                        {game.source === 'steam' ? 'Steam' : game.source === 'lutris' ? 'Lutris' : 'Heroic'}
+                        {GAME_SOURCE_LABELS[game.source]}
                       </span>
                     </button>
                   ))}
@@ -11771,15 +11794,25 @@ export function App() {
               />
             </label>
             <div className="game-create-detect">
-              <button
-                type="button"
-                className="secondary-action"
-                disabled={gameCreateDetectLoading}
-                onClick={() => void detectGameCreateProcesses()}
-              >
-                <SearchIcon size={14} />
-                {gameCreateDetectLoading ? 'Scanning…' : 'Detect Running Game'}
-              </button>
+              <div className="game-create-detect-actions">
+                <button
+                  type="button"
+                  className="secondary-action"
+                  disabled={gameCreateDetectLoading}
+                  onClick={() => void detectGameCreateProcesses()}
+                >
+                  <SearchIcon size={14} />
+                  {gameCreateDetectLoading ? 'Scanning…' : 'Detect Running Game'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-action"
+                  onClick={() => void browseGameCreateExecutable()}
+                >
+                  <IconFolderOpen size={14} />
+                  Browse for .exe…
+                </button>
+              </div>
               {gameCreateCandidates !== null && (
                 gameCreateCandidates.length === 0 ? (
                   <p className="game-create-detect-empty">No game processes found — is the game running?</p>
@@ -12077,7 +12110,7 @@ export function App() {
                 onChange={(event) => setGameProcessEditorInput(event.target.value)}
               />
             </label>
-            <div className="game-detect-anchor" ref={gameProcessDetectRef}>
+            <div className="game-detect-anchor game-process-editor-actions" ref={gameProcessDetectRef}>
               <button
                 type="button"
                 className="secondary-action game-detect-button"
@@ -12086,6 +12119,14 @@ export function App() {
               >
                 <SearchIcon size={14} />
                 Detect running game
+              </button>
+              <button
+                type="button"
+                className="secondary-action game-detect-button"
+                onClick={() => void browseGameExecutableForEditor()}
+              >
+                <IconFolderOpen size={14} />
+                Browse for .exe…
               </button>
 
               {gameProcessDetectOpen && (

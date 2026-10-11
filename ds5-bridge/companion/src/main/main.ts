@@ -27,7 +27,8 @@ import { defaultWindowSize, growBoundsToMinimum, loadWindowState, resolveWindowB
 import { deriveLegacyUserDataPath, migrateLegacyUserData } from './user-data-migration';
 import { readProfileFileForImport, TriggerProfileStore } from './trigger-profile-store';
 import { ProfileLibrary, type LibraryEntry } from './profile-library';
-import { GameWatcher, listCandidateGameProcesses } from './game-watcher';
+import { GameWatcher, listCandidateGameProcesses, listWindowsCandidateGameProcesses } from './game-watcher';
+import { createWindowsProcessLister, readWindowsProcesses, readWindowsSteamPath } from './windows-processes';
 import { EvdevInputReader } from './evdev-input-reader';
 import { TriggerProfileEngine, type DraftPreviewTriggers, type EngineStatus } from './trigger-profile-engine';
 import { GameSettingsCoordinator, type GameSettingsStatus } from './game-settings-coordinator';
@@ -36,7 +37,10 @@ import {
   InstalledGamesScanner,
   defaultScannerRoots,
   isLikelyJunkCandidate,
-  type InstalledGame
+  suggestGameTitleFromExecutable,
+  windowsScannerRoots,
+  type InstalledGame,
+  type ScannerRoots
 } from './installed-games';
 import type {
   AdaptiveTriggerPreviewEffect,
@@ -1230,10 +1234,20 @@ function registerIpc(
   // also backs applyInstalledGameArtwork so the renderer can never name arbitrary
   // files — only artwork the scanner itself reported.
   let installedGamesCache: InstalledGame[] | null = null;
-  ipcMain.handle('bridge:listInstalledGames', (_event, refresh?: boolean) => {
+  const scannerRoots = async (): Promise<ScannerRoots> => {
+    const home = app.getPath('home');
+    if (process.platform !== 'win32') return defaultScannerRoots(home);
+    return windowsScannerRoots({
+      home,
+      appData: app.getPath('appData'),
+      programData: process.env.ProgramData ?? 'C:\\ProgramData',
+      programFilesX86: process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
+    }, await readWindowsSteamPath());
+  };
+  ipcMain.handle('bridge:listInstalledGames', async (_event, refresh?: boolean) => {
     let errors: string[] = [];
     if (installedGamesCache === null || refresh === true) {
-      const scanned = new InstalledGamesScanner(defaultScannerRoots(app.getPath('home'))).scan();
+      const scanned = new InstalledGamesScanner(await scannerRoots()).scan();
       installedGamesCache = scanned.games;
       errors = scanned.errors;
     }
@@ -1396,12 +1410,36 @@ function registerIpc(
   ipcMain.handle('bridge:selectTriggerProfileState', (_event, name: string) => (
     triggerProfileEngine.selectState(String(name))
   ));
+  // Manual game: the user points at the game's executable; its file name is the
+  // process match, and its folder suggests a title.
+  ipcMain.handle('bridge:pickGameExecutable', async () => {
+    const options: Electron.OpenDialogOptions = {
+      title: 'Choose the Game Executable',
+      properties: ['openFile'],
+      // Linux games are Proton .exe files or extensionless native binaries.
+      filters: process.platform === 'win32'
+        ? [{ name: 'Programs', extensions: ['exe'] }]
+        : [{ name: 'All Files', extensions: ['*'] }, { name: 'Windows Programs', extensions: ['exe'] }]
+    };
+    const result = mainWindow && !mainWindow.isDestroyed()
+      ? await dialog.showOpenDialog(mainWindow, options)
+      : await dialog.showOpenDialog(options);
+    const filePath = result.canceled ? undefined : result.filePaths[0];
+    if (!filePath) return null;
+    return {
+      processName: path.basename(filePath).toLowerCase(),
+      title: suggestGameTitleFromExecutable(filePath)
+    };
+  });
   ipcMain.handle('bridge:previewTriggerProfileDraft', async (_event, triggers: DraftPreviewTriggers | null) => {
     await triggerProfileEngine.setDraftPreview(triggers);
     return triggerProfileEngine.getStatus();
   });
-  ipcMain.handle('bridge:listCandidateGameProcesses', () => {
+  ipcMain.handle('bridge:listCandidateGameProcesses', async () => {
     try {
+      if (process.platform === 'win32') {
+        return listWindowsCandidateGameProcesses(await readWindowsProcesses());
+      }
       return listCandidateGameProcesses();
     } catch {
       return [];
@@ -1824,7 +1862,7 @@ app.whenReady().then(async () => {
   triggerProfileEngine = new TriggerProfileEngine({
     sink: bridgeService,
     store: triggerProfileStore,
-    watcher: new GameWatcher({}),
+    watcher: new GameWatcher(process.platform === 'win32' ? { listProcesses: createWindowsProcessLister() } : {}),
     reader: new EvdevInputReader()
   });
   triggerProfileEngine.refreshProfiles();

@@ -10,6 +10,8 @@ import {
   normalizeGameTitle,
   parseLutrisExe,
   parseVdfPairs,
+  suggestGameTitleFromExecutable,
+  windowsScannerRoots,
   parseVdfPaths,
   rankProcessCandidates,
   type ScannerRoots
@@ -306,5 +308,59 @@ describe('InstalledGamesScanner', () => {
       legendary: [path.join(dir, 'nope3')]
     })).scan();
     expect(result).toEqual({ games: [], errors: [] });
+  });
+  it('reads Epic Games Launcher manifests, skipping non-games and partial installs', () => {
+    const manifests = path.join(dir, 'Manifests');
+    const install = path.join(dir, 'Epic Games', 'Hades');
+    writeExe(path.join(install, 'x64', 'Hades.exe'), 5 * 1024 * 1024);
+    mkdirSync(manifests, { recursive: true });
+    const item = (file: string, fields: Record<string, unknown>) => (
+      writeFileSync(path.join(manifests, file), JSON.stringify(fields))
+    );
+    item('A.item', {
+      DisplayName: 'Hades™', AppName: 'Min', InstallLocation: install,
+      LaunchExecutable: 'x64\\Hades.exe', AppCategories: ['public', 'games', 'applications']
+    });
+    item('B.item', { DisplayName: 'Unreal Engine', AppName: 'UE_5', AppCategories: ['engines'] });
+    item('C.item', { DisplayName: 'Half Done', AppName: 'Half', AppCategories: ['games'], bIsIncompleteInstall: true });
+    writeFileSync(path.join(manifests, 'D.item'), '{broken');
+
+    const result = new InstalledGamesScanner(roots({ epic: [manifests] })).scan();
+    expect(result.games.map((game) => game.name)).toEqual(['Hades']);
+    expect(result.games[0]).toMatchObject({ source: 'epic', sourceId: 'Min', processCandidates: ['Hades.exe'] });
+  });
+});
+
+describe('windowsScannerRoots', () => {
+  const env = {
+    home: 'C:\\Users\\me',
+    appData: 'C:\\Users\\me\\AppData\\Roaming',
+    programData: 'C:\\ProgramData',
+    programFilesX86: 'C:\\Program Files (x86)'
+  };
+
+  it('uses the registry Steam path first and drops a duplicate default', () => {
+    expect(windowsScannerRoots(env, 'D:\\Steam').steam).toEqual(['D:\\Steam', 'C:\\Program Files (x86)\\Steam']);
+    expect(windowsScannerRoots(env, 'c:\\program files (x86)\\steam').steam).toEqual(['c:\\program files (x86)\\steam']);
+  });
+
+  it('points Heroic at %APPDATA% and Epic at %PROGRAMDATA%, with no Lutris', () => {
+    const roots = windowsScannerRoots(env, null);
+    expect(roots.heroic).toEqual(['C:\\Users\\me\\AppData\\Roaming\\heroic']);
+    expect(roots.epic).toEqual(['C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests']);
+    expect(roots.lutris).toEqual([]);
+  });
+});
+
+describe('suggestGameTitleFromExecutable', () => {
+  it('skips build-output folders to the game folder', () => {
+    expect(suggestGameTitleFromExecutable('C:\\Games\\Cyberpunk 2077\\bin\\x64\\Cyberpunk2077.exe')).toBe('Cyberpunk 2077');
+    expect(suggestGameTitleFromExecutable('/home/me/.steam/steam/steamapps/common/ELDEN RING/Game/eldenring.exe')).toBe('ELDEN RING');
+    expect(suggestGameTitleFromExecutable('D:\\Epic Games\\Hades\\x64\\Hades.exe')).toBe('Hades');
+  });
+
+  it('falls back to the file name when only generic folders are left', () => {
+    expect(suggestGameTitleFromExecutable('C:\\Games\\bin\\Quake.exe')).toBe('Quake');
+    expect(suggestGameTitleFromExecutable('Doom.exe')).toBe('Doom');
   });
 });

@@ -2,7 +2,8 @@ import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, s
 import path from 'node:path';
 
 /**
- * Reads installed games from Steam, Heroic Games Launcher and Lutris on-disk data —
+ * Reads installed games from Steam, Heroic Games Launcher, Lutris (Linux) and the
+ * Epic Games Launcher (Windows) on-disk data —
  * no store APIs, no logins. See docs/superpowers/specs/2026-07-15-installed-games-
  * import-design.md.
  *
@@ -11,10 +12,10 @@ import path from 'node:path';
  */
 
 export interface InstalledGame {
-  source: 'steam' | 'heroic' | 'lutris';
+  source: 'steam' | 'heroic' | 'lutris' | 'epic';
   /** Display name, normalized (trademark marks stripped, whitespace collapsed). */
   name: string;
-  /** Steam appid or Heroic app_name — stable key into the session scan cache. */
+  /** Steam appid, Heroic app_name or Epic AppName — stable key into the session scan cache. */
   sourceId: string;
   installDir: string | null;
   /** Executable basenames for the process match, best guess first. */
@@ -39,6 +40,8 @@ export interface ScannerRoots {
   legendary: string[];
   /** Lutris data roots (contain pga.db and games/*.yml). */
   lutris: string[];
+  /** Epic Games Launcher manifest dirs (Windows; *.item JSON per install). */
+  epic?: string[];
 }
 
 export function defaultScannerRoots(home: string): ScannerRoots {
@@ -64,6 +67,59 @@ export function defaultScannerRoots(home: string): ScannerRoots {
       path.join(home, '.var', 'app', 'net.lutris.Lutris', 'data', 'lutris')
     ]
   };
+}
+
+export type WindowsScannerEnv = {
+  home: string;
+  appData: string;
+  programData: string;
+  programFilesX86: string;
+};
+
+/**
+ * Windows launcher locations. Steam's install path comes from the registry
+ * (HKCU\Software\Valve\Steam SteamPath) when known; Heroic keeps its config in
+ * %APPDATA%\heroic, legendary in ~\.config\legendary, the Epic Games Launcher its
+ * manifests in %PROGRAMDATA%. Lutris is Linux-only.
+ */
+export function windowsScannerRoots(env: WindowsScannerEnv, steamPath: string | null): ScannerRoots {
+  const steam: string[] = [];
+  for (const root of [steamPath, path.win32.join(env.programFilesX86, 'Steam')]) {
+    const normalized = root ? path.win32.normalize(root) : '';
+    // Windows paths are case-insensitive; the registry often lowercases them.
+    if (normalized && !steam.some((known) => known.toLowerCase() === normalized.toLowerCase())) {
+      steam.push(normalized);
+    }
+  }
+  return {
+    steam,
+    heroic: [path.win32.join(env.appData, 'heroic')],
+    legendary: [
+      path.win32.join(env.appData, 'heroic', 'legendaryConfig', 'legendary'),
+      path.win32.join(env.home, '.config', 'legendary')
+    ],
+    lutris: [],
+    epic: [path.win32.join(env.programData, 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests')]
+  };
+}
+
+// Build-output folders between a game's install dir and its executable.
+const GENERIC_EXE_DIRS = /^(bin(32|64)?|x(64|86)|win(32|64)|windows(no editor)?|binaries|shipping|retail|release|game|client|launcher|exe|common|build|dist|program)$/i;
+
+/**
+ * A title for a manually picked executable: the nearest folder above it that is
+ * not a build-output folder ("…/Cyberpunk 2077/bin/x64/Cyberpunk2077.exe" ->
+ * "Cyberpunk 2077"), else the file name without its extension.
+ */
+export function suggestGameTitleFromExecutable(exePath: string): string {
+  const parts = exePath.split(/[\\/]+/).filter(Boolean);
+  const fileName = parts.pop() ?? '';
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const dir = parts[index];
+    if (/^[a-z]:$/i.test(dir) || /^(steamapps|common|games|program files( \(x86\))?|home)$/i.test(dir)) break;
+    if (!GENERIC_EXE_DIRS.test(dir)) return normalizeGameTitle(dir);
+  }
+  return normalizeGameTitle(fileName.replace(/\.(exe|x86_64|x86|sh|bin)$/i, ''));
 }
 
 export function normalizeGameTitle(raw: string): string {
@@ -245,6 +301,13 @@ export class InstalledGamesScanner {
         games.push(...this.scanLutrisRoot(root));
       } catch (err) {
         errors.push(`Lutris (${root}): ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    for (const root of this.roots.epic ?? []) {
+      try {
+        games.push(...this.scanEpicManifests(root));
+      } catch (err) {
+        errors.push(`Epic (${root}): ${err instanceof Error ? err.message : String(err)}`);
       }
     }
     // The same game can appear under two roots (symlinked Steam dirs, flatpak +
@@ -517,6 +580,39 @@ export class InstalledGamesScanner {
           ? { kind: 'url', url: record.art_cover }
           : null
       });
+    }
+    return games;
+  }
+
+  /**
+   * Epic Games Launcher: one JSON *.item manifest per install. Engine
+   * prerequisites and plugins carry no "games" category and are skipped.
+   */
+  private scanEpicManifests(root: string): InstalledGame[] {
+    if (!existsSync(root)) return [];
+    const games: InstalledGame[] = [];
+    for (const entry of readdirSync(root).filter((name) => /\.item$/i.test(name))) {
+      try {
+        const record = asRecord(readJson(path.join(root, entry)));
+        if (!record || typeof record.DisplayName !== 'string') continue;
+        const categories = asArray(record.AppCategories).map(String);
+        if (categories.length > 0 && !categories.includes('games')) continue;
+        if (record.bIsIncompleteInstall === true) continue;
+        const installDir = typeof record.InstallLocation === 'string' ? record.InstallLocation : null;
+        const executable = typeof record.LaunchExecutable === 'string' && record.LaunchExecutable
+          ? path.basename(record.LaunchExecutable.replace(/\\/g, '/'))
+          : null;
+        games.push({
+          source: 'epic',
+          name: normalizeGameTitle(record.DisplayName),
+          sourceId: typeof record.AppName === 'string' ? record.AppName : entry,
+          installDir,
+          processCandidates: this.candidatesWithExplicit(executable, installDir),
+          artwork: null
+        });
+      } catch {
+        // One bad manifest never hides the rest.
+      }
     }
     return games;
   }

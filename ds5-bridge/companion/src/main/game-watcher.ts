@@ -157,6 +157,62 @@ export function listCandidateGameProcesses(
     .map((name) => ({ name, kind: 'other' as const }));
 }
 
+export interface WindowsProcessInfo {
+  name: string;
+  exePath: string | null;
+}
+
+// Launchers, overlays and Windows plumbing that run alongside games.
+const WINDOWS_BLOCKLIST_EXACT = new Set([
+  'steam.exe', 'steamwebhelper.exe', 'steamservice.exe', 'gameoverlayui.exe', 'gameoverlayui64.exe',
+  'epicgameslauncher.exe', 'epicwebhelper.exe', 'galaxyclient.exe', 'galaxyclient helper.exe',
+  'heroic.exe', 'eadesktop.exe', 'eabackgroundservice.exe', 'ubisoftconnect.exe', 'upc.exe',
+  'battle.net.exe', 'agent.exe', 'opends5.exe', 'ds5-bridge.exe', 'vdsd.exe', 'audiohelper.exe',
+  'explorer.exe', 'conhost.exe', 'crashhandler.exe', 'unitycrashhandler64.exe', 'unitycrashhandler32.exe'
+]);
+const WINDOWS_BLOCKLIST_PREFIXES = ['easyanticheat', 'battleye', 'beservice', 'crashreport'];
+const WINDOWS_GAME_PATH_MARKERS = [
+  '\\steamapps\\common\\', '\\epic games\\', '\\gog galaxy\\games\\', '\\heroic\\',
+  '\\xboxgames\\', '\\games\\'
+];
+// Programs that are never games: Windows itself and everyday desktop apps.
+const WINDOWS_SYSTEM_PATH_MARKERS = ['\\windows\\', '\\windowsapps\\microsoft.', '\\microsoft\\', '\\nvidia corporation\\', '\\amd\\'];
+const WINDOWS_OTHER_TIER_EXACT = new Set([
+  'chrome.exe', 'msedge.exe', 'firefox.exe', 'discord.exe', 'spotify.exe', 'code.exe', 'powershell.exe',
+  'pwsh.exe', 'cmd.exe', 'windowsterminal.exe', 'openconsole.exe'
+]);
+
+/**
+ * Windows counterpart of listCandidateGameProcesses: every process is a .exe,
+ * so the install path decides. Processes under a game library come first;
+ * without any, user programs outside Windows' own folders are offered.
+ */
+export function listWindowsCandidateGameProcesses(infos: WindowsProcessInfo[]): GameProcessCandidate[] {
+  const gamePathNames = new Set<string>();
+  const otherNames = new Set<string>();
+  for (const info of infos) {
+    const name = info.name.toLowerCase();
+    if (WINDOWS_BLOCKLIST_EXACT.has(name) || matchesPrefix(name, WINDOWS_BLOCKLIST_PREFIXES)) continue;
+    // No path: a protected system process this user cannot inspect.
+    const exePath = info.exePath?.toLowerCase();
+    if (!exePath) continue;
+    if (WINDOWS_GAME_PATH_MARKERS.some((marker) => exePath.includes(marker))) {
+      gamePathNames.add(name);
+      continue;
+    }
+    if (WINDOWS_SYSTEM_PATH_MARKERS.some((marker) => exePath.includes(marker))) continue;
+    if (WINDOWS_OTHER_TIER_EXACT.has(name)) continue;
+    otherNames.add(name);
+  }
+  if (gamePathNames.size > 0) {
+    return [...gamePathNames].sort().map((name) => ({ name, kind: 'game-path' as const }));
+  }
+  return [...otherNames]
+    .sort()
+    .slice(0, OTHER_TIER_CAP)
+    .map((name) => ({ name, kind: 'other' as const }));
+}
+
 export class GameWatcher extends EventEmitter {
   private readonly listProcesses: ProcessLister;
   private readonly pollIntervalMs: number;

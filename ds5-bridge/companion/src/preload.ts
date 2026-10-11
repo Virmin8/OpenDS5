@@ -305,6 +305,10 @@ const api = {
   listCandidateGameProcesses: (): Promise<GameProcessCandidate[]> => (
     ipcRenderer.invoke('bridge:listCandidateGameProcesses')
   ),
+  /** Open-file dialog for a game's executable; null when cancelled. */
+  pickGameExecutable: (): Promise<{ processName: string; title: string } | null> => (
+    ipcRenderer.invoke('bridge:pickGameExecutable')
+  ),
   deleteGameProfile: (id: string, keepTriggerEffects: boolean): Promise<boolean> => (
     ipcRenderer.invoke('bridge:deleteGameProfile', id, keepTriggerEffects)
   ),
