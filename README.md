@@ -1,12 +1,11 @@
 <p align="center">
-  <img src="ds5-bridge/assets/brand/opends5-wordmark.png" alt="OpenDS5" width="640">
+  <a href="https://github.com/Virmin8/OpenDS5"><img src="ds5-bridge/assets/brand/opends5-wordmark.png" alt="OpenDS5" width="640"></a>
 </p>
 
 <p align="center">
   <a href="https://github.com/Virmin8/OpenDS5/actions/workflows/release.yml"><img src="https://github.com/Virmin8/OpenDS5/actions/workflows/release.yml/badge.svg" alt="release build"></a>
   <a href="https://github.com/Virmin8/OpenDS5/releases"><img src="https://img.shields.io/github/v/release/Virmin8/OpenDS5" alt="latest release"></a>
   <a href="ds5-bridge/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue" alt="license: AGPL-3.0-only"></a>
-  <a href="https://discord.gg/hg5AF3zM5D"><img src="https://img.shields.io/badge/Discord-join%20server-5865F2?logo=discord&logoColor=white" alt="Discord server"></a>
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Linux-blue" alt="platform: Linux">
