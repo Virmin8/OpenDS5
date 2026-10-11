@@ -250,7 +250,8 @@ This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
 - **Personas** — appear as a DualShock 4 or Xbox 360 controller.
 - **Touchpad shortcuts** — speaker volume, next/previous profile, turn off.
 - **Microphone pass-through** — off by default (the controller's mic stream
-  costs speaker quality); turn it on on the **Audio** page. The Mute button
+  costs speaker quality); turn it on on the **Audio** page. While it is on the
+  controller mic stays open, so recordings start instantly. The Mute button
   settings and a **Mute Light** switch are on its **Mic** view.
 - **Leanest Bluetooth packets** — haptics only, haptics + speaker, haptics +
   mic, or all three, depending on what is live (shown in Diagnostics).
