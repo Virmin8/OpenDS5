@@ -1640,6 +1640,14 @@ const MIC_PROCESSING_OPTIONS: Array<[string, number]> = [
   ['Noise + Echo', 3]
 ];
 
+const SPEAKER_BOOST_OPTIONS: Array<[string, number]> = Array.from(
+  { length: 18 },
+  (_, index) => [`${18 - index} dB`, 18 - index] as [string, number]
+);
+
+// Average speaker limiting (dB) above which Diagnostics suggests a lower boost.
+const SPEAKER_LIMITING_WARN_DB = 3;
+
 const MIC_SPEAKER_GAIN_OPTIONS: Array<[string, number]> = [
   ['Same', 0],
   ...SPEAKER_GAIN_OPTIONS
@@ -8809,6 +8817,31 @@ export function App() {
                       />
                     </div>
                   )}
+                  {VDS_AVAILABLE && (
+                    <div
+                      className="chords-field chords-inline-field audio-speaker-gain-field audio-speaker-boost-field"
+                      title="Extra loudness for the controller's built-in speaker. Lower it if the speaker sounds harsh or distorted; headphones bypass it."
+                    >
+                      <span>Speaker Boost</span>
+                      <CustomSelect
+                        value={snapshot.settings.speakerBoostDb}
+                        options={SPEAKER_BOOST_OPTIONS}
+                        disabled={!controllerControlsAvailable || !speakerVolumeSupported || pendingAction !== null}
+                        ariaLabel="Speaker boost"
+                        className="audio-speaker-gain-select audio-speaker-boost-select"
+                        closeOnSelect={true}
+                        onChange={(value) => void runAction('speaker-boost', () => window.bridge.setSpeakerBoostDb(value))}
+                        renderValue={(label) => (
+                          <span>{label}</span>
+                        )}
+                        renderOption={(label) => (
+                          <span className="speaker-gain-option">
+                            <strong>{label}</strong>
+                          </span>
+                        )}
+                      />
+                    </div>
+                  )}
                   <div className="audio-heading-controls">
                     <div className="inline-switch">
                       <span>Enabled</span>
@@ -11242,6 +11275,18 @@ export function App() {
                                       : `speaker, ${audio.speakerMono ? 'mono' : 'stereo'}, boost ${audio.speakerBoostDb > 0 ? `+${audio.speakerBoostDb.toFixed(0)} dB` : 'off'}, volume ${audio.speakerVolumePercent}%`}
                                   </dd>
                                 </div>
+                                {!audio.headphones && audio.speakerBoostDb > 0 && (
+                                  <div>
+                                    <dt>Limiter</dt>
+                                    <dd
+                                      className={audio.speakerLimitingDb > SPEAKER_LIMITING_WARN_DB ? 'diagnostic-warning' : undefined}
+                                      title="How much the speaker limiter turns the boosted audio down. A few dB now and then is fine; cutting more most of the time dulls the sound without making it louder."
+                                    >
+                                      {audio.speakerLimitingDb.toFixed(1)} dB avg · {audio.speakerLimitingMaxDb.toFixed(1)} dB peak
+                                      {audio.speakerLimitingDb > SPEAKER_LIMITING_WARN_DB && ' · lower Speaker Boost for clearer sound'}
+                                    </dd>
+                                  </div>
+                                )}
                                 <div>
                                   <dt>Packets</dt>
                                   <dd title="Each Bluetooth packet carries only what is live: haptics alone (0x33), plus speaker audio (0x36), plus the mic section while it records.">
@@ -11320,7 +11365,7 @@ export function App() {
                               </dd>
                             </div>
                             )}
-                            <div className="debug-entry">
+                            <div className="debug-entry daemon-log-entry">
                               <dt>Daemon Log</dt>
                               <dd>
                                 <textarea

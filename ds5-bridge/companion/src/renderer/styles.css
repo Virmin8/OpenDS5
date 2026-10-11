@@ -3146,6 +3146,14 @@ button.overview-shortcut-chip {
   width: 78px;
 }
 
+.chords-inline-field.audio-speaker-gain-field.audio-speaker-boost-field {
+  grid-template-columns: max-content 78px;
+}
+
+.chords-inline-field.audio-speaker-gain-field .audio-speaker-boost-select {
+  width: 78px;
+}
+
 .chords-inline-field.audio-speaker-gain-field .custom-select-button {
   grid-template-columns: max-content 16px;
   justify-content: center;
@@ -6886,15 +6894,21 @@ button.feature-icon {
   max-height: none;
   margin-top: 0;
   padding-top: 0;
+  display: flex;
+  flex-direction: column;
   overflow: auto;
   overflow-anchor: none;
   scrollbar-gutter: stable;
   contain: layout paint;
 }
 
+/* A column, so the Daemon Log entry can take the height left below the
+   other rows; the list still scrolls when the card is too short. */
 .device-diagnostics dl {
+  flex: 1 0 auto;
   margin: 12px 0 0;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   font-size: 12px;
   line-height: 1.3;
@@ -6948,6 +6962,22 @@ button.feature-icon {
 .device-diagnostics .debug-entry dd {
   overflow: visible;
   white-space: normal;
+}
+
+.device-diagnostics .daemon-log-entry {
+  flex: 1 0 auto;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.device-diagnostics .daemon-log-entry dd {
+  display: flex;
+  flex-direction: column;
+}
+
+.device-diagnostics .daemon-log-entry textarea {
+  flex: 1 1 auto;
+  min-height: 160px;
+  resize: none;
 }
 
 .device-diagnostics textarea {

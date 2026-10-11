@@ -32,7 +32,7 @@ Bluetooth.
 - [Getting started](#-getting-started) · [Windows](#windows) · [Pairing](#-pairing-your-controller)
 - [Supported distros](#-supported-distros)
 - [Controller shortcuts](#%EF%B8%8F-controller-shortcuts)
-- [Microphone](#%EF%B8%8F-microphone)
+- [Speaker](#-speaker) · [Microphone](#%EF%B8%8F-microphone)
 - [Troubleshooting](#-troubleshooting)
 - [How it works](#%EF%B8%8F-how-it-works)
 - [Limitations of custom trigger profiles](#%EF%B8%8F-limitations-of-custom-trigger-profiles)
@@ -100,7 +100,8 @@ Pick one install method, then [pair your controller](#-pairing-your-controller).
 3. **Log out and back in once**, so you're in the `vds` group.
 
 The package loads the module, starts `vdsd` and adds you to `vds` automatically.
-Update by installing the next release's package; `sudo pacman -R opends5-bin`
+The app lets you know when a new release is out; update by installing that
+release's package. `sudo pacman -R opends5-bin`
 removes everything except your settings. If you used the AppImage's setup
 wizard before, remove that setup first (see
 [packaging/aur/README.md](packaging/aur/README.md)). AUR recipes are in
@@ -187,6 +188,15 @@ controller off; Mute turns the [microphone](#%EF%B8%8F-microphone) on and off).
 
 Shortcut buttons are hidden from the game. Build your own combos on the
 **Chords** page.
+
+## 🔊 Speaker
+
+**Speaker Boost** (Audio page header) makes the built-in speaker louder,
+1–18 dB, default **6 dB**. A limiter keeps the boosted sound from clipping,
+but the more it has to cut, the duller the sound gets. With the system volume
+up, 6 dB is nearly as loud as 18 dB and much cleaner. If it sounds harsh or
+flat, lower the boost; **System → Diagnostics → Limiter** shows how much the
+limiter is cutting. Headphones bypass the boost.
 
 ## 🎙️ Microphone
 

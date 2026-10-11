@@ -163,6 +163,9 @@ const api = {
   setMicSpeakerGainLevel: (value: number): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setMicSpeakerGainLevel', value)
   ),
+  setSpeakerBoostDb: (value: number): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setSpeakerBoostDb', value)
+  ),
   setMuteLedEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setMuteLedEnabled', value)
   ),

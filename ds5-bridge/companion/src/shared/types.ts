@@ -39,6 +39,8 @@ export interface CompanionSettings {
   micProcessing: number;
   /** vdsd speaker gain level (1-7) while the mic is open; 0 keeps the speaker gain. */
   micSpeakerGainLevel: number;
+  /** vdsd built-in speaker boost in dB (1-18); headphones bypass it (app-wide). */
+  speakerBoostDb: number;
   /** Controller profile selected when the app starts; empty = keep the last used one. */
   startupControllerProfileId: string;
   /**

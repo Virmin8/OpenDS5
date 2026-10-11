@@ -298,6 +298,8 @@ export async function getVdsAudioStats(): Promise<VdsAudioStats> {
           headphones: port.headphones === true,
           speakerMono: port.speaker_mono === true,
           speakerBoostDb: asNumber(port.speaker_boost_db),
+          speakerLimitingDb: asNumber(port.speaker_limiting_db),
+          speakerLimitingMaxDb: asNumber(port.speaker_limiting_max_db),
           speakerVolumePercent: asNumber(port.speaker_volume_percent),
           hapticsGainPercent: asNumber(port.haptics_gain_percent)
         }))

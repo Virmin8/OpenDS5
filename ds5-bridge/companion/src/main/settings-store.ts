@@ -151,6 +151,7 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   muteLedEnabled: true,
   micProcessing: 2,
   micSpeakerGainLevel: 0,
+  speakerBoostDb: 6,
   startupControllerProfileId: '',
   gameProfileLinks: {},
   setupSkipped: false,
@@ -929,6 +930,7 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
       7,
       DEFAULT_SETTINGS.micSpeakerGainLevel
     ),
+    speakerBoostDb: integerSettingInRange(value?.speakerBoostDb, 1, 18, DEFAULT_SETTINGS.speakerBoostDb),
     gameProfileLinks: normalizeGameProfileLinks(value?.gameProfileLinks),
     startupControllerProfileId: typeof value?.startupControllerProfileId === 'string'
       && value.startupControllerProfileId.length <= 200

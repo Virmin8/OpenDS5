@@ -338,12 +338,18 @@ describe('UpdateService.check', () => {
       phase: 'notify',
       version: '1.8.0',
       url: 'https://x/a',
+      manager: 'nixos',
     });
   });
 
-  it('stays idle when there is no AppImage to replace', async () => {
+  it('only notifies about updates for a package install (no AppImage)', async () => {
     const svc = service({ appImagePath: () => null });
-    expect((await svc.check([])).phase).toBe('idle');
+    await expect(svc.check([])).resolves.toEqual({
+      phase: 'notify',
+      version: '1.8.0',
+      url: 'https://x/a',
+      manager: 'package',
+    });
   });
 
   it('clears a previously offered version when a later check finds nothing', async () => {

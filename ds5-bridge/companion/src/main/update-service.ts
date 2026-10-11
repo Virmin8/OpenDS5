@@ -26,7 +26,8 @@ export type RebuildOutcome =
 export type UpdateState =
   | { phase: 'idle' }
   | { phase: 'offer'; version: string; currentVersion: string; notes: string; sizeBytes: number }
-  | { phase: 'notify'; version: string; url: string }
+  // Updated outside the app: NixOS configuration or a distro package.
+  | { phase: 'notify'; version: string; url: string; manager: 'nixos' | 'package' }
   | { phase: 'downloading'; version: string; received: number; total: number }
   | { phase: 'verifying'; version: string }
   | { phase: 'installing'; version: string; step: string; index: number; total: number }
@@ -179,10 +180,9 @@ export class UpdateService {
     const windows = this.deps.platform === 'win32';
     const target = windows ? null : this.deps.appImagePath();
     const nixos = this.deps.isNixOS();
-    if (!windows && !target && !nixos) {
-      this.set({ phase: 'idle' });
-      return this.state;
-    }
+    // Not an AppImage (e.g. an AUR or distro package): announce updates only;
+    // the package manager installs them.
+    const packaged = !windows && !target && !nixos;
 
     const release = await this.deps.fetchLatestRelease();
     const decision = decideUpdate({
@@ -199,8 +199,13 @@ export class UpdateService {
 
     this.pending = decision;
 
-    if (nixos) {
-      this.set({ phase: 'notify', version: decision.version, url: decision.asset.url });
+    if (nixos || packaged) {
+      this.set({
+        phase: 'notify',
+        version: decision.version,
+        url: decision.asset.url,
+        manager: nixos ? 'nixos' : 'package',
+      });
       return this.state;
     }
 

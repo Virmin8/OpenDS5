@@ -3091,6 +3091,16 @@ export class BridgeService extends EventEmitter {
     return this.getSnapshot();
   }
 
+  async setSpeakerBoostDb(db: number): Promise<BridgeSnapshot> {
+    const value = Math.min(18, Math.max(1, Math.round(db) || 6));
+    this.snapshot.settings = this.settingsStore.update({ speakerBoostDb: value });
+    if (this.snapshot.state === 'connected' && this.vdsMicSwitch) {
+      await this.sendCommand(COMMAND_ID.SET_SPEAKER_BOOST, value, {});
+    }
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   async setMuteLedEnabled(enabled: boolean): Promise<BridgeSnapshot> {
     this.snapshot.settings = this.settingsStore.update({ muteLedEnabled: enabled });
     if (this.snapshot.state === 'connected' && this.vdsMicSwitch) {
@@ -4149,6 +4159,13 @@ export class BridgeService extends EventEmitter {
           expectSettingsRevisionChange
         });
         await this.sendCommand(COMMAND_ID.SET_MIC_SPEAKER_GAIN, appSettings.micSpeakerGainLevel, {
+          expectSettingsRevisionChange
+        });
+      } catch {
+        // An older vdsd rejects it.
+      }
+      try {
+        await this.sendCommand(COMMAND_ID.SET_SPEAKER_BOOST, this.settingsStore.get().speakerBoostDb, {
           expectSettingsRevisionChange
         });
       } catch {

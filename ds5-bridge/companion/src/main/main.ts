@@ -914,6 +914,35 @@ function showBridgeNotification(toast: BridgeToast): void {
   }
 }
 
+// Desktop notification for a newly found update, once per version per run:
+// the in-app toast is unseen while the app sits in the tray.
+const notifiedUpdateVersions = new Set<string>();
+
+function notifyUpdateAvailable(state: UpdateState): void {
+  if (state.phase !== 'offer' && state.phase !== 'notify' && state.phase !== 'readonly') {
+    return;
+  }
+  if (notifiedUpdateVersions.has(state.version) || !Notification.isSupported()) {
+    return;
+  }
+  notifiedUpdateVersions.add(state.version);
+  const notification = new Notification({
+    title: `${APP_NAME} ${state.version} is available`,
+    body: state.phase === 'offer'
+      ? 'Open OpenDS5 to update.'
+      : state.phase === 'notify' && state.manager === 'package'
+        ? 'Update it through your package manager.'
+        : 'Open OpenDS5 to see the release.',
+    icon: createRuntimeIcon(),
+    silent: false
+  });
+  notification.on('click', () => showMainWindow());
+  notification.once('failed', (_event, error) => {
+    console.warn('Update notification failed:', error);
+  });
+  notification.show();
+}
+
 async function addAudioHapticsSessionIcons(sessions: AudioHapticsSession[]): Promise<AudioHapticsSession[]> {
   return Promise.all(sessions.map(async (session) => ({
     ...session,
@@ -1611,6 +1640,9 @@ function registerIpc(
   ipcMain.handle('bridge:setMicSpeakerGainLevel', (_event, value: number) => (
     service.setMicSpeakerGainLevel(Number(value))
   ));
+  ipcMain.handle('bridge:setSpeakerBoostDb', (_event, value: number) => (
+    service.setSpeakerBoostDb(Number(value))
+  ));
   ipcMain.handle('bridge:setMuteLedEnabled', (_event, value: boolean) => (
     service.setMuteLedEnabled(Boolean(value))
   ));
@@ -1843,8 +1875,24 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
     // Record the attempt regardless of the outcome so a failed check does not retry
     // on every launch.
     settingsStore.update({ lastUpdateCheckAt: Date.now() });
-    return updateService.check(settings.skippedUpdateVersions);
+    const state = await updateService.check(settings.skippedUpdateVersions);
+    notifyUpdateAvailable(state);
+    return state;
   });
+
+  // The renderer checks once when it opens; a tray app left running for days
+  // checks again here once the interval has passed. check() pushes the new
+  // state to the window, so its toast appears as well.
+  setInterval(() => {
+    const settings = settingsStore.get();
+    if (updateService.getState().phase !== 'idle' || !isCheckDue(settings.lastUpdateCheckAt, Date.now())) {
+      return;
+    }
+    settingsStore.update({ lastUpdateCheckAt: Date.now() });
+    void updateService.check(settings.skippedUpdateVersions)
+      .then(notifyUpdateAvailable)
+      .catch(() => undefined);
+  }, 60 * 60 * 1000).unref();
 
   ipcMain.handle('update:start', () => updateService.start());
 

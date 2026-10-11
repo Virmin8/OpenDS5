@@ -93,6 +93,9 @@ export type VdsAudioPortStats = {
   headphones: boolean;
   speakerMono: boolean;
   speakerBoostDb: number;
+  /** Average limiter gain reduction while sound played, since the last poll. */
+  speakerLimitingDb: number;
+  speakerLimitingMaxDb: number;
   speakerVolumePercent: number;
   hapticsGainPercent: number;
 };

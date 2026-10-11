@@ -101,6 +101,8 @@ export const COMMAND_ID = {
   // cancel, bit 1 echo cancel) and speaker gain (0 = the speaker gain).
   SET_MIC_PROCESSING: 0x44,
   SET_MIC_SPEAKER_GAIN: 0x45,
+  // Linux-port extension: built-in speaker boost in dB (1-18).
+  SET_SPEAKER_BOOST: 0x46,
   SET_SPEAKER_GAIN: 0x32,
   ENTER_BOOTLOADER: 0x33
 } as const;
