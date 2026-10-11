@@ -24,6 +24,8 @@ jobs:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       # package.json's version is the source of truth: it names the artifact,
       # is shown in the app, and (since the dkms.conf stamp) is the DKMS module

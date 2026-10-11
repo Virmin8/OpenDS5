@@ -2,6 +2,8 @@
   description = "OpenDS5 — DualSense companion application and virtual DualSense stack";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  # vds/ is a git submodule (Virmin8/vds, branch opends5); needs Nix >= 2.27.
+  inputs.self.submodules = true;
 
   outputs = {
     self,

@@ -21,6 +21,7 @@ pkgbase = opends5
 	source = opends5-modules-load.conf
 	source = 95-opends5.hook
 	source = pacman-setup.sh
+	source = vds-f1155ff9bd626da5a63f193c5a94a7886613c45c.tar.gz::https://github.com/Virmin8/vds/archive/f1155ff9bd626da5a63f193c5a94a7886613c45c.tar.gz
 	sha256sums = dcd5402da26be524b0b779c119459cef39220c0d7786c4c604ae1a313b571423
 	sha256sums = 9aa2ba00141150a9f037893d600bdb11720b8ab9fad6616c0120bad2018755ca
 	sha256sums = 186bfa5d777c54add852220c578846a80d242e7cbee6608d4804a1193d9456c8
@@ -28,6 +29,7 @@ pkgbase = opends5
 	sha256sums = 5554373b4a2907063636255caf2ebdc4056ae5c9858876a91392a16766eebd9e
 	sha256sums = 41c917458c771ae1803bd20a089d758ba7914e077f976c5b7229e219d993fafe
 	sha256sums = 02401e946d12ecae7b0c14d94c107d08e68379991c86020d981eea9b0d1f1113
+	sha256sums = 23273cfee6d424a788f6d1e83891aa314716896eedff287dce9ba2884783cf6b
 
 pkgname = opends5
 	pkgdesc = DualSense companion app and vdsd Bluetooth-to-USB bridge daemon

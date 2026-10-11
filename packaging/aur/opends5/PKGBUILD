@@ -10,6 +10,9 @@ url='https://github.com/Virmin8/OpenDS5'
 license=(AGPL-3.0-only MIT)
 # The app is built against this Electron major (package.json "electron").
 _electron=electron39
+# vds/ is a submodule, which GitHub's tag tarball leaves empty; keep this equal
+# to `git -C vds rev-parse HEAD` at the tagged commit.
+_vdscommit=f1155ff9bd626da5a63f193c5a94a7886613c45c
 makedepends=(cmake nodejs npm pkgconf bluez-libs dbus opus systemd)
 source=("$pkgbase-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
         opends5.sh
@@ -17,14 +20,16 @@ source=("$pkgbase-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
         opends5.sysusers
         opends5-modules-load.conf
         95-opends5.hook
-        pacman-setup.sh)
+        pacman-setup.sh
+        "vds-$_vdscommit.tar.gz::https://github.com/Virmin8/vds/archive/$_vdscommit.tar.gz")
 sha256sums=('dcd5402da26be524b0b779c119459cef39220c0d7786c4c604ae1a313b571423'
             '9aa2ba00141150a9f037893d600bdb11720b8ab9fad6616c0120bad2018755ca'
             '186bfa5d777c54add852220c578846a80d242e7cbee6608d4804a1193d9456c8'
             '134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa'
             '5554373b4a2907063636255caf2ebdc4056ae5c9858876a91392a16766eebd9e'
             '41c917458c771ae1803bd20a089d758ba7914e077f976c5b7229e219d993fafe'
-            '02401e946d12ecae7b0c14d94c107d08e68379991c86020d981eea9b0d1f1113')
+            '02401e946d12ecae7b0c14d94c107d08e68379991c86020d981eea9b0d1f1113'
+            '23273cfee6d424a788f6d1e83891aa314716896eedff287dce9ba2884783cf6b')
 
 _srcroot() {
   printf '%s/OpenDS5-%s' "$srcdir" "$pkgver"
@@ -32,6 +37,9 @@ _srcroot() {
 
 prepare() {
   cd "$(_srcroot)"
+
+  rm -rf vds
+  cp -a "$srcdir/vds-$_vdscommit" vds
 
   # generate-version.sh reads git, which a release tarball does not have.
   printf '#!/bin/sh\necho %s\n' "$pkgver" > vds/generate-version.sh
