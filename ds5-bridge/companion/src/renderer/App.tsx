@@ -11122,6 +11122,7 @@ export function App() {
                                     {audio.micOpen ? 'Open' : 'Closed'}
                                     {` · ${audio.micPacketsPerSecond.toFixed(1)} packets/s · ${audio.micPacketsTotal} total`}
                                     {audio.micStartupMs >= 0 ? ` · started in ${audio.micStartupMs} ms` : ''}
+                                    {audio.micFirstSoundMs >= 0 ? ` · first sound ${audio.micFirstSoundMs} ms` : ''}
                                     {audio.micWhileClosedTotal > 0 ? ` · ${audio.micWhileClosedTotal} while closed` : ''}
                                   </dd>
                                 </div>

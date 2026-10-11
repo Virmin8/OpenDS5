@@ -85,6 +85,8 @@ export type VdsAudioPortStats = {
   micPacketsTotal: number;
   /** Opening the controller mic to its first packet, last start; -1 before any. */
   micStartupMs: number;
+  /** Opening the controller mic to its first non-silent packet, last start; -1 before any. */
+  micFirstSoundMs: number;
   /** Mic packets that arrived while the mic was closed (each burst re-sends the close). */
   micWhileClosedTotal: number;
   blockedTotal: number;
