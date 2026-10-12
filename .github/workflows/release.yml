@@ -180,8 +180,9 @@ jobs:
           footer_timestamp: true
 
   # Arch/CachyOS package built from the AppImage above with the opends5-bin
-  # PKGBUILD, so `sudo pacman -U <release url>` installs vdsd, the DKMS module and
-  # the setup hook without an AUR helper. Pull requests only check that it builds.
+  # PKGBUILD, plus the [opends5] repo database, so pacman installs and updates
+  # vdsd, the DKMS module and the setup hook without an AUR helper. Pull requests
+  # only check that it builds.
   pacman:
     needs: appimage
     runs-on: ubuntu-latest
@@ -216,10 +217,24 @@ jobs:
           cp "$work"/opends5-bin-*.pkg.tar.zst dist/
           ls -l dist
 
+      # A one-package pacman repo ("[opends5]" in pacman.conf) whose Server is
+      # releases/latest/download, so `pacman -Syu` picks up new releases. repo-add
+      # makes opends5.db/.files as symlinks; release assets must be real files.
+      - name: build repo database
+        run: |
+          mkdir -p repo
+          repo-add repo/opends5.db.tar.gz dist/*.pkg.tar.zst
+          cp -L repo/opends5.db dist/opends5.db
+          cp -L repo/opends5.files dist/opends5.files
+          ls -l dist
+
       - uses: actions/upload-artifact@v4
         with:
           name: OpenDS5-pacman
-          path: dist/*.pkg.tar.zst
+          path: |
+            dist/*.pkg.tar.zst
+            dist/opends5.db
+            dist/opends5.files
 
       - name: attach to release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -227,7 +242,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pacman -Sy --noconfirm github-cli
-          gh release upload "${GITHUB_REF_NAME}" dist/*.pkg.tar.zst --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release upload "${GITHUB_REF_NAME}" dist/*.pkg.tar.zst dist/opends5.db dist/opends5.files \
+            --repo "${GITHUB_REPOSITORY}" --clobber
 
   # The Windows installer and its checksum, which the Windows app's update
   # check looks for (OpenDS5-Companion-Setup-x.y.z.exe + .exe.sha256). Runs

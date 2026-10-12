@@ -67,7 +67,7 @@ export function UpdateToast({
               <p className="update-toast-sub">
                 {state.manager === 'nixos'
                   ? 'Update OpenDS5 through your NixOS configuration or flake.'
-                  : 'Update OpenDS5 through your package manager.'}
+                  : 'Update OpenDS5 with sudo pacman -Syu or your system updater.'}
               </p>
             </div>
           </div>

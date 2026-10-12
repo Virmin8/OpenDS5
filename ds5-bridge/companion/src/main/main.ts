@@ -937,7 +937,7 @@ function notifyUpdateAvailable(state: UpdateState): void {
     body: state.phase === 'offer'
       ? 'Open OpenDS5 to update.'
       : state.phase === 'notify' && state.manager === 'package'
-        ? 'Update it through your package manager.'
+        ? 'Update it with sudo pacman -Syu or your system updater.'
         : 'Open OpenDS5 to see the release.',
     icon: createRuntimeIcon(),
     silent: false

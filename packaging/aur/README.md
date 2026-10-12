@@ -21,9 +21,24 @@ an AUR helper. (This needs a release newer than 1.9.1; on 1.9.1 the in-app
 ## Install without an AUR helper
 
 The release workflow builds `opends5-bin` from the release AppImage and attaches it to
-every GitHub release. Download it and run `sudo pacman -U ./opends5-bin-….pkg.tar.zst`;
-pacman refuses it as a URL because the package is unsigned (`RemoteFileSigLevel`
-requires a signature, `LocalFileSigLevel` does not).
+every GitHub release, together with `opends5.db` and `opends5.files` from `repo-add`.
+That makes each release a one-package pacman repository, and
+`releases/latest/download` always points at the newest one:
+
+```ini
+[opends5]
+SigLevel = Optional TrustAll
+Server = https://github.com/Virmin8/OpenDS5/releases/latest/download
+```
+
+Nothing is signed yet, hence `TrustAll`. For a one-off install, download the package
+and run `sudo pacman -U ./opends5-bin-….pkg.tar.zst`; pacman refuses it as a URL
+because it is unsigned (`RemoteFileSigLevel` requires a signature,
+`LocalFileSigLevel` does not).
+
+Until a release's `pacman` job finishes (a few minutes after the release is
+created), `latest` has no `opends5.db`, so a `pacman -Sy` in that window fails for
+this repo; it works again once the upload lands.
 
 ## Test a package locally
 

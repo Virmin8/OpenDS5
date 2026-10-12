@@ -92,16 +92,24 @@ Pick one install method, then [pair your controller](#-pairing-your-controller).
 
 ### Arch Linux / CachyOS (pacman)
 
-1. Download `opends5-bin-x.y.z-1-x86_64.pkg.tar.zst` from [Releases](../../releases).
-2. Install the downloaded file (pacman only accepts the unsigned package as a file, not a link):
+1. Add the OpenDS5 repository to the end of `/etc/pacman.conf`:
+   ```ini
+   [opends5]
+   SigLevel = Optional TrustAll
+   Server = https://github.com/Virmin8/OpenDS5/releases/latest/download
+   ```
+2. Install it:
    ```bash
-   sudo pacman -U ./opends5-bin-x.y.z-1-x86_64.pkg.tar.zst
+   sudo pacman -Syu opends5-bin
    ```
 3. **Log out and back in once**, so you're in the `vds` group.
 
 The package loads the module, starts `vdsd` and adds you to `vds` automatically.
-The app lets you know when a new release is out; update by installing that
-release's package. `sudo pacman -R opends5-bin`
+New releases arrive with your normal system update (`sudo pacman -Syu`), and the
+app lets you know when one is out. The repository is unsigned, so `TrustAll` is
+needed; it's the same trust as downloading the package from
+[Releases](../../releases) and running `sudo pacman -U ./opends5-bin-x.y.z-1-x86_64.pkg.tar.zst`,
+which still works for a one-off install. `sudo pacman -R opends5-bin`
 removes everything except your settings. If you used the AppImage's setup
 wizard before, remove that setup first (see
 [packaging/aur/README.md](packaging/aur/README.md)). AUR recipes are in
