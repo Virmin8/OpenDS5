@@ -17,6 +17,16 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.8] - 2026-10-12 — Start Minimized works again
+
+**Start Minimized** keeps OpenDS5 in the tray even if you last closed it
+maximized. **Update as usual.**
+
+### 🐛 Fixed
+- **Start Minimized** — if the window was maximized when you last closed it, the next launch opened it anyway. It now stays in the tray and opens maximized when you open it. Starting at login was affected the same way.
+
+---
+
 ## [1.9.7] - 2026-10-12 — Smoother audio on Linux, clearer speaker
 
 Linux audio reaches the controller more evenly, the speaker boost is now a

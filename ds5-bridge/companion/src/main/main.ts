@@ -614,7 +614,13 @@ function createWindow(uiScalePercent: UiScalePercent): BrowserWindow {
   window.webContents.once('did-finish-load', () => {
     applyWindowScale(window, uiScalePercent, false);
     if (savedState?.maximized) {
-      window.maximize();
+      // maximize() also shows a hidden window, which would defeat Start
+      // Minimized / the login tray arg; defer it until the window is shown.
+      if (window.isVisible()) {
+        window.maximize();
+      } else {
+        window.once('show', () => window.maximize());
+      }
     }
   });
   return window;
