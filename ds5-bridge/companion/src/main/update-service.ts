@@ -144,6 +144,8 @@ export class UpdateService {
   private pending: Extract<UpdateDecision, { kind: 'offer' }> | null = null;
   /** Windows: the verified setup .exe that "Restart" runs. */
   private verifiedInstaller: string | null = null;
+  /** The last check got no release (offline, GitHub down, rate limited). */
+  private lastCheckFailed = false;
   private readonly deps: UpdateServiceDeps;
 
   constructor(
@@ -157,6 +159,11 @@ export class UpdateService {
 
   getState(): UpdateState {
     return this.state;
+  }
+
+  /** True when the last check could not fetch the latest release. */
+  checkFailed(): boolean {
+    return this.lastCheckFailed;
   }
 
   /** Windows: the downloaded, checksum-verified setup .exe to run on Restart. */
@@ -185,6 +192,7 @@ export class UpdateService {
     const packaged = !windows && !target && !nixos;
 
     const release = await this.deps.fetchLatestRelease();
+    this.lastCheckFailed = release === null;
     const decision = decideUpdate({
       release,
       currentVersion: this.currentVersion,

@@ -323,6 +323,16 @@ describe('UpdateService.check', () => {
     });
   });
 
+  it('tells an up-to-date check apart from one that could not reach GitHub', async () => {
+    const current = service({ fetchLatestRelease: vi.fn().mockResolvedValue({ ...release, version: '1.7.0' }) });
+    await expect(current.check([])).resolves.toEqual({ phase: 'idle' });
+    expect(current.checkFailed()).toBe(false);
+
+    const offline = service({ fetchLatestRelease: vi.fn().mockResolvedValue(null) });
+    await expect(offline.check([])).resolves.toEqual({ phase: 'idle' });
+    expect(offline.checkFailed()).toBe(true);
+  });
+
   it('points a read-only install at the download page instead', async () => {
     const svc = service({ canSelfReplace: () => false });
     await expect(svc.check([])).resolves.toEqual({

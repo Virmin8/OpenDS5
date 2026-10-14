@@ -17,6 +17,21 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.10] - 2026-10-14 — Update checks on every launch, and a Check for updates button
+
+OpenDS5 now looks for a new version **every time it starts**, and you can check
+by hand from the settings menu. **Update as usual.** If you are on 1.9.9 or
+older, this update may take up to two days to appear; install it from the
+Releases page to get it now.
+
+### ✨ Added
+- **Check for updates** in the settings menu, under About. It says whether you're up to date, shows the update if there is one (even a version you skipped), or tells you it couldn't reach GitHub.
+
+### 🐛 Fixed
+- **Updates not showing up** — OpenDS5 only checked once every two days, even across restarts, so a release that came out soon after a check stayed hidden. It now checks on every launch, and still every two days while it keeps running in the tray.
+
+---
+
 ## [1.9.9] - 2026-10-14 — Signal strength in the Device card
 
 The **Device card** now shows how strong the controller's Bluetooth signal is.

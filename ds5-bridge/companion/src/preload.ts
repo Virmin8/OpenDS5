@@ -388,6 +388,7 @@ contextBridge.exposeInMainWorld('setup', setupApi);
 // object would hide these channels from it.
 const updateApi = {
   check: (): Promise<UpdateState> => ipcRenderer.invoke('update:check'),
+  checkNow: (): Promise<{ state: UpdateState; failed: boolean }> => ipcRenderer.invoke('update:check-now'),
   start: (): Promise<void> => ipcRenderer.invoke('update:start'),
   rebuild: (): Promise<void> => ipcRenderer.invoke('update:rebuild'),
   skip: (version: string): Promise<void> => ipcRenderer.invoke('update:skip', version),

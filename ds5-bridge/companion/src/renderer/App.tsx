@@ -3168,6 +3168,7 @@ export function App() {
   const [startupTutorialFeatureActive, setStartupTutorialFeatureActive] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>({ phase: 'idle' });
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [manualUpdateCheck, setManualUpdateCheck] = useState<'idle' | 'checking' | 'current' | 'failed' | 'found'>('idle');
   const navHistoryRef = useRef<Array<{ tab: ControlTab; gameId: string | null }>>([
     { tab: 'game-profile', gameId: null }
   ]);
@@ -3214,6 +3215,18 @@ export function App() {
   useEffect(() => {
     void window.appInfo.version().then(setAppVersion);
   }, []);
+
+  const checkForUpdatesNow = () => {
+    if (manualUpdateCheck === 'checking') return;
+    setManualUpdateCheck('checking');
+    void window.update.checkNow()
+      .then(({ state, failed }) => {
+        // Set the state here too: a toast dismissed earlier gets no new push.
+        setUpdateState(state);
+        setManualUpdateCheck(state.phase !== 'idle' ? 'found' : failed ? 'failed' : 'current');
+      })
+      .catch(() => setManualUpdateCheck('failed'));
+  };
 
   useEffect(() => {
     if (startupTutorialOpen) return;
@@ -13007,6 +13020,30 @@ export function App() {
                   <span className="settings-menu-link-copy">
                     <strong>OpenDS5{appVersion ? ` ${appVersion}` : ''}</strong>
                     <span>Virmin8/OpenDS5 · AGPL-3.0</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="settings-menu-link-row"
+                  disabled={manualUpdateCheck === 'checking'}
+                  onClick={checkForUpdatesNow}
+                >
+                  <span className="settings-menu-link-icon" aria-hidden="true">
+                    <RefreshCcw size={18} />
+                  </span>
+                  <span className="settings-menu-link-copy">
+                    <strong>Check for updates</strong>
+                    <span aria-live="polite">
+                      {manualUpdateCheck === 'checking'
+                        ? 'Checking…'
+                        : manualUpdateCheck === 'current'
+                          ? "You're up to date"
+                          : manualUpdateCheck === 'failed'
+                            ? "Couldn't reach GitHub"
+                            : manualUpdateCheck === 'found' && 'version' in updateState
+                              ? `OpenDS5 ${updateState.version} is available`
+                              : 'Look for a newer release now'}
+                    </span>
                   </span>
                 </button>
                 {/* This fork starts from LordVicky's OpenDS5 at UPSTREAM_OPENDS5_VERSION. */}

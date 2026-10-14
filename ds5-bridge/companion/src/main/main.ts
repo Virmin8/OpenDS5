@@ -1874,12 +1874,15 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
       return updateService.getState();
     }
 
-    const settings = settingsStore.get();
-    if (!isCheckDue(settings.lastUpdateCheckAt, Date.now())) {
-      return { phase: 'idle' };
+    // An offer, download or restart is already under way (the window reloaded);
+    // checking again would reset it.
+    if (updateService.getState().phase !== 'idle') {
+      return updateService.getState();
     }
-    // Record the attempt regardless of the outcome so a failed check does not retry
-    // on every launch.
+
+    // Every launch checks, so a release made soon after the last check is not
+    // hidden for up to two days; the interval below only paces a running app.
+    const settings = settingsStore.get();
     settingsStore.update({ lastUpdateCheckAt: Date.now() });
     const state = await updateService.check(settings.skippedUpdateVersions);
     notifyUpdateAvailable(state);
@@ -1899,6 +1902,17 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
       .then(notifyUpdateAvailable)
       .catch(() => undefined);
   }, 60 * 60 * 1000).unref();
+
+  // "Check for updates" in the settings menu. It skips the interval and the
+  // skipped-versions list, so it also brings back a version skipped earlier.
+  ipcMain.handle('update:check-now', async (): Promise<{ state: UpdateState; failed: boolean }> => {
+    if (updateService.getState().phase !== 'idle') {
+      return { state: updateService.getState(), failed: false };
+    }
+    settingsStore.update({ lastUpdateCheckAt: Date.now() });
+    const state = await updateService.check([]);
+    return { state, failed: updateService.checkFailed() };
+  });
 
   ipcMain.handle('update:start', () => updateService.start());
 
