@@ -17,6 +17,20 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.9] - 2026-10-14 — Signal strength in the Device card
+
+The **Device card** now shows how strong the controller's Bluetooth signal is.
+**Update as usual.**
+
+### ✨ Added
+- **Signal strength in the Device card** — signal bars and a reading such as "Signal Excellent · 0 dBm" under the battery. The bars turn amber when the signal is weak enough to risk audio dropouts, and red when it is poor. Shown on Linux and with the DS5 Bridge dongle; Windows does not report signal strength over plain Bluetooth.
+
+### 🔧 Changed
+- **Wireless card** on the Overview shows the dBm reading next to the signal quality, instead of only when you hover over it.
+- **Device card** — the controller image sits at the top, next to the controller name.
+
+---
+
 ## [1.9.8] - 2026-10-12 — Start Minimized works again
 
 **Start Minimized** keeps OpenDS5 in the tray even if you last closed it

@@ -1080,11 +1080,16 @@ button {
   opacity: 0.78;
   filter: none;
   justify-self: center;
-  align-self: end;
-  order: 2;
+  align-self: start;
+  grid-column: 2;
+  grid-row: 1;
 }
 
+/* Spans both columns so the battery and signal rows can run under the
+   controller art, which sits top-right beside the title. */
 .status-copy {
+  grid-column: 1 / -1;
+  grid-row: 1;
   min-width: 0;
   display: grid;
   gap: 7px;
@@ -1223,6 +1228,41 @@ button {
 
 .compact-battery-row .battery-icon:not(.charging) {
   --battery-color: var(--text-control);
+}
+
+.signal-icon {
+  --signal-color: var(--text-control);
+  width: 24px;
+  height: 13px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+}
+
+.signal-icon > span {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--signal-color);
+  opacity: 0.25;
+  transition: opacity 180ms ease;
+}
+
+.signal-icon > span:nth-child(1) { height: 25%; }
+.signal-icon > span:nth-child(2) { height: 50%; }
+.signal-icon > span:nth-child(3) { height: 75%; }
+.signal-icon > span:nth-child(4) { height: 100%; }
+
+.signal-icon > span.active {
+  opacity: 1;
+}
+
+.signal-icon.warn {
+  --signal-color: var(--warning);
+}
+
+.signal-icon.bad {
+  --signal-color: var(--danger);
 }
 
 .battery-icon > span.charging-segment {

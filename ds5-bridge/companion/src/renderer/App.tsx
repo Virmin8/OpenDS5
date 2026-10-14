@@ -449,6 +449,8 @@ const TOUCHPAD_MOUSE_AVAILABLE = !VDS_AVAILABLE || VDS_LINUX;
 // the app reads from the Linux input device; Windows has no reader yet.
 // Windows exposes no RSSI for a classic Bluetooth link (Linux reads it via HCI).
 const SIGNAL_STRENGTH_AVAILABLE = !VDS_AVAILABLE || VDS_LINUX;
+// Bars lit in the Device card's signal icon for each signal quality.
+const SIGNAL_BAR_COUNTS: Record<string, number> = { Excellent: 4, Good: 3, 'Audio Risk': 2, Poor: 1 };
 const CONTROLLER_INPUT_AVAILABLE =typeof window === 'undefined' || window.vds?.platform !== 'win32';
 // A distribution package removes the driver and vdsd itself, so the in-app
 // uninstaller is hidden. On Windows it removes the vdsd service; the app
@@ -4474,9 +4476,15 @@ export function App() {
   const overviewSignalTitle = overviewSignalValue !== null && overviewSignalValue !== undefined
     ? `${overviewSignalValue} dBm`
     : undefined;
-  const overviewSignalLabel = overviewSignalQuality
-    ? overviewSignalQuality
+  const overviewSignalLabel = overviewSignalQuality && overviewSignalTitle
+    ? `${overviewSignalQuality} · ${overviewSignalTitle}`
     : '--';
+  const sidebarSignalBars = overviewSignalQuality ? SIGNAL_BAR_COUNTS[overviewSignalQuality] : 0;
+  const sidebarSignalLabel = personaTransitionActive
+    ? 'Signal --'
+    : overviewSignalQuality && overviewSignalTitle
+      ? `Signal ${overviewSignalLabel}`
+      : 'Signal unavailable';
   const overviewShortcutItems = [
     snapshot?.settings.sleepKeybindEnabled ? { id: 'sleep', label: 'Turn Off Shortcut' } : null,
     snapshot?.settings.speakerVolumeShortcutEnabled ? { id: 'volume', label: 'Volume Shortcut' } : null,
@@ -7314,6 +7322,16 @@ export function App() {
                 )}
                 <span>{sidebarBatteryLabel}</span>
               </div>
+              {SIGNAL_STRENGTH_AVAILABLE && connected && controllerConnected && (
+                <div className="battery-row compact-battery-row compact-signal-row">
+                  <span className={`signal-icon ${overviewSignalTone}`} aria-hidden="true">
+                    {[0, 1, 2, 3].map((bar) => (
+                      <span key={bar} className={bar < sidebarSignalBars ? 'active' : ''} />
+                    ))}
+                  </span>
+                  <span title="Bluetooth link RSSI">{sidebarSignalLabel}</span>
+                </div>
+              )}
               {connected && controllerConnected && (
                 <span
                   className={`host-persona-chip persona-${overviewHostPersonaMode}`}
