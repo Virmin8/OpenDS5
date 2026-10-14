@@ -17,6 +17,20 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.11] - 2026-10-14 — About card on the System page
+
+**Check for updates** has moved to a new **About** card on the System page,
+and you can now turn automatic update checks off. **Update as usual.**
+
+### ✨ Added
+- **About card** under the Device card on the System page: the app version, a **Check now** button, and where your settings file is saved.
+- **Check for updates automatically** — untick it to stop OpenDS5 checking at launch and every two days. **Check now** still works.
+
+### 🔧 Changed
+- **Check for updates** is no longer in the settings menu; it's in the About card.
+
+---
+
 ## [1.9.10] - 2026-10-14 — Update checks on every launch, and a Check for updates button
 
 OpenDS5 now looks for a new version **every time it starts**, and you can check

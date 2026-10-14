@@ -51,6 +51,8 @@ export interface CompanionSettings {
   setupSkipped: boolean;
   steamGridDbApiKey: string;
   showBatteryPercentTrayIcon: boolean;
+  /** Check GitHub for a newer release on launch and every couple of days. */
+  autoUpdateCheckEnabled: boolean;
   lastUpdateCheckAt: number;
   skippedUpdateVersions: string[];
   installedModuleSourceHash: string;

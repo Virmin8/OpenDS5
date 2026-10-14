@@ -157,6 +157,7 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   setupSkipped: false,
   steamGridDbApiKey: '',
   showBatteryPercentTrayIcon: false,
+  autoUpdateCheckEnabled: true,
   lastUpdateCheckAt: 0,
   skippedUpdateVersions: [],
   installedModuleSourceHash: '',
@@ -945,6 +946,9 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     showBatteryPercentTrayIcon: typeof value?.showBatteryPercentTrayIcon === 'boolean'
       ? value.showBatteryPercentTrayIcon
       : DEFAULT_SETTINGS.showBatteryPercentTrayIcon,
+    autoUpdateCheckEnabled: typeof value?.autoUpdateCheckEnabled === 'boolean'
+      ? value.autoUpdateCheckEnabled
+      : DEFAULT_SETTINGS.autoUpdateCheckEnabled,
     lastUpdateCheckAt: typeof value?.lastUpdateCheckAt === 'number' && Number.isFinite(value.lastUpdateCheckAt)
       ? value.lastUpdateCheckAt
       : DEFAULT_SETTINGS.lastUpdateCheckAt,

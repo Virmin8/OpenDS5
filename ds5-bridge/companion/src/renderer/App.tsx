@@ -31,6 +31,7 @@ import {
   IconBrandXbox,
   IconBrandGithub,
   IconHeart as Heart,
+  IconInfoCircle,
   IconDeviceMobileVibration as Vibrate,
   IconHeadphones as Headphones,
   IconKeyboard as Keyboard,
@@ -3168,6 +3169,7 @@ export function App() {
   const [startupTutorialFeatureActive, setStartupTutorialFeatureActive] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>({ phase: 'idle' });
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [settingsPath, setSettingsPath] = useState<string | null>(null);
   const [manualUpdateCheck, setManualUpdateCheck] = useState<'idle' | 'checking' | 'current' | 'failed' | 'found'>('idle');
   const navHistoryRef = useRef<Array<{ tab: ControlTab; gameId: string | null }>>([
     { tab: 'game-profile', gameId: null }
@@ -3214,6 +3216,7 @@ export function App() {
 
   useEffect(() => {
     void window.appInfo.version().then(setAppVersion);
+    void window.appInfo.settingsPath().then(setSettingsPath);
   }, []);
 
   const checkForUpdatesNow = () => {
@@ -11511,6 +11514,62 @@ export function App() {
                     </div>
                   )}
                 </section>
+                {!showDiagnostics && (
+                  <section className="system-card about-card system-card-full">
+                    <div className="feature-card-title system-card-heading">
+                      <span className="feature-icon system-icon icon-wide">
+                        <IconInfoCircle size={20} />
+                      </span>
+                      <div className="title-copy">
+                        <h3>About</h3>
+                        <p>OpenDS5 companion</p>
+                      </div>
+                    </div>
+                    <div className="device-list about-list">
+                      <div className="device-row">
+                        <span>Version</span>
+                        <strong className="device-mono">{appVersion ?? '--'}</strong>
+                      </div>
+                      <div className="device-row device-update-row">
+                        <label className="device-update-auto">
+                          <input
+                            type="checkbox"
+                            checked={snapshot.settings.autoUpdateCheckEnabled}
+                            onChange={(event) => void runAction('auto-update-check', () => (
+                              window.bridge.setAutoUpdateCheckEnabled(event.target.checked)
+                            ))}
+                          />
+                          <span>Check for updates automatically</span>
+                        </label>
+                        <div className="device-update-control">
+                          <span className="device-update-status" aria-live="polite">
+                            {manualUpdateCheck === 'checking'
+                              ? 'Checking…'
+                              : manualUpdateCheck === 'current'
+                                ? "You're up to date"
+                                : manualUpdateCheck === 'failed'
+                                  ? "Couldn't reach GitHub"
+                                  : manualUpdateCheck === 'found' && 'version' in updateState
+                                    ? `${updateState.version} is available`
+                                    : ''}
+                          </span>
+                          <button
+                            type="button"
+                            className="secondary-action device-update-button"
+                            disabled={manualUpdateCheck === 'checking'}
+                            onClick={checkForUpdatesNow}
+                          >
+                            Check now
+                          </button>
+                        </div>
+                      </div>
+                      <div className="device-row">
+                        <span>Config file</span>
+                        <strong className="device-mono" title={settingsPath ?? undefined}>{settingsPath ?? '--'}</strong>
+                      </div>
+                    </div>
+                  </section>
+                )}
               </div>
               <section className="feature-help-panel system-profile-panel" aria-label="System profiles and tips">
                 <div className="system-profile-strip">
@@ -13020,30 +13079,6 @@ export function App() {
                   <span className="settings-menu-link-copy">
                     <strong>OpenDS5{appVersion ? ` ${appVersion}` : ''}</strong>
                     <span>Virmin8/OpenDS5 · AGPL-3.0</span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="settings-menu-link-row"
-                  disabled={manualUpdateCheck === 'checking'}
-                  onClick={checkForUpdatesNow}
-                >
-                  <span className="settings-menu-link-icon" aria-hidden="true">
-                    <RefreshCcw size={18} />
-                  </span>
-                  <span className="settings-menu-link-copy">
-                    <strong>Check for updates</strong>
-                    <span aria-live="polite">
-                      {manualUpdateCheck === 'checking'
-                        ? 'Checking…'
-                        : manualUpdateCheck === 'current'
-                          ? "You're up to date"
-                          : manualUpdateCheck === 'failed'
-                            ? "Couldn't reach GitHub"
-                            : manualUpdateCheck === 'found' && 'version' in updateState
-                              ? `OpenDS5 ${updateState.version} is available`
-                              : 'Look for a newer release now'}
-                    </span>
                   </span>
                 </button>
                 {/* This fork starts from LordVicky's OpenDS5 at UPSTREAM_OPENDS5_VERSION. */}

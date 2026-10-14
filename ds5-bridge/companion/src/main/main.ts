@@ -1658,6 +1658,9 @@ function registerIpc(
   ipcMain.handle('bridge:setShowBatteryPercentTrayIcon', (_event, value: boolean) => (
     service.setShowBatteryPercentTrayIcon(Boolean(value))
   ));
+  ipcMain.handle('bridge:setAutoUpdateCheckEnabled', (_event, value: boolean) => (
+    service.setAutoUpdateCheckEnabled(Boolean(value))
+  ));
   ipcMain.handle('bridge:setPollingRateMode', (_event, value: PollingRateMode) => (
     service.setPollingRateMode(value)
   ));
@@ -1857,6 +1860,7 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
   ));
 
   ipcMain.handle('app:version', () => app.getVersion());
+  ipcMain.handle('app:settings-path', () => path.join(app.getPath('userData'), 'settings.json'));
 
   ipcMain.handle('update:check', async (): Promise<UpdateState> => {
     // A previous run may have been killed mid-download; drop its leftovers.
@@ -1883,6 +1887,9 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
     // Every launch checks, so a release made soon after the last check is not
     // hidden for up to two days; the interval below only paces a running app.
     const settings = settingsStore.get();
+    if (!settings.autoUpdateCheckEnabled) {
+      return updateService.getState();
+    }
     settingsStore.update({ lastUpdateCheckAt: Date.now() });
     const state = await updateService.check(settings.skippedUpdateVersions);
     notifyUpdateAvailable(state);
@@ -1894,7 +1901,11 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
   // state to the window, so its toast appears as well.
   setInterval(() => {
     const settings = settingsStore.get();
-    if (updateService.getState().phase !== 'idle' || !isCheckDue(settings.lastUpdateCheckAt, Date.now())) {
+    if (
+      !settings.autoUpdateCheckEnabled
+      || updateService.getState().phase !== 'idle'
+      || !isCheckDue(settings.lastUpdateCheckAt, Date.now())
+    ) {
       return;
     }
     settingsStore.update({ lastUpdateCheckAt: Date.now() });
@@ -1903,7 +1914,7 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
       .catch(() => undefined);
   }, 60 * 60 * 1000).unref();
 
-  // "Check for updates" in the settings menu. It skips the interval and the
+  // "Check now" in the System tab's About card. It skips the interval and the
   // skipped-versions list, so it also brings back a version skipped earlier.
   ipcMain.handle('update:check-now', async (): Promise<{ state: UpdateState; failed: boolean }> => {
     if (updateService.getState().phase !== 'idle') {

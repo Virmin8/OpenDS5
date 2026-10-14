@@ -178,6 +178,9 @@ const api = {
   setShowBatteryPercentTrayIcon: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setShowBatteryPercentTrayIcon', value)
   ),
+  setAutoUpdateCheckEnabled: (value: boolean): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setAutoUpdateCheckEnabled', value)
+  ),
   setUiScalePercent: (value: number): Promise<BridgeSnapshot> => ipcRenderer.invoke('bridge:setUiScalePercent', value),
   setUiThemePreset: (value: UiThemePreset): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setUiThemePreset', value)
@@ -405,6 +408,7 @@ contextBridge.exposeInMainWorld('update', updateApi);
 
 const appInfoApi = {
   version: (): Promise<string> => ipcRenderer.invoke('app:version'),
+  settingsPath: (): Promise<string> => ipcRenderer.invoke('app:settings-path'),
 };
 contextBridge.exposeInMainWorld('appInfo', appInfoApi);
 
