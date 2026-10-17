@@ -88,6 +88,9 @@
       }
     ],
     "asar": true,
+    "electronLanguages": [
+      "en-US"
+    ],
     "asarUnpack": [
       "node_modules/node-hid/prebuilds/**/*.node"
     ],
