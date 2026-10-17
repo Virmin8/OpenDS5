@@ -17,7 +17,7 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
-## [1.9.12] - Unreleased — Battery warning, settings backup and Electron 44
+## [1.9.12] - 2026-10-17 — Battery warning, settings backup and Electron 44
 
 A low-battery warning on the lightbar, a one-file settings backup, a switch for
 crackling controller audio, and an up-to-date Electron. **Update as usual.**
