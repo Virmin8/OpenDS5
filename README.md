@@ -48,11 +48,12 @@ Bluetooth.
 - 🎯 **Game-linked profiles** — switch profiles automatically while a game runs; finds **Steam, Heroic and Lutris** games (**Steam, Epic and Heroic** on Windows).
 - 🔊 **Audio** — controller speaker and headphone jack, with a loudness boost for the built-in speaker.
 - 🎙️ **Microphone** — controller or headset mic in Linux, with one on/off switch, the Mute button and mute light, level and processing.
-- 💡 **Lighting** — lightbar and player LEDs.
+- 💡 **Lighting** — lightbar and player LEDs, with an optional low-battery warning on the lightbar.
 - 🎛️ **Remapping & chords** — remap buttons and trigger actions with button combos.
 - 📶 **Bluetooth modes** (Linux) — switch between OpenDS5 mode and normal mode (keyboards and mice work again), or automatically.
 - 🕹️ **Controller shortcuts** — volume, profile and power with a touchpad click, mid-game.
 - 📦 **Easy install & uninstall** — AppImage with a setup wizard, a pacman package for Arch, a NixOS flake, or a Windows installer.
+- 💾 **Settings backup** — save your settings, trigger profiles and game art to one file and restore them on a new install.
 
 ## 📸 Screenshots
 
@@ -105,8 +106,9 @@ Pick one install method, then [pair your controller](#-pairing-your-controller).
 3. **Log out and back in once**, so you're in the `vds` group.
 
 The package loads the module, starts `vdsd` and adds you to `vds` automatically.
-New releases arrive with your normal system update (`sudo pacman -Syu`), and the
-app lets you know when one is out. The repository is unsigned, so `TrustAll` is
+New releases arrive with your normal system update (`sudo pacman -Syu`). The
+app lets you know when one is out, and offers **Restart now** once pacman has
+installed it. The repository is unsigned, so `TrustAll` is
 needed; it's the same trust as downloading the package from
 [Releases](../../releases) and running `sudo pacman -U ./opends5-bin-x.y.z-1-x86_64.pkg.tar.zst`,
 which still works for a one-off install. `sudo pacman -R opends5-bin`
@@ -327,6 +329,8 @@ This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
   mic, or all three, depending on what is live (shown in Diagnostics).
 - **Turn Off Controller** quick action.
 - **Lights restored** when a game that used the lightbar exits.
+- **Battery warning** — the lightbar turns amber at 20% and red at 10%
+  until the controller charges, and a notification when charging finishes.
 
 **📶 Bluetooth**
 - **Bluetooth tab** — OpenDS5 / normal mode, auto switching, attach and detach controllers.
@@ -336,6 +340,7 @@ This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
 - **Speaker sound tuning** — higher-quality encoding, a loudness boost and mono for the built-in speaker.
 - **Low-latency HD haptics** with an automatic buffer.
 - **Speaker gain** setting.
+- **Larger Audio Blocks** switch for PCs where controller audio crackles.
 
 **🎯 Games & profiles**
 - **Heroic and Lutris** games next to Steam, with search.
@@ -346,6 +351,8 @@ This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
 **📦 Install & tools**
 - **pacman package** for Arch and CachyOS on every release.
 - **One-click uninstall** from Settings.
+- **Settings backup and restore** from System → About.
+- **Restart prompt** after pacman installs a new version.
 - **Diagnostics** — daemon log, tracing and live audio stats.
 - **Test Triggers** quick action.
 

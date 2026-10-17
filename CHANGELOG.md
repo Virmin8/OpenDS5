@@ -17,6 +17,34 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.12] - Unreleased — Battery warning, settings backup and Electron 44
+
+A low-battery warning on the lightbar, a one-file settings backup, a switch for
+crackling controller audio, and an up-to-date Electron. **Update as usual.**
+
+### ✨ Added
+- **Battery Warning** on the **Lighting** page — the lightbar turns amber at 20% and red at 10% while the controller isn't charging, then goes back to your colour. Off by default.
+- **Fully Charged** notification (bell menu) — a toast when the controller finishes charging. Off by default.
+- **Back Up / Restore** in **System → About** — saves your settings, trigger profiles and game artwork to one file. Restore asks first, then restarts OpenDS5 to load it. Settings that belong to this PC are kept.
+- **Larger Audio Blocks** (Linux) on the **Audio** page — turn it on if controller audio crackles. It switches to PipeWire's usual block size and restarts PipeWire for you; before, this meant editing a config file by hand.
+- **Restart after a pacman update** — when pacman installs a new `opends5-bin`, OpenDS5 offers **Restart now** instead of running the old version until you quit from the tray. It works from the update after this one.
+
+### 🔧 Changed
+- **Electron 44** (was 39, which no longer gets security fixes). The NixOS package uses the same version.
+- **Uses less CPU in the tray** — no longer scans every USB/Bluetooth HID device twice a second while the controller is connected, and the hidden window stops updating.
+- **Smaller download** — only the English Chromium language pack is included (the app is English-only).
+
+### 🐛 Fixed
+- **Overlapping layout on small windows** — at the smallest window size the sidebar ran over Settings / Chords, the Audio page's header controls squeezed into each other, and System cards drew over each other. Pages now scroll instead.
+- **Long config file paths** in **System → About** are cut off with "…" instead of running over the label.
+
+### 🛠️ Developer
+- **No more `npmDepsHash`** — the Nix package reads dependency hashes from `package-lock.json`, so releases need no follow-up commit and tagged versions build with Nix.
+- **vds is built and tested only in the release workflow**, on Linux and Windows; vds and OpenDS5 no longer have separate build workflows.
+- **`App.tsx` split up** — state in `app/useAppState.tsx`, one file per tab in `tabs/`, shared helpers in `app/`.
+
+---
+
 ## [1.9.11] - 2026-10-14 — About card on the System page
 
 **Check for updates** has moved to a new **About** card on the System page,
