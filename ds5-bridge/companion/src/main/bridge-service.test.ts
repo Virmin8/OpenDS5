@@ -528,6 +528,30 @@ describe('BridgeService', () => {
     expect(service.getSnapshot().message).toBe('Companion firmware required');
   });
 
+  it('reuses the HID device list between polls while the bridge is connected', async () => {
+    const service = serviceFixture();
+    hidMock.state.devicesList = [companionDeviceInfo()];
+    hidMock.state.openDevices.set('companion-path', new MockHidDevice());
+
+    await poll(service);
+    await poll(service);
+
+    expect(service.getSnapshot().state).toBe('connected');
+    expect(service.getSnapshot().diagnostics.rawDevices).toHaveLength(1);
+    expect(hidMock.devices).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists HID devices on every poll while no bridge answers', async () => {
+    const service = serviceFixture();
+
+    await poll(service);
+    hidMock.state.devicesList = [normalFirmwareDeviceInfo()];
+    await poll(service);
+
+    expect(service.getSnapshot().state).toBe('normal-firmware');
+    expect(hidMock.devices).toHaveBeenCalledTimes(2);
+  });
+
   it('treats WinUSB transport close as a bridge disconnect', async () => {
     const service = serviceFixture();
     const device = new MockHidDevice();

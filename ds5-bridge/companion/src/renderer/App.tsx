@@ -179,6 +179,7 @@ import { filterLibrary } from './library-search';
 import { matchGameInLibrary, nativeGameFeatureMap, nativeGameFeatures } from './game-library-match';
 import { TriggerEffectEditor } from './TriggerEffectEditor';
 import { StickWheelEditor, type StickSample } from './StickWheelEditor';
+import { usePageVisible } from './usePageVisible';
 
 type ControlTab = 'game-profile' | 'overview' | 'haptics' | 'audio' | 'triggers' | 'trigger-profiles' | 'lighting' | 'remapping' | 'chords' | 'system' | 'vds';
 type StartupTutorialStep = 'feature-toggle' | 'done';
@@ -4555,7 +4556,8 @@ export function App() {
   const customSwatchColor = customLightbarColor ?? LIGHTBAR_DEFAULT_CUSTOM_COLOR;
   const customSwatchSelected = Boolean(customLightbarColor && normalizedLightbarColor === customLightbarColor);
   const customColorPickerDisabled = !connected || !lightbarSupported || !lightbarEnabled;
-  const diagnosticsVisible = activeControlTab === 'system' && showDiagnostics;
+  const pageVisible = usePageVisible();
+  const diagnosticsVisible = activeControlTab === 'system' && showDiagnostics && pageVisible;
   const [vdsDiagnostics, setVdsDiagnostics] = useState<VdsStatus | null>(null);
   const [vdsVersion, setVdsVersion] = useState<string | null>(null);
   const bridgeState = snapshot?.state;

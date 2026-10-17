@@ -161,6 +161,9 @@ function createRuntimeIcon(): Electron.NativeImage {
   return createImageAsset(APP_MARK_PNG);
 }
 
+/** The latest bridge snapshot not yet sent to the hidden main window. */
+let heldSnapshot: BridgeSnapshot | null = null;
+
 function sendToMainWindow(channel: string, ...args: unknown[]): void {
   const window = mainWindow;
   if (!window || window.isDestroyed() || window.webContents.isDestroyed()) {
@@ -601,6 +604,13 @@ function createWindow(uiScalePercent: UiScalePercent): BrowserWindow {
     if (!isQuitting) {
       event.preventDefault();
       window.hide();
+    }
+  });
+  window.on('show', () => {
+    if (heldSnapshot) {
+      const snapshot = heldSnapshot;
+      heldSnapshot = null;
+      sendToMainWindow('bridge:snapshot', snapshot);
     }
   });
   window.on('will-move', () => bridgeService?.pausePollingFor(1200));
@@ -2110,6 +2120,14 @@ app.whenReady().then(async () => {
 
   bridgeService.on('snapshot', (snapshot) => {
     updateTrayPresentation(snapshot);
+    // Snapshots come up to twice a second. A window hidden in the tray only
+    // needs the latest one, sent when it is shown, so it isn't re-rendered
+    // while nobody can see it.
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      heldSnapshot = snapshot;
+      return;
+    }
+    heldSnapshot = null;
     sendToMainWindow('bridge:snapshot', snapshot);
   });
   bridgeService.on('toast', (toast) => {

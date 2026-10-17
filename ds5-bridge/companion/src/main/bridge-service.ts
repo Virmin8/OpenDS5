@@ -97,6 +97,9 @@ import { vdsdBackendActive } from './vdsd-backend';
 const POLL_INTERVAL_MS = 500;
 const SHORTCUT_POLL_INTERVAL_MS = 50;
 const SHORTCUT_POLL_ERROR_RETRY_MS = 250;
+// While the bridge answers, the HID device list only feeds Diagnostics, so
+// it is refreshed this often instead of on every status poll.
+const CONNECTED_DEVICE_LIST_MAX_AGE_MS = 10_000;
 const AUDIO_STATUS_READ_INTERVAL_MS = 500;
 const AUDIO_DEBUG_READ_INTERVAL_MS = 500;
 const TRIGGER_TRACE_READ_INTERVAL_MS = 250;
@@ -1419,6 +1422,8 @@ export class BridgeService extends EventEmitter {
   private readonly audioHapticsSessionMonitor = new AudioHapticsSessionMonitor();
   private readonly micKeepaliveEngine = new MicKeepaliveEngine();
   private readonly hidDiscovery = new HidDiscoveryClient();
+  private cachedRawDevices: HidDeviceSummary[] = [];
+  private cachedRawDevicesAt = 0;
   private audioHapticsSessionCache: { key: string; expiresAt: number; sessions: AudioHapticsSession[] } | null = null;
   private audioHapticsSessionListInFlight: Promise<AudioHapticsSession[]> | null = null;
   private audioHapticsSessionListInFlightKey: string | null = null;
@@ -3757,7 +3762,6 @@ export class BridgeService extends EventEmitter {
     }
     const currentSettings = this.settingsStore.get();
 
-    const rawDevices = await this.hidDiscovery.listDevices();
     let status: BridgeStatusPayload | null;
     try {
       status = await this.openAndReadStatus();
@@ -3765,6 +3769,7 @@ export class BridgeService extends EventEmitter {
       if (!(error instanceof ProtocolError)) {
         throw error;
       }
+      const rawDevices = await this.listRawDevices(0);
       this.noteControllerUnavailableForToasts();
       this.snapshot = {
         state: 'incompatible',
@@ -3783,12 +3788,14 @@ export class BridgeService extends EventEmitter {
     }
     if (!status) {
       this.closeDevice();
+      const rawDevices = await this.listRawDevices(0);
       const normalFirmwarePresent = rawDevices.some(isDualSenseDevice);
       this.markBridgeUnavailableAfterDisconnect(rawDevices, normalFirmwarePresent);
       this.emitSnapshot();
       return;
     }
 
+    const rawDevices = await this.listRawDevices(CONNECTED_DEVICE_LIST_MAX_AGE_MS);
     if (!isSupportedFirmwareVersion(status.firmwareVersion)) {
       this.noteControllerUnavailableForToasts();
       this.snapshot = {
@@ -3902,6 +3909,17 @@ export class BridgeService extends EventEmitter {
       this.nextReapplyAt = 0;
     }
     await this.pollShortcutEvent();
+  }
+
+  /** Enumerates HID devices unless the last list is younger than maxAgeMs. */
+  private async listRawDevices(maxAgeMs: number): Promise<HidDeviceSummary[]> {
+    const now = Date.now();
+    if (maxAgeMs > 0 && now - this.cachedRawDevicesAt < maxAgeMs) {
+      return this.cachedRawDevices;
+    }
+    this.cachedRawDevices = await this.hidDiscovery.listDevices();
+    this.cachedRawDevicesAt = now;
+    return this.cachedRawDevices;
   }
 
   private commandProtocolMinorFor(options: CommandOptions): number | undefined {

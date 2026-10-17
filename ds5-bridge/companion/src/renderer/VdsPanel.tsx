@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { usePageVisible } from './usePageVisible';
 import {
   IconBluetooth,
   IconDeviceGamepad2,
@@ -48,14 +49,15 @@ export function VdsPanel({ active }: { active: boolean }) {
     }
   }, []);
 
+  const pageVisible = usePageVisible();
   useEffect(() => {
-    if (!active) {
+    if (!active || !pageVisible) {
       return undefined;
     }
     void refresh();
     const timer = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [active, refresh]);
+  }, [active, pageVisible, refresh]);
 
   const run = async (key: string, action: () => Promise<VdsStatus>) => {
     setPending(key);
