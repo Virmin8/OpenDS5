@@ -66,6 +66,7 @@ import {
   IconUpload,
   IconUsb,
   IconVolume,
+  IconWaveSine,
   IconVolume as Volume2,
   IconVolumeOff as VolumeX,
   IconX as X
@@ -4710,6 +4711,27 @@ export function App() {
     return lines.length > 0 ? lines.join('\n') : 'No non-zero feedback trace events captured yet.';
   }, [diagnosticsVisible, snapshot?.diagnostics.feedbackTraceLines]);
 
+  const [largerAudioBlocks, setLargerAudioBlocksState] = useState<boolean | null>(null);
+  const [largerAudioBlocksPending, setLargerAudioBlocksPending] = useState(false);
+  const [largerAudioBlocksError, setLargerAudioBlocksError] = useState('');
+  useEffect(() => {
+    if (!VDS_LINUX) return;
+    void window.vds.getLargerAudioBlocks().then(setLargerAudioBlocksState).catch(() => undefined);
+  }, []);
+  async function toggleLargerAudioBlocks() {
+    if (largerAudioBlocks === null || largerAudioBlocksPending) return;
+    setLargerAudioBlocksPending(true);
+    setLargerAudioBlocksError('');
+    try {
+      setLargerAudioBlocksState(await window.vds.setLargerAudioBlocks(!largerAudioBlocks));
+    } catch (error) {
+      setLargerAudioBlocksError(`Couldn't restart PipeWire: ${error instanceof Error ? error.message : String(error)}`);
+      setLargerAudioBlocksState(await window.vds.getLargerAudioBlocks().catch(() => largerAudioBlocks));
+    } finally {
+      setLargerAudioBlocksPending(false);
+    }
+  }
+
   async function runAction(label: string, action: () => Promise<BridgeSnapshot>) {
     if (!snapshot || pendingAction) {
       return;
@@ -7073,6 +7095,44 @@ export function App() {
     );
   }
 
+  // Larger audio blocks (Linux), shown on the Audio page's Speaker view.
+  function renderAudioBlocksCard() {
+    return (
+      <section className="system-card audio-blocks-card">
+        <div className="feature-card-title system-card-heading">
+          <span className="feature-icon system-icon icon-wide"><IconWaveSine size={20} /></span>
+          <div className="title-copy">
+            <h3>Audio Blocks</h3>
+            <p>Turn on if controller audio crackles.</p>
+          </div>
+        </div>
+        <div className="system-fields">
+          <div className="select-row">
+            <span>Larger Audio Blocks</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={largerAudioBlocks === true}
+              aria-label="Larger audio blocks"
+              title="PipeWire's usual 5.3 ms blocks instead of 2.7 ms. Haptics get slightly less tight. Changing it restarts PipeWire, so all sound stops for a moment."
+              className={`switch ${largerAudioBlocks ? 'on' : ''}`}
+              disabled={largerAudioBlocksPending}
+              onClick={() => void toggleLargerAudioBlocks()}
+            >
+              <span />
+            </button>
+          </div>
+        </div>
+        <p className="audio-blocks-note" role={largerAudioBlocksError ? 'alert' : undefined}>
+          {largerAudioBlocksError
+            || (largerAudioBlocksPending
+              ? 'Restarting PipeWire…'
+              : 'Changing this restarts PipeWire, so all sound stops for a moment.')}
+        </p>
+      </section>
+    );
+  }
+
   // Mute Button settings, shown on the Audio page's Mic view.
   function renderMuteButtonCard() {
     if (!snapshot) {
@@ -9241,6 +9301,11 @@ export function App() {
                 <div className={`feature-card-grid audio-mic-extra-grid ${VDS_AVAILABLE ? '' : 'single'}`}>
                   {VDS_AVAILABLE && renderMicProcessingCard()}
                   {renderMuteButtonCard()}
+                </div>
+              ) : VDS_LINUX && largerAudioBlocks !== null ? (
+                <div className="feature-card-grid audio-mic-extra-grid">
+                  {renderAudioBlocksCard()}
+                  <FeatureTipsPanel tab="audio" />
                 </div>
               ) : <FeatureTipsPanel tab="audio" />}
           </div>

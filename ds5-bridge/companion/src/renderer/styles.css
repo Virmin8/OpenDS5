@@ -4656,6 +4656,7 @@ button.feature-icon {
   opacity: 0.58;
 }
 
+
 .audio-buffer-header {
   min-width: 0;
   display: grid;
@@ -4958,6 +4959,24 @@ button.feature-icon {
 .audio-page .audio-mute-card {
   min-height: 0;
   overflow: auto;
+}
+
+.audio-blocks-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.audio-blocks-note {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.audio-blocks-note[role="alert"] {
+  color: var(--danger);
 }
 
 /* Mic view's bottom row: Mic Processing and Mute Button side by side. */

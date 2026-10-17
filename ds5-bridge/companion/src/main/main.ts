@@ -24,6 +24,7 @@ import { SettingsStore } from './settings-store';
 import { appImagePath } from './appimage-updater';
 import { isCheckDue, UpdateService, type UpdateState } from './update-service';
 import { watchForPackageUpgrade } from './package-upgrade-watcher';
+import { largerAudioBlocksEnabled, setLargerAudioBlocks } from './audio-blocks';
 import { RELEASES_PAGE_URL } from './update-ipc';
 import { defaultWindowSize, growBoundsToMinimum, loadWindowState, resolveWindowBounds, saveWindowState } from './window-state';
 import { deriveLegacyUserDataPath, migrateLegacyUserData } from './user-data-migration';
@@ -1542,6 +1543,8 @@ function registerIpc(
 
   ipcMain.handle('bridge:getStatus', () => service.getSnapshot());
   ipcMain.handle('vds:getStatus', () => getVdsStatus());
+  ipcMain.handle('vds:getLargerAudioBlocks', () => largerAudioBlocksEnabled());
+  ipcMain.handle('vds:setLargerAudioBlocks', (_event, enabled: boolean) => setLargerAudioBlocks(Boolean(enabled)));
   ipcMain.handle('vds:getVersion', () => getVdsVersion());
   ipcMain.handle('vds:getDaemonLog', (_event, lines?: number) => getVdsDaemonLog(Number(lines) || 200));
   ipcMain.handle('vds:getAudioStats', () => getVdsAudioStats());

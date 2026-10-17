@@ -435,6 +435,11 @@ const vdsApi = {
   quitApp: (): Promise<void> => ipcRenderer.invoke('vds:quitApp'),
   getDaemonLog: (lines?: number): Promise<VdsDaemonLog> => ipcRenderer.invoke('vds:getDaemonLog', lines),
   getAudioStats: (): Promise<VdsAudioStats> => ipcRenderer.invoke('vds:getAudioStats'),
+  /** Linux: PipeWire's usual 256-frame blocks for the controller (fixes crackling). */
+  getLargerAudioBlocks: (): Promise<boolean> => ipcRenderer.invoke('vds:getLargerAudioBlocks'),
+  setLargerAudioBlocks: (enabled: boolean): Promise<boolean> => (
+    ipcRenderer.invoke('vds:setLargerAudioBlocks', enabled)
+  ),
   setDaemonTrace: (scope: VdsTraceScope, enabled: boolean): Promise<VdsDaemonLog> => (
     ipcRenderer.invoke('vds:setDaemonTrace', scope, enabled)
   ),

@@ -239,8 +239,11 @@ On the **Mic** view:
 ### 🔊 If controller audio crackles
 
 OpenDS5 runs the controller's audio in small 2.7 ms blocks to keep haptics
-tight. If your PC can't keep up (crackling speaker, stuttering haptics), go back
-to PipeWire's usual blocks with
+tight. If your PC can't keep up (crackling speaker, stuttering haptics), turn on
+**Audio → Audio Blocks → Larger Audio Blocks**. It switches to PipeWire's usual
+blocks and restarts PipeWire for you (all sound stops for a moment).
+
+To do it by hand instead, create
 `~/.config/wireplumber/wireplumber.conf.d/99-opends5-latency.conf`:
 
 ```
