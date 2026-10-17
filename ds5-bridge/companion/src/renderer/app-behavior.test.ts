@@ -2,32 +2,29 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { slugifyTriggerProfileName, uniqueTriggerProfileId } from '../shared/trigger-profiles';
+import { filterSelectOptionsByLabel } from './app/common';
+import { GAME_TILE_ART_CLASS_COUNT, gameProfileTitle, gameTileArtClass, gameTileMonogram } from './app/games';
 import {
   parseProcessNamesInput,
   mergeDetectedProcessName,
   formatEngineStatusLine,
-  slugifyTriggerProfileName,
-  uniqueTriggerProfileId,
   mergeTriggerProfiles,
   isProvisionalTriggerProfileId,
   mirrorTriggerSlotBase,
   filterTriggerProfiles,
-  filterSelectOptionsByLabel,
   pickTriggerStripChips,
   triggerStripMaxChips,
-  GAME_TILE_ART_CLASS_COUNT,
-  gameProfileTitle,
-  gameTileArtClass,
-  gameTileMonogram,
   triggerProfileHasEffects,
   visibleProfileOptions,
   editingStateTriggers,
   sanitizeDraftStates,
   uniqueStateName
-} from './App';
+} from './app/triggers';
+import { readAppSource } from './app-source';
 import type { TriggerProfile } from '../shared/trigger-profiles';
 
-const appSource = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'App.tsx'), 'utf8');
+const appSource = readAppSource();
 const stylesSource = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'styles.css'), 'utf8');
 const sharedSource = readFileSync(
   path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'shared', 'trigger-profiles.ts'),
@@ -266,11 +263,17 @@ describe('renderer behavior guards', () => {
   });
 
   it('does not snap snapshot values back to coarse slider notches', () => {
-    const start = appSource.indexOf('function displayHapticsValue');
-    expect(start).toBeGreaterThanOrEqual(0);
-    const end = appSource.indexOf('function sliderTickClass', start);
-    expect(end).toBeGreaterThan(start);
-    const displaySource = appSource.slice(start, end);
+    const displayFunction = (name: string) => {
+      const start = appSource.indexOf(`function ${name}(`);
+      expect(start).toBeGreaterThanOrEqual(0);
+      return appSource.slice(start, appSource.indexOf('\n}', start) + 2);
+    };
+    const displaySource = [
+      'displayHapticsValue',
+      'displayClassicRumbleValue',
+      'displayLightbarBrightnessValue',
+      'displayTriggerEffectIntensityValue'
+    ].map(displayFunction).join('\n');
 
     expect(displaySource).not.toContain('snapHapticsValue');
     expect(displaySource).not.toContain('snapLightbarBrightness');

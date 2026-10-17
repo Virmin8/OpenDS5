@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readAppSource } from './app-source';
 
 const css = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
 const toast = readFileSync(new URL('./UpdateToast.tsx', import.meta.url), 'utf8');
-const app = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+const app = readAppSource();
 
 function rule(selector: string): string {
   const start = css.indexOf(`${selector} {`);

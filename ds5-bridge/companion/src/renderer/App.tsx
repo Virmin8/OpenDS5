@@ -1,42 +1,40 @@
-import { type CSSProperties, Fragment, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import {
-  type TablerIcon,
-  IconAdjustmentsSpark,
   IconActivity as Activity,
-  IconArrowLeft,
-  IconAdjustmentsHorizontal as Settings2,
-  IconAdjustmentsHorizontal as SlidersHorizontal,
-  IconAlertHexagon,
-  IconAlertTriangle,
   IconArrowRight as ArrowRight,
-  IconBatteryEco,
   IconBell as Bell,
-  IconBinary,
-  IconBolt as Zap,
-  IconBooks,
-  IconBulb,
-  IconCheck as Check,
   IconChevronDown as ChevronDown,
   IconChevronLeft as ChevronLeft,
+  IconHeadphones as Headphones,
+  IconAdjustmentsSpark,
+  IconAlertHexagon,
+  IconAlertTriangle,
+  IconArrowLeft,
+  IconBatteryEco,
+  IconBinary,
+  IconBluetooth,
+  IconBooks,
+  IconBrandDeezer,
+  IconBrandGithub,
+  IconBrandXbox,
+  IconBulb,
   IconCircleCheck,
-  IconCpu,
-  IconDeviceFloppy as Save,
+  IconDeviceAudioTape,
   IconDeviceGamepad2,
   IconDeviceGamepad3,
   IconDownload,
   IconFlame,
-  IconBrandDeezer,
-  IconDeviceAudioTape,
-  IconBrandXbox,
-  IconBrandGithub,
-  IconHeart as Heart,
+  IconFolderOpen,
   IconInfoCircle,
-  IconDeviceMobileVibration as Vibrate,
-  IconHeadphones as Headphones,
+  IconPhoto,
+  IconReplace,
+  IconStethoscope,
+  IconTargetArrow,
+  IconTestPipe,
+  IconTool,
+  IconUpload,
+  IconVolume,
+  IconWaveSine,
   IconKeyboard as Keyboard,
-  IconLayoutDashboard,
-  IconLayoutGrid,
   IconLink as LinkIcon,
   IconLinkOff as LinkOffIcon,
   IconMicrophone as Mic,
@@ -45,2928 +43,333 @@ import {
   IconMoon as Moon,
   IconPalette as Palette,
   IconPencil as Pencil,
-  IconFolderOpen,
-  IconPhoto,
   IconPlayerPlay as Play,
   IconPlus as Plus,
-  IconQuestionMark,
-  IconRadioactive,
   IconRefresh as RefreshCcw,
-  IconReplace,
+  IconDeviceFloppy as Save,
   IconSearch as SearchIcon,
+  IconAdjustmentsHorizontal as Settings2,
   IconSettings as SettingsIcon,
-  IconBluetooth,
-  IconSparkleHighlight,
+  IconAdjustmentsHorizontal as SlidersHorizontal,
   IconSparkles as Sparkles,
-  IconStethoscope,
-  IconTargetArrow,
-  IconTestPipe,
-  IconTool,
   IconTrash as Trash2,
-  IconUpload,
-  IconUsb,
-  IconVolume,
-  IconWaveSine,
+  IconDeviceMobileVibration as Vibrate,
   IconVolume as Volume2,
   IconVolumeOff as VolumeX,
-  IconX as X
+  IconX as X,
+  IconBolt as Zap
 } from '@tabler/icons-react';
-import { VdsPanel } from './VdsPanel';
-import type { VdsAudioStats, VdsDaemonLog, VdsStatus, VdsTraceScope } from '../shared/vds';
+import {
+  type CSSProperties,
+  Fragment,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import playStationLogoUrl from '../../../assets/brand/playstation-logo.svg';
 import controllerImage from '../../../assets/controllers/dualsense-edge-front.svg';
-import remappingEdgeLayoutImage from '../../../assets/controllers/dualsense-edge-remapping-layout.svg';
-import remappingLayoutImage from '../../../assets/controllers/dualsense-remapping-layout.svg';
-import circleGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Circle.svg';
-import createGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Create.svg';
-import crossGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Cross.svg';
-import dpadDownGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/D-Pad Down.svg';
-import dpadLeftGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/D-Pad Left.svg';
-import dpadRightGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/D-Pad Right.svg';
-import dpadUpGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/D-Pad Up.svg';
-import l1GlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/L1.svg';
 import l2GlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/L2.svg';
-import leftStickClickGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Left Stick Click.svg';
-import optionsGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Options.svg';
-import psHomeGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Home.svg';
-import r1GlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/R1.svg';
 import r2GlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/R2.svg';
-import rightStickClickGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Right Stick Click.svg';
-import squareGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Square.svg';
-import touchpadPressGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Touch Pad Press.svg';
-import triangleGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Triangle.svg';
-import testSpeakerToneUrl from './assets/test-speaker-tone-silence-tail.mp3';
+import type { GameArtworkSearchResult } from '../main/game-artwork';
+import type { GameSettingsStatus } from '../main/game-settings-coordinator';
+import type { GameProcessCandidate } from '../main/game-watcher';
+import type { LibraryCatalog, LibraryEntry } from '../main/profile-library';
+import type { UpdateState } from '../main/update-service';
+import type { InstalledGamesList } from '../preload';
+import { gameSettingsProfileId, isGameSettingsProfileId } from '../shared/game-settings';
 import {
-  DEFAULT_UI_THEME_PRESET,
-  UI_THEME_OPTIONS,
-  UI_THEME_PREVIEW_SWATCHES
-} from './ui-themes';
-import {
-  CHORD_CONTROLLER_SETTING_STEP_DEFAULT,
+  ackResultName,
+  type AudioReactiveHapticsAttack,
+  type AudioReactiveHapticsBassFocus,
+  type AudioReactiveHapticsConfig,
+  type AudioReactiveHapticsMode,
+  type AudioReactiveHapticsRelease,
+  type AudioReactiveHapticsResponse,
   CHORD_CONTROLLER_SETTING_STEP_MAX,
   CHORD_CONTROLLER_SETTING_STEP_MIN,
   CHORD_MUTE_STARTER_ID,
+  type ChordAssignableButtonId,
+  type ChordAssignment,
+  type ChordControllerSettingAction,
+  type ChordFunction,
+  type ChordStarterId,
   DEFAULT_BUTTON_REMAP_PROFILE_ID,
   DEFAULT_CONTROLLER_PROFILE_ID,
+  type HostPersonaMode,
+  isChordBindingAllowed,
   MAX_CHORD_ASSIGNMENTS,
   MAX_CHORD_FUNCTION_NAME_LENGTH,
   MAX_KEYBOARD_FUNCTION_KEYS,
-  REMAP_BUTTON_IDS,
-  ackResultName,
+  type MuteButtonMode,
+  type MuteKeyboardBehavior,
   normalizeChordControllerSettingStepPercent,
-  isChordBindingAllowed
+  type PollingRateMode,
+  type RemapButtonId,
+  type TriggerTestMode,
+  type TriggerTestTarget
 } from '../shared/protocol';
-import { gameSettingsProfileId, isGameSettingsProfileId } from '../shared/game-settings';
-import type {
-  AudioReactiveHapticsBassFocus,
-  AudioReactiveHapticsConfig,
-  AudioReactiveHapticsMode,
-  AudioReactiveHapticsSource,
-  AudioReactiveHapticsAttack,
-  AudioReactiveHapticsRelease,
-  AudioReactiveHapticsResponse,
-  ChordAssignment,
-  ChordAssignableButtonId,
-  ChordControllerSettingAction,
-  ChordFunction,
-  ChordFunctionType,
-  ChordMediaAction,
-  ChordStarterId,
-  ControllerProfileSettings,
-  HostPersonaMode,
-  MuteButtonMode,
-  MuteKeyboardBehavior,
-  PollingRateMode,
-  BridgeStatusPayload,
-  RemapButtonId,
-  TriggerTestMode,
-  TriggerTestTarget
-} from '../shared/protocol';
-import type { AudioHapticsSession, BridgeSnapshot, UiScalePercent, UiThemePreset } from '../shared/types';
-import type { UpdateState } from '../main/update-service';
-import { UpdateToast } from './UpdateToast';
 import {
   createDefaultProfile,
   DEFAULT_PROFILE_ID,
-  defaultEffectForMode,
-  KNOWN_BUTTONS,
+  type EngineStatus,
+  type InputConditionType,
   MAX_STATE_NAME_LENGTH,
   MAX_STATES_PER_PROFILE,
-  slugifyTriggerProfileName,
+  type StateSwitching,
+  type StateSwitchRule,
+  type StickWheelConfig,
+  type TriggerProfile,
+  type TriggerStateDef,
   uniqueTriggerProfileId
 } from '../shared/trigger-profiles';
-
-export { slugifyTriggerProfileName, uniqueTriggerProfileId };
+import type { AudioHapticsSession, BridgeSnapshot, UiThemePreset } from '../shared/types';
+import type { VdsAudioStats, VdsDaemonLog, VdsStatus, VdsTraceScope } from '../shared/vds';
+import {
+  AUDIO_BUFFER_LENGTH_MAX,
+  AUDIO_BUFFER_LENGTH_MIN,
+  AUDIO_REACTIVE_HAPTICS_ATTACK_OPTIONS,
+  AUDIO_REACTIVE_HAPTICS_BASS_FOCUS_OPTIONS,
+  AUDIO_REACTIVE_HAPTICS_FIELD_TOOLTIPS,
+  AUDIO_REACTIVE_HAPTICS_MODE_OPTIONS,
+  AUDIO_REACTIVE_HAPTICS_RELEASE_OPTIONS,
+  AUDIO_REACTIVE_HAPTICS_RESPONSE_OPTIONS,
+  audioBufferDelayLabel,
+  audioBufferPercent,
+  audioBufferZoneLabel,
+  audioBufferZoneTone,
+  audioBufferZoneTooltip,
+  audioHapticsSessionKey,
+  audioHapticsSourceDisplayName,
+  audioHapticsSourceFromSession,
+  audioHapticsSourceKey,
+  BRIDGE_AUDIO_ENDPOINT_UNAVAILABLE,
+  BRIDGE_MIC_ENDPOINT_UNAVAILABLE,
+  clampAudioBufferLength,
+  delay,
+  displayClassicRumbleValue,
+  displayHapticsValue,
+  feedbackSliderMaxFromSnapshot,
+  feedbackSliderTicks,
+  findBridgeAudioOutputId,
+  HAPTICS_PRESETS,
+  HAPTICS_STEP,
+  MIC_PROCESSING_OPTIONS,
+  MIC_SPEAKER_GAIN_OPTIONS,
+  MIC_VOLUME_PRESETS,
+  MIC_VOLUME_STEP,
+  playMicLiveListen,
+  snapHapticsValue,
+  snapMicVolume,
+  snapSpeakerVolume,
+  SPEAKER_BOOST_OPTIONS,
+  SPEAKER_GAIN_OPTIONS,
+  SPEAKER_LIMITING_WARN_DB,
+  SPEAKER_VOLUME_PRESETS,
+  SPEAKER_VOLUME_STEP,
+  stopMicLiveListen,
+  TEST_HAPTICS_LOCK_MS,
+  TEST_MIC_LISTEN_MS,
+  TEST_SPEAKER_ENDPOINT_REFRESH_MS,
+  TEST_SPEAKER_LOCK_MS,
+  TEST_SPEAKER_VOLUME_SETTLE_MS
+} from './app/audio';
+import {
+  CHORD_BUTTON_MENU_IDS,
+  CHORD_CONTROLLER_SETTING_ACTION_OPTIONS,
+  CHORD_FUNCTION_TYPE_OPTIONS,
+  CHORD_KEYBOARD_KEY_MAX_LABEL_LENGTH,
+  CHORD_KEYBOARD_KEY_OPTIONS,
+  CHORD_KEYBOARD_MODIFIER_OPTIONS,
+  CHORD_MEDIA_ACTION_OPTIONS,
+  CHORD_STARTER_OPTIONS,
+  CHORD_STARTERS,
+  CHORD_UNASSIGNED_BUTTON,
+  chordAssignmentKey,
+  chordAssignmentLabel,
+  chordBindingKey,
+  chordButtonLabel,
+  chordControllerSettingActionFromSelectValue,
+  chordControllerSettingAdjustmentText,
+  chordControllerSettingSelectValue,
+  chordFunctionFromDraft,
+  chordFunctionSummary,
+  chordFunctionToDraft,
+  chordFunctionTypeLabel,
+  chordNotchTargetForAction,
+  createChordAssignmentId,
+  EMPTY_CHORD_FUNCTION_DRAFT
+} from './app/chords';
+import {
+  batteryLabel,
+  batteryTone,
+  capControllerPowerSavingValue,
+  CONTROL_TABS,
+  CONTROLLER_INPUT_AVAILABLE,
+  CONTROLLER_POWER_SAVING_CAP_PERCENT,
+  controllerName,
+  controllerPowerSavingActiveFromSnapshot,
+  controllerProfileSettingsFromSnapshot,
+  effectiveMuteButtonMode,
+  healthLabel,
+  HOST_PERSONA_FULL_LABELS,
+  HOST_PERSONA_OPTIONS,
+  IDLE_DISCONNECT_TIMEOUT_OPTIONS,
+  isChargingPowerState,
+  MUTE_BUTTON_MODE_OPTIONS,
+  MUTE_KEY_OPTIONS,
+  MUTE_KEYBOARD_BEHAVIOR_OPTIONS,
+  MUTE_MODIFIER_OPTIONS,
+  OPENDS5_REPOSITORY_URL,
+  PERCENT_SLIDER_TICKS,
+  POLLING_RATE_OPTIONS,
+  saveStartupTutorialCompleted,
+  saveUiThemePreset,
+  SIGNAL_BAR_COUNTS,
+  SIGNAL_STRENGTH_AVAILABLE,
+  SLEEP_CONFIRM_MS,
+  sliderTickClass,
+  STARTUP_PROFILE_LAST_USED,
+  STARTUP_READY_HOLD_MS,
+  storedStartupTutorialStep,
+  storedUiThemePreset,
+  SYSTEM_UNINSTALL_AVAILABLE,
+  TOUCHPAD_MOUSE_AVAILABLE,
+  UI_SCALE_OPTIONS,
+  UPSTREAM_OPENDS5_VERSION,
+  VDS_AVAILABLE,
+  VDS_LINUX,
+  vdsPacketModeLabel
+} from './app/common';
+import {
+  AudioHapticsConfigLabel,
+  AudioHapticsSourceOption,
+  ChordButtonGlyphOption,
+  ChordStarterGlyphOption,
+  CustomSelect,
+  DpadShortcutGlyphs,
+  FeatureTipsPanel,
+  HostPersonaBrandIcon,
+  HostPersonaOption,
+  ProfileSaveStatus,
+  RemapGlyphOption,
+  RemapSourceGlyph,
+  StartupScreen,
+  StartupTutorial,
+  SystemProfileSummary,
+  ThemeOption,
+  TurnOffShortcutGlyphs,
+  UptimeValue
+} from './app/components';
+import {
+  GAME_LAUNCHERS_LABEL,
+  GAME_PROFILE_LINK_NONE,
+  GAME_SOURCE_LABELS,
+  gameProfileTitle,
+  gameTileArtClass,
+  gameTileMonogram
+} from './app/games';
+import {
+  clampByte,
+  displayLightbarBrightnessValue,
+  hexByte,
+  isLightbarPresetColor,
+  LIGHTBAR_BRIGHTNESS_STEP,
+  LIGHTBAR_COLOR_NAMES,
+  LIGHTBAR_CUSTOM_PALETTE,
+  LIGHTBAR_DEFAULT_CUSTOM_COLOR,
+  LIGHTBAR_PRESETS,
+  LIGHTBAR_SWATCHES,
+  lightbarColorFromSnapshot,
+  normalizeHexColor,
+  normalizeLightbarPresetColor,
+  snapLightbarBrightness
+} from './app/lighting';
+import {
+  DEFAULT_REMAP_DRAFT,
+  LAST_REMAP_CONTROLLER_TYPE_STORAGE_KEY,
+  REMAP_ALL_BUTTON_IDS,
+  REMAP_BUTTONS,
+  REMAP_EDGE_BUTTON_IDS,
+  REMAP_EDGE_CONTROL_POINTS,
+  REMAP_EDGE_LAYOUT_ASSET,
+  REMAP_EDGE_LINE_POINTS,
+  REMAP_LEFT_BUTTON_IDS,
+  REMAP_RIGHT_BUTTON_IDS,
+  REMAP_STANDARD_BUTTON_IDS,
+  REMAP_STANDARD_LAYOUT_ASSET,
+  REMAP_STANDARD_TARGET_BUTTON_IDS,
+  remapTargetOptionsFor,
+  storedRemapControllerType
+} from './app/remap';
+import {
+  defaultTriggerEffectSpec,
+  defaultTriggerModifier,
+  displayTriggerEffectIntensityValue,
+  editingStateTriggers,
+  emptyTriggerSlotPair,
+  formatEngineStatusLine,
+  isProvisionalTriggerProfileId,
+  makeProvisionalTriggerProfileId,
+  mergeDetectedProcessName,
+  mergeTriggerProfiles,
+  mirrorTriggerSlotBase,
+  parseProcessNamesInput,
+  pickTriggerStripChips,
+  sanitizeDraftStates,
+  snapTriggerEffectIntensity,
+  STATE_SWITCH_ACTION_OPTIONS,
+  STATE_SWITCH_BUTTON_GLYPHS,
+  STATE_SWITCH_BUTTON_LABELS,
+  STATE_SWITCH_BUTTON_OPTIONS,
+  STATE_SWITCH_MENU_OPTIONS,
+  TRIGGER_EFFECT_PRESETS,
+  TRIGGER_EFFECT_STEP,
+  TRIGGER_PREVIEW_MS,
+  TRIGGER_PROFILE_CONDITION_OPTIONS,
+  TRIGGER_PROFILE_SLOTS,
+  TRIGGER_TEST_MODE_OPTIONS,
+  TRIGGER_TEST_TARGET_OPTIONS,
+  triggerProfileHasEffects,
+  triggerStripMaxChips,
+  uniqueStateName,
+  visibleProfileOptions
+} from './app/triggers';
 import type {
-  EngineStatus,
-  InputConditionType,
-  StateSwitchAction,
-  StateSwitchRule,
-  StateSwitching,
-  StickWheelConfig,
-  TriggerEffectSpec,
-  TriggerModifier,
-  TriggerProfile,
-  TriggerSlotPair,
-  TriggerStateDef
-} from '../shared/trigger-profiles';
-import type { GameProcessCandidate } from '../main/game-watcher';
-import type { GameSettingsStatus } from '../main/game-settings-coordinator';
-import type { InstalledGamesList } from '../preload';
-import type { GameArtworkSearchResult } from '../main/game-artwork';
-import type { LibraryCatalog, LibraryEntry } from '../main/profile-library';
+  ChordAssignmentDraftRow,
+  ChordAssignmentDragSession,
+  ChordAssignmentDropHint,
+  ChordAssignmentScrollbarState,
+  ChordButtonSelectValue,
+  ChordFunctionDialogMode,
+  ChordFunctionDialogState,
+  ChordFunctionDraft,
+  ChordKeyboardModifier,
+  ControllerProfileDialogMode,
+  ControlTab,
+  DualSenseEdgeRemapButtonId,
+  EdgeRemapControlLayout,
+  KnownControllerType,
+  NotificationFocusTarget,
+  RemapCalloutLayout,
+  RemapProfileDialogMode,
+  SettingsFocusTarget,
+  StandardRemapButtonId,
+  StartupTutorialStep,
+  TriggerProfileDeleteConfirmState,
+  TriggerProfileSlotKey
+} from './app/types';
+import { matchGameInLibrary, nativeGameFeatureMap, nativeGameFeatures } from './game-library-match';
 import { profileVariantLabel } from './library-entry';
 import { filterLibrary } from './library-search';
-import { matchGameInLibrary, nativeGameFeatureMap, nativeGameFeatures } from './game-library-match';
+import { type StickSample, StickWheelEditor } from './StickWheelEditor';
 import { TriggerEffectEditor } from './TriggerEffectEditor';
-import { StickWheelEditor, type StickSample } from './StickWheelEditor';
+import { UI_THEME_OPTIONS } from './ui-themes';
+import { UpdateToast } from './UpdateToast';
 import { usePageVisible } from './usePageVisible';
+import { VdsPanel } from './VdsPanel';
 
-type ControlTab = 'game-profile' | 'overview' | 'haptics' | 'audio' | 'triggers' | 'trigger-profiles' | 'lighting' | 'remapping' | 'chords' | 'system' | 'vds';
-type StartupTutorialStep = 'feature-toggle' | 'done';
-type ControllerType = BridgeStatusPayload['controllerType'];
-type KnownControllerType = Exclude<ControllerType, 'unknown'>;
-type RemapButtonDefinition = {
-  id: RemapButtonId;
-  label: string;
-  glyphUrl?: string;
-  textGlyph?: string;
-};
-type ChordStarterDefinition = {
-  id: ChordStarterId;
-  label: string;
-  glyphUrl?: string;
-  textGlyph?: string;
-  Icon?: TablerIcon;
-};
-type TargetOnlyRemapButtonId = Extract<RemapButtonId, 'ps'>;
-type SourceRemapButtonId = Exclude<RemapButtonId, TargetOnlyRemapButtonId>;
-type DualSenseEdgeRemapButtonId = Extract<SourceRemapButtonId, 'lb' | 'rb' | 'lfn' | 'rfn'>;
-type StandardRemapButtonId = Exclude<SourceRemapButtonId, DualSenseEdgeRemapButtonId>;
-type RemapProfileDialogMode = 'save' | 'rename' | 'delete';
-type ControllerProfileDialogMode = 'save' | 'rename' | 'delete';
-type ChordFunctionDraft = {
-  id: string;
-  name: string;
-  type: ChordFunctionType;
-  keyboardKey: string;
-  keyboardModifiers: ChordKeyboardModifier[];
-  mediaAction: ChordMediaAction;
-  controllerAction: ChordControllerSettingAction;
-  controllerStepPercent: number;
-};
-type ChordKeyboardModifier = 'Ctrl' | 'Shift' | 'Alt' | 'Win';
-type ChordNotchTargetId = 'speaker' | 'mic' | 'haptics' | 'rumble' | 'triggers' | 'lighting';
-type ChordNotchDirection = 'down' | 'up';
-type ChordNotchAction = Extract<ChordControllerSettingAction, `${ChordNotchTargetId}-${ChordNotchDirection}`>;
-type ChordControllerSettingSelectValue = Exclude<ChordControllerSettingAction, ChordNotchAction> | ChordNotchTargetId;
-type ChordFunctionDialogMode = 'rename' | 'delete';
-type ChordFunctionDialogState = {
-  mode: ChordFunctionDialogMode;
-  functionId: string;
-};
-const CHORD_UNASSIGNED_BUTTON = '__unassigned__';
-type ChordButtonSelectValue = ChordAssignableButtonId | typeof CHORD_UNASSIGNED_BUTTON;
-type ChordAssignmentDraftRow = {
-  id: string;
-  starter: ChordStarterId;
-  button: ChordAssignableButtonId | null;
-  functionId: string;
-};
-type ChordAssignmentDropHint = {
-  targetId: string;
-  placement: 'before' | 'after';
-};
-type ChordAssignmentDragSession = {
-  active: boolean;
-  id: string;
-  offsetX: number;
-  offsetY: number;
-  overlay: HTMLElement | null;
-  startX: number;
-  startY: number;
-  cleanup: () => void;
-  dropHint: ChordAssignmentDropHint | null;
-};
-type ChordAssignmentScrollbarState = {
-  visible: boolean;
-  top: number;
-  height: number;
-};
-type TriggerProfileSlotKey = 'l2' | 'r2';
-type TriggerProfileDeleteConfirmState = {
-  id: string;
-  name: string;
-};
-type RemapCalloutLayout = {
-  top: number;
-  points: string;
-};
-type EdgeRemapControlLayout = {
-  left: number;
-  top: number;
-  anchor: 'top' | 'bottom';
-  linePoints: string;
-};
-type LightbarPaletteCell = {
-  color: string;
-  name: string;
-};
-type FeatureTipsPanelProps = {
-  tab: 'audio' | 'haptics' | 'triggers' | 'lighting';
-  onSettingsFocusRequest?: (target: SettingsFocusTarget) => void;
-  audioHapticsOpen?: boolean;
-};
-type SettingsFocusTarget = 'controller-power-saving' | 'sleep-shortcut' | 'volume-shortcut' | 'profile-shortcut';
-type NotificationFocusTarget = 'controller-status' | 'low-battery' | 'charge-complete' | 'all';
-
-const HAPTICS_STEP = 20;
-const STANDARD_FEEDBACK_GAIN_PERCENT = 200;
-const BOOSTED_FEEDBACK_GAIN_PERCENT = 500;
-const SPEAKER_VOLUME_STEP = 10;
-const MIC_VOLUME_STEP = 10;
-const AUDIO_BUFFER_LENGTH_MIN = 16;
-const AUDIO_BUFFER_LENGTH_MAX = 128;
-const AUDIO_BUFFER_LENGTH_HIGH_STUTTER_MAX = 44;
-const AUDIO_BUFFER_LENGTH_RISKY_MAX = 63;
-const LIGHTBAR_BRIGHTNESS_STEP = 10;
-const TRIGGER_EFFECT_STEP = 10;
-const CONTROLLER_POWER_SAVING_CAP_PERCENT = 60;
-const TEST_HAPTICS_LOCK_MS = 1100;
-const TEST_SPEAKER_LOCK_MS = 900;
-const TEST_MIC_LISTEN_MS = 5000;
-const TEST_SPEAKER_VOLUME_SETTLE_MS = 90;
-const TEST_SPEAKER_ENDPOINT_ATTEMPTS = 12;
-const TEST_SPEAKER_ENDPOINT_RETRY_MS = 150;
-const TEST_SPEAKER_ENDPOINT_REFRESH_MS = 1500;
-const TEST_SPEAKER_ENDPOINT_VERIFY_MS = 100;
-const TEST_SPEAKER_PREROLL_MS = 220;
-const TEST_TRIGGER_LOCK_MS = 2800;
-const SLEEP_CONFIRM_MS = 2400;
-const LIGHTBAR_SWATCHES = ['#ffff00', '#0000ff', '#00ff00', '#ff0000', '#8000ff', '#ffffff'];
-const LIGHTBAR_SWATCH_NAMES: Record<string, string> = {
-  '#ffff00': 'Yellow',
-  '#0000ff': 'Blue',
-  '#00ff00': 'Green',
-  '#ff0000': 'Red',
-  '#8000ff': 'Violet',
-  '#ffffff': 'White'
-};
-const LIGHTBAR_DEFAULT_CUSTOM_COLOR = '#7b61ff';
-const LIGHTBAR_CUSTOM_PALETTE = makeLightbarCustomPalette();
-const LIGHTBAR_COLOR_NAMES = makeLightbarColorNames();
-const LIGHTBAR_PRESETS: Array<[string, number]> = [
-  ['Low', 30],
-  ['Medium', 50],
-  ['High', 100]
-];
-const HAPTICS_PRESETS: Array<[string, number]> = [
-  ['Low', 50],
-  ['Medium', 100],
-  ['High', 150]
-];
-const SPEAKER_VOLUME_PRESETS: Array<[string, number]> = [
-  ['Low', 30],
-  ['Medium', 70],
-  ['High', 100]
-];
-const MIC_VOLUME_PRESETS: Array<[string, number]> = [
-  ['Low', 30],
-  ['Medium', 70],
-  ['High', 100]
-];
-const TRIGGER_EFFECT_PRESETS: Array<[string, number]> = [
-  ['Low', 30],
-  ['Medium', 70],
-  ['High', 100]
-];
-const PERCENT_SLIDER_TICKS = Array.from({ length: 11 }, (_, index) => index * 10);
-const STANDARD_HAPTICS_SLIDER_TICKS = Array.from({ length: 11 }, (_, index) => index * 20);
-const BRIDGE_AUDIO_OUTPUT_RE = /ds5|dualsense|dual sense|wireless controller|bridge/i;
-const BRIDGE_AUDIO_INPUT_RE = /ds5|dualsense|dual sense|wireless controller|bridge/i;
-const BRIDGE_AUDIO_ENDPOINT_UNAVAILABLE = 'DualSense audio endpoint unavailable';
-const BRIDGE_MIC_ENDPOINT_UNAVAILABLE = 'DualSense microphone unavailable';
-const MUTE_KEY_OPTIONS: Array<[string, number]> = [
-  ['F1', 0x3A], ['F2', 0x3B], ['F3', 0x3C], ['F4', 0x3D], ['F5', 0x3E], ['F6', 0x3F],
-  ['F7', 0x40], ['F8', 0x41], ['F9', 0x42], ['F10', 0x43], ['F11', 0x44], ['F12', 0x45],
-  ['F13', 0x68], ['F14', 0x69], ['F15', 0x6A], ['F16', 0x6B], ['F17', 0x6C], ['F18', 0x6D],
-  ['F19', 0x6E], ['F20', 0x6F], ['F21', 0x70], ['F22', 0x71], ['F23', 0x72], ['F24', 0x73],
-  ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter, index) => [letter, 0x04 + index] as [string, number]),
-  ['1', 0x1E], ['2', 0x1F], ['3', 0x20], ['4', 0x21], ['5', 0x22],
-  ['6', 0x23], ['7', 0x24], ['8', 0x25], ['9', 0x26], ['0', 0x27],
-  ['Enter', 0x28], ['Escape', 0x29], ['Backspace', 0x2A], ['Tab', 0x2B], ['Space', 0x2C],
-  ['-', 0x2D], ['=', 0x2E], ['[', 0x2F], [']', 0x30], ['\\', 0x31],
-  [';', 0x33], ["'", 0x34], ['`', 0x35], [',', 0x36], ['.', 0x37], ['/', 0x38],
-  ['Insert', 0x49], ['Home', 0x4A], ['Page Up', 0x4B], ['Delete', 0x4C], ['End', 0x4D], ['Page Down', 0x4E],
-  ['Right Arrow', 0x4F], ['Left Arrow', 0x50], ['Down Arrow', 0x51], ['Up Arrow', 0x52]
-];
-const MUTE_MODIFIER_OPTIONS: Array<[string, number]> = [
-  ['Ctrl', 0x01],
-  ['Shift', 0x02],
-  ['Alt', 0x04],
-  ['Win', 0x08]
-];
-// The daemon's short-test/preview commands (0x0D / 0x1F) only understand the
-// three classic V1 arms; the richer modes preview through profile drafts.
-const TRIGGER_LAB_TESTABLE_MODES: TriggerTestMode[] = ['feedback', 'weapon', 'vibration'];
-const TRIGGER_TEST_MODE_OPTIONS: Array<[string, TriggerTestMode]> = [
-  ['Resistance', 'feedback'],
-  ['Weapon', 'weapon'],
-  ['Vibration', 'vibration']
-];
-const TRIGGER_TEST_TARGET_OPTIONS: Array<[string, TriggerTestTarget]> = [
-  ['L2', 'l2'],
-  ['Both', 'both'],
-  ['R2', 'r2']
-];
-// vdsd plays a preview for 2.5 s; keep the button busy a little longer.
-const TRIGGER_PREVIEW_MS = 2600;
-const TRIGGER_PROFILE_SLOTS: Array<[TriggerProfileSlotKey, string]> = [
-  ['l2', 'L2'],
-  ['r2', 'R2']
-];
-const TRIGGER_PROFILE_CONDITION_OPTIONS: Array<[string, InputConditionType]> = [
-  ['Trigger Held Over', 'trigger-held-over'],
-  ['Trigger Full Pull', 'trigger-full-pull'],
-  ['Button Held', 'button-held'],
-  ['Rapid Fire', 'rapid-fire']
-];
-const STATE_SWITCH_BUTTON_LABELS: Record<string, string> = {
-  cross: 'Cross', circle: 'Circle', triangle: 'Triangle', square: 'Square',
-  l1: 'L1', r1: 'R1', l3: 'L3', r3: 'R3',
-  create: 'Create', options: 'Options', ps: 'PS',
-  'dpad-up': 'D-Pad Up', 'dpad-down': 'D-Pad Down',
-  'dpad-left': 'D-Pad Left', 'dpad-right': 'D-Pad Right'
-};
-const STATE_SWITCH_BUTTON_OPTIONS: Array<[string, string]> = KNOWN_BUTTONS.map(
-  (button) => [STATE_SWITCH_BUTTON_LABELS[button] ?? button, button]
-);
-const STATE_SWITCH_MENU_OPTIONS: Array<[string, string]> = [
-  ['No menu guard', ''],
-  ...STATE_SWITCH_BUTTON_OPTIONS
-];
-const STATE_SWITCH_ACTION_OPTIONS: Array<[string, StateSwitchAction]> = [
-  ['cycle to next state', 'cycle'],
-  ['switch to…', 'select']
-];
-// Compact glyphs for the rule capture chips, matching the DualSense faces.
-const STATE_SWITCH_BUTTON_GLYPHS: Record<string, string> = {
-  cross: '✕', circle: '○', triangle: '△', square: '□',
-  l1: 'L1', r1: 'R1', l3: 'L3', r3: 'R3',
-  create: 'CR', options: 'OP', ps: 'PS',
-  'dpad-up': '↑', 'dpad-down': '↓', 'dpad-left': '←', 'dpad-right': '→'
-};
-const ALL_MUTE_BUTTON_MODE_OPTIONS: Array<[string, MuteButtonMode]> = [
-  ['Normal', 'normal'],
-  ['Keyboard Key', 'keyboard'],
-  ['Quiet Toggle', 'quiet'],
-  ['Chord', 'chord']
-];
-const MUTE_KEYBOARD_BEHAVIOR_OPTIONS: Array<[string, MuteKeyboardBehavior]> = [
-  ['Tap Once', 'tap'],
-  ['Hold While Pressed', 'hold']
-];
-// vds (the virtual DualSense bridge) runs on Linux, and on Windows once vdsd
-// is installed; otherwise Windows uses the DS5 Bridge Pico dongle. Settings
-// the Bluetooth path cannot honour (polling rate, keyboard/quiet Mute modes)
-// are hidden with vds; the Pico firmware keeps them.
-const GAME_SOURCE_LABELS: Record<InstalledGamesList['games'][number]['source'], string> = {
-  steam: 'Steam',
-  heroic: 'Heroic',
-  lutris: 'Lutris',
-  epic: 'Epic'
-};
-// Lutris is Linux-only; the Epic Games Launcher is scanned on Windows.
-const GAME_LAUNCHERS_LABEL = typeof window !== 'undefined' && window.vds?.platform === 'win32'
-  ? 'Steam, Epic and Heroic'
-  : 'Steam, Heroic and Lutris';
-const OPENDS5_REPOSITORY_URL = 'https://github.com/Virmin8/OpenDS5';
-// The LordVicky/OpenDS5 release this fork is based on.
-const UPSTREAM_OPENDS5_VERSION = '1.8.1';
-const VDS_AVAILABLE = typeof window !== 'undefined' && window.vds?.vdsd === true;
-const VDS_LINUX = VDS_AVAILABLE && window.vds.platform === 'linux';
-// The touchpad moves the cursor through Linux's DualSense driver (vdsd can
-// grab it) or the Pico firmware; vdsd on Windows has no pointer to toggle.
-const TOUCHPAD_MOUSE_AVAILABLE = !VDS_AVAILABLE || VDS_LINUX;
-// Trigger modifiers and state switch rules react to controller input, which
-// the app reads from the Linux input device; Windows has no reader yet.
-// Windows exposes no RSSI for a classic Bluetooth link (Linux reads it via HCI).
-const SIGNAL_STRENGTH_AVAILABLE = !VDS_AVAILABLE || VDS_LINUX;
-// Bars lit in the Device card's signal icon for each signal quality.
-const SIGNAL_BAR_COUNTS: Record<string, number> = { Excellent: 4, Good: 3, 'Audio Risk': 2, Poor: 1 };
-const CONTROLLER_INPUT_AVAILABLE =typeof window === 'undefined' || window.vds?.platform !== 'win32';
-// A distribution package removes the driver and vdsd itself, so the in-app
-// uninstaller is hidden. On Windows it removes the vdsd service; the app
-// itself goes from the Apps list.
-const SYSTEM_UNINSTALL_AVAILABLE = VDS_AVAILABLE && !window.vds.systemPackage;
-// vdsd handles Mute as mic mute (Normal) or a chord starter (Chord); it has no
-// keyboard emulation or quiet mode.
-const MUTE_BUTTON_MODE_OPTIONS = ALL_MUTE_BUTTON_MODE_OPTIONS.filter(
-  ([, mode]) => !VDS_AVAILABLE || mode === 'normal' || mode === 'chord'
-);
-const POLLING_RATE_OPTIONS: Array<[string, PollingRateMode]> = [
-  ['1000 Hz / Real-time', '1000'],
-  ['500 Hz', '500'],
-  ['250 Hz', '250']
-];
-const GAME_PROFILE_LINK_NONE = '__none__';
-const STARTUP_PROFILE_LAST_USED = '__last__';
-const HOST_PERSONA_OPTIONS: Array<[string, HostPersonaMode]> = [
-  ['DualSense', 'dualsense'],
-  ['DualShock 4', 'ds4'],
-  ['Xbox', 'xbox']
-];
-const SPEAKER_GAIN_OPTIONS: Array<[string, number]> = [
-  ['1', 1],
-  ['2', 2],
-  ['3', 3],
-  ['4', 4],
-  ['5', 5],
-  ['6', 6],
-  ['7', 7]
-];
-const AUDIO_REACTIVE_HAPTICS_MODE_OPTIONS: Array<[string, AudioReactiveHapticsMode]> = [
-  ['Mix', 'mix'],
-  ['Replace', 'replace']
-];
-const AUDIO_REACTIVE_HAPTICS_BASS_FOCUS_OPTIONS: Array<[string, AudioReactiveHapticsBassFocus]> = [
-  ['80 Hz', 'deep'],
-  ['160 Hz', 'balanced'],
-  ['240 Hz', 'punchy'],
-  ['400 Hz', 'wide']
-];
-const AUDIO_REACTIVE_HAPTICS_RESPONSE_OPTIONS: Array<[string, AudioReactiveHapticsResponse]> = [
-  ['Subtle', 'subtle'],
-  ['Dynamic', 'balanced'],
-  ['Aggressive', 'strong']
-];
-const AUDIO_REACTIVE_HAPTICS_ATTACK_OPTIONS: Array<[string, AudioReactiveHapticsAttack]> = [
-  ['Slow Ramp', 'soft'],
-  ['Medium Ramp', 'balanced'],
-  ['Fast Ramp', 'fast'],
-  ['Instant Ramp', 'sharp']
-];
-const AUDIO_REACTIVE_HAPTICS_RELEASE_OPTIONS: Array<[string, AudioReactiveHapticsRelease]> = [
-  ['Fast Fade', 'tight'],
-  ['Medium Fade', 'balanced'],
-  ['Slow Fade', 'smooth'],
-  ['Long Fade', 'long']
-];
-const AUDIO_REACTIVE_HAPTICS_FIELD_TOOLTIPS = {
-  bassFocus: 'Applies a low-pass filter that chooses which part of the low-end audio becomes vibration.',
-  response: 'Controls how strongly haptics react to audio, especially louder peaks.',
-  attack: 'Controls how quickly the haptics ramp when a sound rises or spikes.',
-  release: 'Controls how quickly the haptics fade when a sound drops.'
-} as const;
-const IDLE_DISCONNECT_TIMEOUT_OPTIONS: Array<[string, number]> = [
-  ['1 min', 1],
-  ['5 min', 5],
-  ['15 min', 15],
-  ['30 min', 30],
-  ['1 hour', 60],
-  ['2 hours', 120]
-];
-const UI_SCALE_OPTIONS: Array<[string, UiScalePercent]> = [
-  ['75%', 75],
-  ['100%', 100],
-  ['125%', 125],
-  ['150%', 150]
-];
-const REMAP_BUTTONS: Record<RemapButtonId, RemapButtonDefinition> = {
-  l2: { id: 'l2', label: 'L2', glyphUrl: l2GlyphUrl },
-  l1: { id: 'l1', label: 'L1', glyphUrl: l1GlyphUrl },
-  create: { id: 'create', label: 'Create', glyphUrl: createGlyphUrl },
-  'dpad-up': { id: 'dpad-up', label: 'D-pad Up', glyphUrl: dpadUpGlyphUrl },
-  'dpad-left': { id: 'dpad-left', label: 'D-pad Left', glyphUrl: dpadLeftGlyphUrl },
-  'dpad-down': { id: 'dpad-down', label: 'D-pad Down', glyphUrl: dpadDownGlyphUrl },
-  'dpad-right': { id: 'dpad-right', label: 'D-pad Right', glyphUrl: dpadRightGlyphUrl },
-  l3: { id: 'l3', label: 'L3', glyphUrl: leftStickClickGlyphUrl },
-  r2: { id: 'r2', label: 'R2', glyphUrl: r2GlyphUrl },
-  r1: { id: 'r1', label: 'R1', glyphUrl: r1GlyphUrl },
-  options: { id: 'options', label: 'Options', glyphUrl: optionsGlyphUrl },
-  triangle: { id: 'triangle', label: 'Triangle', glyphUrl: triangleGlyphUrl },
-  circle: { id: 'circle', label: 'Circle', glyphUrl: circleGlyphUrl },
-  cross: { id: 'cross', label: 'Cross', glyphUrl: crossGlyphUrl },
-  square: { id: 'square', label: 'Square', glyphUrl: squareGlyphUrl },
-  r3: { id: 'r3', label: 'R3', glyphUrl: rightStickClickGlyphUrl },
-  lb: { id: 'lb', label: 'Left Back Button', textGlyph: 'LB' },
-  rb: { id: 'rb', label: 'Right Back Button', textGlyph: 'RB' },
-  lfn: { id: 'lfn', label: 'Left Function Button', textGlyph: 'LFN' },
-  rfn: { id: 'rfn', label: 'Right Function Button', textGlyph: 'RFN' },
-  ps: { id: 'ps', label: 'PS Button', glyphUrl: psHomeGlyphUrl }
-};
-const REMAP_LEFT_BUTTON_IDS: StandardRemapButtonId[] = ['l2', 'l1', 'create', 'dpad-up', 'dpad-right', 'dpad-down', 'dpad-left', 'l3'];
-const REMAP_RIGHT_BUTTON_IDS: StandardRemapButtonId[] = ['r2', 'r1', 'options', 'triangle', 'circle', 'cross', 'r3', 'square'];
-const REMAP_STANDARD_BUTTON_IDS: StandardRemapButtonId[] = [
-  ...REMAP_LEFT_BUTTON_IDS,
-  ...REMAP_RIGHT_BUTTON_IDS
-];
-const REMAP_EDGE_TOP_BUTTON_IDS: DualSenseEdgeRemapButtonId[] = ['lb', 'rb'];
-const REMAP_EDGE_BOTTOM_BUTTON_IDS: DualSenseEdgeRemapButtonId[] = ['lfn', 'rfn'];
-const REMAP_EDGE_BUTTON_IDS: DualSenseEdgeRemapButtonId[] = [
-  ...REMAP_EDGE_TOP_BUTTON_IDS,
-  ...REMAP_EDGE_BOTTOM_BUTTON_IDS
-];
-const REMAP_STANDARD_TARGET_BUTTON_IDS: StandardRemapButtonId[] = [
-  'triangle',
-  'circle',
-  'cross',
-  'square',
-  'dpad-up',
-  'dpad-right',
-  'dpad-down',
-  'dpad-left',
-  'l1',
-  'r1',
-  'l2',
-  'r2',
-  'l3',
-  'r3',
-  'create',
-  'options'
-];
-const REMAP_TARGET_BUTTON_IDS: RemapButtonId[] = [
-  ...REMAP_STANDARD_TARGET_BUTTON_IDS,
-  'ps'
-];
-const CHORD_BUTTON_MENU_IDS: ChordAssignableButtonId[] = [
-  ...REMAP_STANDARD_TARGET_BUTTON_IDS,
-  'lb',
-  'rb'
-];
-const REMAP_ALL_BUTTON_IDS = [...REMAP_BUTTON_IDS] as RemapButtonId[];
-const REMAP_TARGET_OPTIONS: Array<[string, RemapButtonId]> = [
-  ...REMAP_TARGET_BUTTON_IDS
-].map((id) => [REMAP_BUTTONS[id].label, id]);
-const CHORD_STARTERS: Record<ChordStarterId, ChordStarterDefinition> = {
-  ps: { id: 'ps', label: 'PS Button', glyphUrl: psHomeGlyphUrl },
-  lfn: { id: 'lfn', label: 'LFN', textGlyph: 'LFN' },
-  rfn: { id: 'rfn', label: 'RFN', textGlyph: 'RFN' },
-  mute: { id: CHORD_MUTE_STARTER_ID, label: 'Mute Button', Icon: MicOff }
-};
-const CHORD_STARTER_OPTIONS: Array<[string, ChordStarterId]> = [
-  [CHORD_STARTERS.ps.label, 'ps'],
-  [CHORD_STARTERS.lfn.label, 'lfn'],
-  [CHORD_STARTERS.rfn.label, 'rfn'],
-  [CHORD_STARTERS.mute.label, CHORD_MUTE_STARTER_ID]
-];
-const CHORD_FUNCTION_TYPE_OPTIONS: Array<[string, ChordFunctionType]> = [
-  ['Keyboard Shortcut', 'keyboard'],
-  ['Media Action', 'media'],
-  ['Controller Setting', 'controller-setting']
-];
-const CHORD_MEDIA_ACTION_OPTIONS: Array<[string, ChordMediaAction]> = [
-  ['Play / Pause', 'play-pause'],
-  ['Next Track', 'next-track'],
-  ['Previous Track', 'previous-track'],
-  ['Mute Output', 'mute'],
-  ['Volume Up', 'volume-up'],
-  ['Volume Down', 'volume-down']
-];
-type ChordNotchTarget = {
-  id: ChordNotchTargetId;
-  label: string;
-  downAction: ChordNotchAction;
-  upAction: ChordNotchAction;
-};
-const ALL_CHORD_NOTCH_TARGETS: ChordNotchTarget[] = [
-  { id: 'speaker', label: 'Speaker', downAction: 'speaker-down', upAction: 'speaker-up' },
-  { id: 'mic', label: 'Mic', downAction: 'mic-down', upAction: 'mic-up' },
-  { id: 'haptics', label: 'Haptics', downAction: 'haptics-down', upAction: 'haptics-up' },
-  { id: 'rumble', label: 'Rumble', downAction: 'rumble-down', upAction: 'rumble-up' },
-  { id: 'triggers', label: 'Triggers', downAction: 'triggers-down', upAction: 'triggers-up' },
-  { id: 'lighting', label: 'Lighting', downAction: 'lighting-down', upAction: 'lighting-up' }
-];
-const CHORD_NOTCH_TARGETS = ALL_CHORD_NOTCH_TARGETS;
-const CHORD_CONTROLLER_SETTING_ACTION_OPTIONS: Array<[string, ChordControllerSettingSelectValue]> = [
-  ['Audio Haptics', 'toggle-audio-haptics'],
-  ['Lightbar Override', 'toggle-lightbar-override'],
-  ['Mic Mute', 'toggle-mic-mute'],
-  ['Turn Off Controller', 'sleep-controller'],
-  ['DualSense', 'persona-dualsense'],
-  ['DualShock 4', 'persona-ds4'],
-  ['Xbox', 'persona-xbox'],
-  ...CHORD_NOTCH_TARGETS.map((target): [string, ChordNotchTargetId] => [target.label, target.id])
-];
-const CHORD_KEYBOARD_KEY_OPTIONS: Array<[string, string]> = [
-  ['Esc', 'Esc'],
-  ['Enter', 'Enter'],
-  ['Space', 'Space'],
-  ['Tab', 'Tab'],
-  ['Backspace', 'Backspace'],
-  ['Delete', 'Delete'],
-  ['Insert', 'Insert'],
-  ['Home', 'Home'],
-  ['End', 'End'],
-  ['Page Up', 'Page Up'],
-  ['Page Down', 'Page Down'],
-  ['Up Arrow', 'Up'],
-  ['Down Arrow', 'Down'],
-  ['Left Arrow', 'Left'],
-  ['Right Arrow', 'Right'],
-  ['Print Screen', 'Print Screen'],
-  ['Pause', 'Pause'],
-  ['Caps Lock', 'Caps Lock'],
-  ['Num Lock', 'Num Lock'],
-  ['Scroll Lock', 'Scroll Lock'],
-  ['Menu', 'Menu'],
-  ...Array.from({ length: 24 }, (_, index): [string, string] => [`F${index + 1}`, `F${index + 1}`]),
-  ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter): [string, string] => [letter, letter]),
-  ...'1234567890'.split('').map((digit): [string, string] => [digit, digit]),
-  ...'0123456789'.split('').map((digit): [string, string] => [`Numpad ${digit}`, `Numpad${digit}`])
-];
-const CHORD_KEYBOARD_KEY_MAX_LABEL_LENGTH = Math.max(
-  ...CHORD_KEYBOARD_KEY_OPTIONS.map(([label]) => label.length)
-);
-const CHORD_KEYBOARD_MODIFIER_OPTIONS: Array<[ChordKeyboardModifier, ChordKeyboardModifier]> = [
-  ['Ctrl', 'Ctrl'],
-  ['Shift', 'Shift'],
-  ['Alt', 'Alt'],
-  ['Win', 'Win']
-];
-const DEFAULT_CHORD_KEYBOARD_KEYS = ['Ctrl', 'Shift', 'Esc'];
-const EMPTY_CHORD_FUNCTION_DRAFT: ChordFunctionDraft = {
-  id: '',
-  name: 'Task Manager',
-  type: 'keyboard',
-  keyboardKey: 'Esc',
-  keyboardModifiers: ['Ctrl', 'Shift'],
-  mediaAction: 'play-pause',
-  controllerAction: 'sleep-controller',
-  controllerStepPercent: CHORD_CONTROLLER_SETTING_STEP_DEFAULT
-};
-const DEFAULT_REMAP_DRAFT = Object.fromEntries(
-  REMAP_ALL_BUTTON_IDS.map((id) => [id, id])
-) as Record<RemapButtonId, RemapButtonId>;
-const REMAP_CALLOUT_POINTS: Record<StandardRemapButtonId, Array<[number, number]>> = {
-  l2: [[2.4, 3.17], [118.22, 3.17], [171.1, 93.49]],
-  l1: [[2.4, 63.71], [121.9, 63.71], [153.13, 118.36]],
-  create: [[2.4, 124.24], [110.86, 124.24], [134, 163], [186.65, 162.89]],
-  'dpad-up': [[2.4, 184.78], [146.83, 184.78]],
-  'dpad-right': [[2.4, 245.32], [126.31, 245.32], [138.09, 221.25]],
-  'dpad-down': [[2.4, 305.86], [124.63, 305.86], [162.42, 241.39]],
-  'dpad-left': [[2.4, 366.39], [106.55, 366.39], [189.13, 221.85]],
-  l3: [[2.4, 426.93], [143.77, 426.93], [230.4, 275.47]],
-  r2: [[595.34, 3.17], [481.09, 3.17], [427.95, 93.94]],
-  r1: [[595.34, 63.71], [476.83, 63.71], [445.92, 117.79]],
-  options: [[595.34, 124.24], [487.5, 124.24], [464.28, 162.89], [411.62, 162.89]],
-  triangle: [[595.34, 184.78], [453.97, 184.78]],
-  circle: [[595.34, 245.32], [486.88, 245.32], [473.71, 222.09]],
-  cross: [[595.34, 305.86], [472.22, 305.86], [438.56, 248.84]],
-  square: [[595.34, 366.39], [485.42, 366.39], [405.35, 223.46]],
-  r3: [[595.34, 426.93], [453.97, 426.93], [369.45, 275.47]]
-};
-const REMAP_EDGE_CALLOUT_POINTS: Record<StandardRemapButtonId, Array<[number, number]>> = {
-  l2: [[0.5, 0.5], [119.4, 0.5], [162.08, 90.82]],
-  l1: [[0.5, 61.04], [118.08, 61.04], [154.08, 112.52]],
-  create: [[0.5, 121.57], [108.96, 121.57], [132.1, 160.28], [183.55, 160.28]],
-  'dpad-up': [[0.5, 182.11], [141.23, 182.11]],
-  'dpad-right': [[0.5, 363.72], [104.65, 363.72], [188.5, 216.96]],
-  'dpad-down': [[0.5, 303.19], [122.73, 303.19], [159.9, 239.79]],
-  'dpad-left': [[0.5, 242.65], [124.41, 242.65], [137.98, 216.32]],
-  l3: [[0.5, 424.26], [141.87, 424.26], [226.76, 271.06]],
-  r2: [[593.44, 0.5], [482.26, 0.5], [439.58, 90.82]],
-  r1: [[593.44, 61.04], [483.58, 61.04], [447.58, 112.52]],
-  options: [[593.44, 121.57], [485.6, 121.57], [462.38, 160.22], [414.99, 160.22]],
-  triangle: [[593.44, 182.11], [455.88, 182.11]],
-  circle: [[593.44, 242.65], [484.98, 242.65], [470.67, 217.4]],
-  cross: [[593.44, 303.19], [470.32, 303.19], [436.66, 246.17]],
-  square: [[593.44, 363.72], [498.9, 363.72], [406.86, 218.55]],
-  r3: [[593.44, 424.26], [452.07, 424.26], [370.93, 271.66]]
-};
-const REMAP_CALLOUT_Y: Record<StandardRemapButtonId, number> = {
-  l2: 3.17,
-  l1: 63.71,
-  create: 124.24,
-  'dpad-up': 184.78,
-  'dpad-right': 245.32,
-  'dpad-down': 305.86,
-  'dpad-left': 366.39,
-  l3: 426.93,
-  r2: 3.17,
-  r1: 63.71,
-  options: 124.24,
-  triangle: 184.78,
-  circle: 245.32,
-  cross: 305.86,
-  square: 366.39,
-  r3: 426.93
-};
-const REMAP_EDGE_CALLOUT_Y: Record<StandardRemapButtonId, number> = {
-  l2: 0.5,
-  l1: 61.04,
-  create: 121.57,
-  'dpad-up': 182.11,
-  'dpad-right': 363.72,
-  'dpad-down': 303.19,
-  'dpad-left': 242.65,
-  l3: 424.26,
-  r2: 0.5,
-  r1: 61.04,
-  options: 121.57,
-  triangle: 182.11,
-  circle: 242.65,
-  cross: 303.19,
-  square: 363.72,
-  r3: 424.26
-};
-const REMAP_STANDARD_LAYOUT_ASSET = {
-  src: remappingLayoutImage,
-  viewBoxWidth: 597.47,
-  viewBoxHeight: 429.39,
-  calloutPoints: REMAP_CALLOUT_POINTS,
-  calloutY: REMAP_CALLOUT_Y
-};
-const REMAP_EDGE_LAYOUT_ASSET = {
-  src: remappingEdgeLayoutImage,
-  viewBoxWidth: 593.94,
-  viewBoxHeight: 424.76,
-  calloutPoints: REMAP_EDGE_CALLOUT_POINTS,
-  calloutY: REMAP_EDGE_CALLOUT_Y
-};
-const REMAP_EDGE_CONTROL_POINTS: Record<DualSenseEdgeRemapButtonId, { x: number; y: number; anchor: 'top' | 'bottom' }> = {
-  lb: { x: 227.59, y: 33.19, anchor: 'bottom' },
-  rb: { x: 371.02, y: 33.19, anchor: 'bottom' },
-  lfn: { x: 227.5, y: 368.88, anchor: 'top' },
-  rfn: { x: 370.46, y: 368.88, anchor: 'top' }
-};
-const REMAP_EDGE_LINE_POINTS: Record<DualSenseEdgeRemapButtonId, [[number, number], [number, number]]> = {
-  lb: [[227.59, 33.19], [227.42, 105.09]],
-  rb: [[371.02, 33.19], [370.84, 105.09]],
-  lfn: [[227.5, 368.88], [227.68, 296.98]],
-  rfn: [[370.46, 368.88], [370.64, 296.98]]
-};
-// Volume/profile/turn-off shortcuts: vdsd uses a touchpad click as the modifier
-// (Mute is the mic mute; holding PS powers the DualSense off); the DS5 Bridge
-// firmware uses PS.
-const SHORTCUT_MODIFIER_LABEL = VDS_AVAILABLE ? 'Touchpad' : 'PlayStation Home';
-
-function ShortcutModifierGlyph() {
-  return (
-    <span className="shortcut-glyph-key">
-      {VDS_AVAILABLE
-        ? <img src={touchpadPressGlyphUrl} alt="Touchpad press" />
-        : <img src={psHomeGlyphUrl} alt="PlayStation Home" />}
-    </span>
-  );
-}
-
-function TurnOffShortcutGlyphs() {
-  return (
-    <span className="shortcut-glyph-row" aria-label={`${SHORTCUT_MODIFIER_LABEL} and Triangle`}>
-      <ShortcutModifierGlyph />
-      <span className="shortcut-plus" aria-hidden="true">+</span>
-      <span className="shortcut-glyph-key">
-        <img src={triangleGlyphUrl} alt="Triangle" />
-      </span>
-    </span>
-  );
-}
-
-function DpadShortcutGlyphs({ pair }: { pair: 'up-down' | 'left-right' }) {
-  const [first, second] = pair === 'up-down'
-    ? [{ src: dpadUpGlyphUrl, alt: 'D-pad Up' }, { src: dpadDownGlyphUrl, alt: 'D-pad Down' }]
-    : [{ src: dpadLeftGlyphUrl, alt: 'D-pad Left' }, { src: dpadRightGlyphUrl, alt: 'D-pad Right' }];
-  return (
-    <span className="shortcut-glyph-row" aria-label={`${SHORTCUT_MODIFIER_LABEL} and ${first.alt} or ${second.alt}`}>
-      <ShortcutModifierGlyph />
-      <span className="shortcut-plus" aria-hidden="true">+</span>
-      <span className="shortcut-glyph-pair">
-        <span className="shortcut-glyph-key">
-          <img src={first.src} alt={first.alt} />
-        </span>
-        <span className="shortcut-glyph-key">
-          <img src={second.src} alt={second.alt} />
-        </span>
-      </span>
-    </span>
-  );
-}
-const CONTROL_TABS: Array<{ id: ControlTab; label: string; Icon: TablerIcon }> = [
-  { id: 'game-profile', label: 'Game Profile', Icon: IconLayoutGrid },
-  { id: 'overview', label: 'Overview', Icon: IconLayoutDashboard },
-  ...(VDS_AVAILABLE ? [{ id: 'vds' as const, label: 'Bluetooth', Icon: IconBluetooth }] : []),
-  { id: 'audio', label: 'Audio', Icon: IconVolume },
-  { id: 'haptics', label: 'Haptics', Icon: Sparkles },
-  { id: 'triggers', label: 'Triggers', Icon: IconDeviceGamepad2 },
-  { id: 'trigger-profiles', label: 'Trigger Profiles', Icon: IconTargetArrow },
-  { id: 'lighting', label: 'Lighting', Icon: IconBulb },
-  { id: 'remapping', label: 'Button Remapping', Icon: IconDeviceGamepad3 },
-  { id: 'system', label: 'System', Icon: IconCpu }
-];
-
-type SelectValue = string | number;
-type SinkSelectableAudio = HTMLAudioElement & {
-  setSinkId?: (sinkId: string) => Promise<void>;
-  sinkId?: string;
-};
-const LAST_REMAP_CONTROLLER_TYPE_STORAGE_KEY = 'ds5bridge.lastRemapControllerType';
-const UI_THEME_PRESET_STORAGE_KEY = 'ds5bridge.uiThemePreset';
-const STARTUP_TUTORIAL_COMPLETED_STORAGE_KEY = 'ds5bridge.startupTutorialCompleted.v1';
-const STARTUP_READY_HOLD_MS = 1000;
-
-function storedRemapControllerType(): KnownControllerType {
-  const saved = window.localStorage.getItem(LAST_REMAP_CONTROLLER_TYPE_STORAGE_KEY);
-  return saved === 'dualsense-edge' ? 'dualsense-edge' : 'dualsense';
-}
-
-function isUiThemePreset(value: string | null): value is UiThemePreset {
-  return UI_THEME_OPTIONS.some(([, preset]) => preset === value);
-}
-
-function storedUiThemePreset(): UiThemePreset {
-  const saved = window.localStorage.getItem(UI_THEME_PRESET_STORAGE_KEY);
-  return isUiThemePreset(saved) ? saved : DEFAULT_UI_THEME_PRESET;
-}
-
-function saveUiThemePreset(preset: UiThemePreset): void {
-  window.localStorage.setItem(UI_THEME_PRESET_STORAGE_KEY, preset);
-}
-
-function storedStartupTutorialStep(): StartupTutorialStep {
-  return window.localStorage.getItem(STARTUP_TUTORIAL_COMPLETED_STORAGE_KEY) === '1' ? 'done' : 'feature-toggle';
-}
-
-function saveStartupTutorialCompleted(): void {
-  window.localStorage.setItem(STARTUP_TUTORIAL_COMPLETED_STORAGE_KEY, '1');
-}
-
-type CustomSelectProps<T extends SelectValue> = {
-  value: T;
-  options: Array<[string, T]>;
-  disabled?: boolean;
-  className?: string;
-  floatingMenu?: boolean;
-  floatingMenuMinWidth?: number;
-  suspendOutsideClose?: boolean;
-  showSelectedCheck?: boolean;
-  closeOnSelect?: boolean;
-  searchable?: boolean;
-  searchPlaceholder?: string;
-  getOptionClassName?: (label: string, value: T) => string | undefined;
-  renderValue?: (label: string, value: T) => ReactNode;
-  renderOption?: (label: string, value: T) => ReactNode;
-  renderMenuFooter?: (closeMenu: () => void) => ReactNode;
-  ariaLabel: string;
-  onChange: (value: T) => void;
-};
-
-type CustomSelectMenuStyle = CSSProperties & {
-  '--custom-select-menu-max-height'?: string;
-};
-
-function snapHapticsValue(value: number, max = STANDARD_FEEDBACK_GAIN_PERCENT): number {
-  return Math.max(0, Math.min(max, Math.round(value / HAPTICS_STEP) * HAPTICS_STEP));
-}
-
-function audioHapticsAppSource(source: AudioReactiveHapticsSource | null | undefined) {
-  return source && typeof source === 'object' && source.kind === 'app-session' ? source : null;
-}
-
-function audioHapticsSessionKey(session: AudioHapticsSession): string {
-  if (session.processPath) {
-    return `app-path:${session.processPath.toLowerCase()}`;
-  }
-  if (session.executableName) {
-    return `app-exe:${session.executableName.toLowerCase()}`;
-  }
-  return `app-pid:${session.processId}`;
-}
-
-function audioHapticsSourceKey(source: AudioReactiveHapticsSource | null | undefined): string {
-  const appSource = audioHapticsAppSource(source);
-  if (!appSource) {
-    return 'system-audio';
-  }
-  if (appSource.processPath) {
-    return `app-path:${appSource.processPath.toLowerCase()}`;
-  }
-  if (appSource.executableName) {
-    return `app-exe:${appSource.executableName.toLowerCase()}`;
-  }
-  return `app-pid:${Math.max(0, Math.round(appSource.processId))}`;
-}
-
-function audioHapticsSourceFromSession(session: AudioHapticsSession): AudioReactiveHapticsSource {
-  return {
-    kind: 'app-session',
-    processId: session.processId,
-    displayName: session.displayName,
-    ...(session.executableName ? { executableName: session.executableName } : {}),
-    ...(session.processPath ? { processPath: session.processPath } : {}),
-    ...(session.sessionIdentifier ? { sessionIdentifier: session.sessionIdentifier } : {}),
-    ...(session.sessionInstanceIdentifier ? { sessionInstanceIdentifier: session.sessionInstanceIdentifier } : {})
-  };
-}
-
-function audioHapticsSourceDisplayName(source: AudioReactiveHapticsSource | null | undefined): string {
-  const appSource = audioHapticsAppSource(source);
-  if (!appSource) {
-    return 'System';
-  }
-  return appSource.displayName
-    || appSource.executableName?.replace(/\.[^.]+$/, '')
-    || 'Selected app';
-}
-
-function snapSpeakerVolume(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value / SPEAKER_VOLUME_STEP) * SPEAKER_VOLUME_STEP));
-}
-
-function snapMicVolume(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value / MIC_VOLUME_STEP) * MIC_VOLUME_STEP));
-}
-
-function clampAudioBufferLength(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 64;
-  }
-  return Math.max(AUDIO_BUFFER_LENGTH_MIN, Math.min(AUDIO_BUFFER_LENGTH_MAX, Math.round(value)));
-}
-
-function audioBufferDelayMs(value: number): number {
-  return clampAudioBufferLength(value) / 3;
-}
-
-function audioBufferDelayLabel(value: number): string {
-  return `${audioBufferDelayMs(value).toFixed(1)} ms`;
-}
-
-function audioBufferPercent(value: number): number {
-  return ((clampAudioBufferLength(value) - AUDIO_BUFFER_LENGTH_MIN) / (AUDIO_BUFFER_LENGTH_MAX - AUDIO_BUFFER_LENGTH_MIN)) * 100;
-}
-
-function audioBufferZoneLabel(value: number): string {
-  const bufferLength = clampAudioBufferLength(value);
-  if (bufferLength <= AUDIO_BUFFER_LENGTH_HIGH_STUTTER_MAX) {
-    return 'High stutter';
-  }
-  if (bufferLength <= AUDIO_BUFFER_LENGTH_RISKY_MAX) {
-    return 'Risky';
-  }
-  return 'Safe';
-}
-
-function audioBufferZoneTooltip(value: number): string {
-  const bufferLength = clampAudioBufferLength(value);
-  if (bufferLength <= AUDIO_BUFFER_LENGTH_HIGH_STUTTER_MAX) {
-    return 'Danger: lowest haptic delay, but speaker audio is likely to stutter or underrun.';
-  }
-  if (bufferLength <= AUDIO_BUFFER_LENGTH_RISKY_MAX) {
-    return 'Warning: lower haptic delay, with a minimal chance of speaker stutter under load.';
-  }
-  return 'Safe: more speaker buffer headroom, with higher DualSense haptic delay.';
-}
-
-function audioBufferZoneTone(value: number): 'stutter' | 'risky' | 'safe' {
-  const bufferLength = clampAudioBufferLength(value);
-  if (bufferLength <= AUDIO_BUFFER_LENGTH_HIGH_STUTTER_MAX) {
-    return 'stutter';
-  }
-  if (bufferLength <= AUDIO_BUFFER_LENGTH_RISKY_MAX) {
-    return 'risky';
-  }
-  return 'safe';
-}
-
-function snapLightbarBrightness(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value / LIGHTBAR_BRIGHTNESS_STEP) * LIGHTBAR_BRIGHTNESS_STEP));
-}
-
-function snapTriggerEffectIntensity(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value / TRIGGER_EFFECT_STEP) * TRIGGER_EFFECT_STEP));
-}
-
-export function parseProcessNamesInput(input: string): string[] {
-  return input
-    .split(',')
-    .map((entry) => entry.trim().toLowerCase())
-    .filter((entry) => entry.length > 0);
-}
-
-export function mergeDetectedProcessName(processNamesInput: string, candidateName: string): string {
-  const existing = parseProcessNamesInput(processNamesInput);
-  const name = candidateName.trim().toLowerCase();
-  if (!name || existing.includes(name)) {
-    return existing.join(', ');
-  }
-  return [...existing, name].join(', ');
-}
-
-export function formatEngineStatusLine(status: EngineStatus, activeProfileName: string): string {
-  const name = status.activeStateName
-    ? `${activeProfileName} — ${status.activeStateName}`
-    : activeProfileName;
-  if (status.suspended) return `Active: ${name} (suspended)`;
-  if (status.matchedBy === 'pin') return `Active: ${name} (pinned)`;
-  if (status.matchedBy === 'process') return `Active: ${name} (matched: ${status.matchedName})`;
-  return `Active: ${name} (default)`;
-}
-
-/**
- * Game Profile tiles without cover art get a generated look: a deterministic gradient
- * class picked from the profile id plus a monogram built from the game title.
- */
-export const GAME_TILE_ART_CLASS_COUNT = 6;
-
-export function gameTileArtClass(id: string): string {
-  let hash = 0;
-  for (let index = 0; index < id.length; index += 1) {
-    hash = (hash * 31 + id.charCodeAt(index)) >>> 0;
-  }
-  return `game-tile-art-${hash % GAME_TILE_ART_CLASS_COUNT}`;
-}
-
-export function gameTileMonogram(name: string): string {
-  const words = name
-    .split(/\s+/)
-    .map((word) => word.replace(/[^\p{L}\p{N}]/gu, ''))
-    .filter((word) => word.length > 0);
-  const letters = words.slice(0, 2).map((word) => word[0].toUpperCase()).join('');
-  return letters || '?';
-}
-
-/** The display title of a game tile: the profile's game metadata, else its name. */
-export function gameProfileTitle(profile: Pick<TriggerProfile, 'name' | 'meta'>): string {
-  return profile.meta?.game?.trim() || profile.name;
-}
-
-export function triggerProfileHasEffects(profile: TriggerProfile): boolean {
-  return (['l2', 'r2'] as const).some((slot) => (
-    profile.triggers[slot].base !== null || profile.triggers[slot].modifiers.length > 0
-  ));
-}
-
-function emptyTriggerSlotPair(): TriggerSlotPair {
-  return {
-    l2: { base: null, modifiers: [] },
-    r2: { base: null, modifiers: [] }
-  };
-}
-
-/** The slot pair the editor is currently working on: the selected state's, or the profile's own. */
-export function editingStateTriggers(profile: TriggerProfile, stateIndex: number): TriggerSlotPair {
-  if (profile.states && profile.states.length > 0) {
-    return profile.states[Math.min(stateIndex, profile.states.length - 1)].triggers;
-  }
-  return profile.triggers;
-}
-
-export function uniqueStateName(base: string, taken: readonly string[]): string {
-  const names = new Set(taken);
-  if (!names.has(base)) return base;
-  let suffix = 2;
-  while (names.has(`${base} ${suffix}`)) suffix += 1;
-  return `${base} ${suffix}`;
-}
-
-/**
- * Normalizes a drafted multi-state profile for save: state names are trimmed,
- * empty names become "State N", duplicates get a numeric suffix, switching
- * rules and defaultState are re-pointed at the normalized names, and the
- * profile-level triggers mirror states[0] so pre-states consumers keep seeing
- * the profile's default feel.
- */
-export function sanitizeDraftStates(profile: TriggerProfile): TriggerProfile {
-  if (!profile.states || profile.states.length === 0) {
-    const { states: _states, switching: _switching, ...rest } = profile;
-    return rest;
-  }
-  const renames = new Map<string, string>();
-  const names: string[] = [];
-  const states: TriggerStateDef[] = profile.states.map((state, index) => {
-    const trimmed = state.name.trim().slice(0, MAX_STATE_NAME_LENGTH);
-    const fallback = trimmed.length > 0 ? trimmed : `State ${index + 1}`;
-    const name = uniqueStateName(fallback, names);
-    names.push(name);
-    if (state.name !== name) renames.set(state.name, name);
-    return { ...state, name };
-  });
-  let switching = profile.switching;
-  if (switching) {
-    const stateNames = new Set(names);
-    const rules = switching.rules
-      .map((rule) => {
-        if (rule.action !== 'select') return rule;
-        const target = renames.get(rule.state ?? '') ?? rule.state;
-        return { ...rule, state: target };
-      })
-      .filter((rule) => rule.action !== 'select' || (rule.state !== undefined && stateNames.has(rule.state)));
-    const defaultState = renames.get(switching.defaultState ?? '') ?? switching.defaultState;
-    switching = {
-      ...switching,
-      rules,
-      ...(defaultState !== undefined && stateNames.has(defaultState)
-        ? { defaultState }
-        : {})
-    };
-    if (defaultState !== undefined && !stateNames.has(defaultState)) {
-      delete switching.defaultState;
-    }
-  }
-  return { ...profile, states, ...(switching ? { switching } : {}), triggers: states[0].triggers };
-}
-
-/**
- * Profile dropdown options with game-owned entries hidden: game settings profiles are
- * managed from the Game Profile tab, not the generic pickers. The one exception is the
- * currently selected profile — hiding it would leave the select displaying nothing while
- * a game's settings are active — which stays visible with a "— Game" suffix.
- */
-export function visibleProfileOptions(
-  profiles: ReadonlyArray<{ id: string; name: string }>,
-  selectedId: string
-): Array<[string, string]> {
-  const options: Array<[string, string]> = [];
-  for (const profile of profiles) {
-    if (isGameSettingsProfileId(profile.id)) {
-      if (profile.id !== selectedId) continue;
-      options.push([`${profile.name} — Game`, profile.id]);
-    } else {
-      options.push([profile.name, profile.id]);
-    }
-  }
-  return options;
-}
-
-function defaultTriggerEffectSpec(): TriggerEffectSpec {
-  return defaultEffectForMode('feedback');
-}
-
-function defaultTriggerModifier(): TriggerModifier {
-  return {
-    when: { source: 'input', condition: 'trigger-held-over', threshold: 50, ms: 200 },
-    effect: defaultTriggerEffectSpec()
-  };
-}
-
-const PROVISIONAL_TRIGGER_PROFILE_ID_PREFIX = 'draft-';
-
-function makeProvisionalTriggerProfileId(): string {
-  return `${PROVISIONAL_TRIGGER_PROFILE_ID_PREFIX}${Date.now().toString(36)}-${Math.round(Math.random() * 1e6).toString(36)}`;
-}
-
-export function isProvisionalTriggerProfileId(id: string): boolean {
-  return id.startsWith(PROVISIONAL_TRIGGER_PROFILE_ID_PREFIX);
-}
-
-export function mergeTriggerProfiles(
-  localProfiles: readonly TriggerProfile[],
-  backendProfiles: readonly TriggerProfile[],
-  excludeIds: readonly string[] = []
-): TriggerProfile[] {
-  const backendIds = new Set(backendProfiles.map((profile) => profile.id));
-  const excluded = new Set(excludeIds);
-  const unsavedDrafts = localProfiles.filter(
-    (profile) => !backendIds.has(profile.id) && !excluded.has(profile.id)
-  );
-  return [...backendProfiles, ...unsavedDrafts];
-}
-
-export function mirrorTriggerSlotBase(
-  triggers: TriggerProfile['triggers'],
-  sourceSlot: TriggerProfileSlotKey
-): TriggerProfile['triggers'] {
-  const otherSlot: TriggerProfileSlotKey = sourceSlot === 'l2' ? 'r2' : 'l2';
-  const sourceBase = triggers[sourceSlot].base;
-  return {
-    ...triggers,
-    [otherSlot]: {
-      ...triggers[otherSlot],
-      base: sourceBase ? { ...sourceBase } : null
-    }
-  };
-}
-
-export function filterTriggerProfiles(
-  profiles: readonly TriggerProfile[],
-  query: string
-): TriggerProfile[] {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return [...profiles];
-  return profiles.filter((profile) => (
-    profile.name.toLowerCase().includes(needle)
-    || profile.match.processNames.some((name) => name.toLowerCase().includes(needle))
-  ));
-}
-
-/**
- * Filter select options by a case-insensitive substring match against the
- * option label. A blank query returns a copy of every option unchanged.
- */
-export function filterSelectOptionsByLabel<T>(
-  options: ReadonlyArray<[string, T]>,
-  query: string
-): Array<[string, T]> {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return [...options];
-  return options.filter(([label]) => label.toLowerCase().includes(needle));
-}
-
-export type TriggerStripChipSelection = {
-  chips: TriggerProfile[];
-  overflow: TriggerProfile[];
-};
-
-/**
- * Decide which trigger profiles are shown as inline chips versus moved into the
- * overflow dropdown. The Default profile is always the first chip. The next
- * chips are the currently selected non-default profile (if any), then the
- * remaining non-default profiles by most-recently-updated (updatedAtMs), up to
- * maxChips total. Everything else becomes overflow, preserving the incoming
- * order. With maxChips 0 every profile (including Default) collapses into the
- * dropdown so the strip fits arbitrarily narrow windows.
- */
-export function pickTriggerStripChips(
-  profiles: readonly TriggerProfile[],
-  selectedId: string | null,
-  maxChips = 2
-): TriggerStripChipSelection {
-  const defaultProfile = profiles.find((profile) => profile.id === 'default') ?? null;
-  const ranked = profiles
-    .filter((profile) => profile.id !== 'default')
-    .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
-  if (selectedId && selectedId !== 'default') {
-    const index = ranked.findIndex((profile) => profile.id === selectedId);
-    if (index > 0) {
-      const [selected] = ranked.splice(index, 1);
-      ranked.unshift(selected);
-    }
-  }
-
-  const chipIds = new Set<string>();
-  const chips: TriggerProfile[] = [];
-  if (maxChips > 0 && defaultProfile) {
-    chips.push(defaultProfile);
-    chipIds.add(defaultProfile.id);
-  }
-  for (const profile of ranked) {
-    if (chips.length >= maxChips) break;
-    chips.push(profile);
-    chipIds.add(profile.id);
-  }
-
-  const overflow = profiles.filter((profile) => !chipIds.has(profile.id));
-  return { chips, overflow };
-}
-
-/**
- * Chips that fit in the space left over after the strip's action buttons
- * (measured live, passed in as availableWidth = strip minus actions). Reserves
- * room for the overflow dropdown + gaps (~150px), then budgets ~120px per chip.
- */
-export function triggerStripMaxChips(availableWidth: number): number {
-  const reserved = 150;
-  const perChip = 120;
-  return Math.max(0, Math.floor((availableWidth - reserved) / perChip));
-}
-
-function controllerPowerSavingActiveFromSnapshot(snapshot: BridgeSnapshot | null | undefined): boolean {
-  return Boolean(snapshot?.settings.controllerPowerSavingEnabled && snapshot.diagnostics.audioStatus?.headsetPlugged);
-}
-
-function capControllerPowerSavingValue(value: number, snapshot: BridgeSnapshot | null | undefined): number {
-  return controllerPowerSavingActiveFromSnapshot(snapshot)
-    ? Math.min(value, CONTROLLER_POWER_SAVING_CAP_PERCENT)
-    : value;
-}
-
-function feedbackSliderMaxFromSnapshot(snapshot: BridgeSnapshot | null | undefined): number {
-  if (controllerPowerSavingActiveFromSnapshot(snapshot)) {
-    return CONTROLLER_POWER_SAVING_CAP_PERCENT;
-  }
-  return snapshot?.settings.feedbackBoostEnabled ? BOOSTED_FEEDBACK_GAIN_PERCENT : STANDARD_FEEDBACK_GAIN_PERCENT;
-}
-
-function feedbackSliderTicks(max: number): number[] {
-  if (max === STANDARD_FEEDBACK_GAIN_PERCENT) {
-    return STANDARD_HAPTICS_SLIDER_TICKS;
-  }
-  return Array.from({ length: 11 }, (_, index) => (max / 10) * index);
-}
-
-function displayHapticsValue(snapshot: BridgeSnapshot): number {
-  return capControllerPowerSavingValue(snapshot.settings.hapticsGainPercent, snapshot);
-}
-
-function displayClassicRumbleValue(snapshot: BridgeSnapshot): number {
-  return capControllerPowerSavingValue(snapshot.settings.classicRumbleGainPercent, snapshot);
-}
-
-function displayLightbarBrightnessValue(snapshot: BridgeSnapshot): number {
-  return capControllerPowerSavingValue(snapshot.settings.lightbarBrightnessPercent, snapshot);
-}
-
-function displayTriggerEffectIntensityValue(snapshot: BridgeSnapshot): number {
-  return capControllerPowerSavingValue(snapshot.settings.triggerEffectIntensityPercent, snapshot);
-}
-
-function sliderTickClass(value: number, max: number): string | undefined {
-  if (value === 0 || value === max) {
-    return 'milestone endpoint';
-  }
-  if (value === max / 2) {
-    return 'milestone';
-  }
-  return undefined;
-}
-
-function StartupScreen({ ready }: { ready: boolean }) {
-  return (
-    <main className={`startup-screen ${ready ? 'ready' : ''}`} aria-live="polite">
-      <section className="startup-card" aria-label="Starting OpenDS5">
-        <div className="startup-brand">
-          <div>
-            <strong>OpenDS5</strong>
-            <span>Starting companion</span>
-          </div>
-        </div>
-        <div className="startup-progress" aria-hidden="true">
-          <span />
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function StartupTutorial({
-  featureExampleActive,
-  onFeatureExampleToggle,
-  onFinish
-}: {
-  featureExampleActive: boolean;
-  onFeatureExampleToggle: () => void;
-  onFinish: () => void;
-}) {
-  return (
-    <div className="modal-backdrop startup-tutorial-backdrop" role="presentation">
-      <section
-        className="settings-menu bridge-settings-modal startup-tutorial-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Feature tile tutorial"
-      >
-        <div className="settings-menu-heading bridge-settings-modal-heading">
-          <div className="modal-heading-copy">
-            <IconSparkleHighlight size={16} />
-            <span>Feature Tiles</span>
-          </div>
-        </div>
-        <div className="startup-tutorial-copy">
-          <h2>Click The Square</h2>
-          <p>Feature tiles turn effects on and off. Try it once here, then keep going.</p>
-        </div>
-        <div className="startup-tutorial-feature-demo">
-          <button
-            className={`startup-tutorial-feature-icon ${featureExampleActive ? 'active' : ''}`}
-            type="button"
-            aria-pressed={featureExampleActive}
-            aria-label="Toggle example effect"
-            onClick={onFeatureExampleToggle}
-          >
-            <IconSparkleHighlight size={24} />
-          </button>
-          <span>
-            <strong>Example Effect</strong>
-            <span>{featureExampleActive ? 'On' : 'Off'}</span>
-          </span>
-        </div>
-        <div className="startup-tutorial-actions">
-          <button
-            type="button"
-            className="primary-action"
-            disabled={!featureExampleActive}
-            onClick={onFinish}
-          >
-            Continue <ArrowRight size={16} />
-          </button>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function ProfileSaveStatus() {
-  return (
-    <div className="system-profile-save-status">
-      <span className="autosave-check-icon" aria-hidden="true">
-        <Check className="autosave-check-outline" size={16} />
-        <Check className="autosave-check-fill" size={16} />
-      </span>
-      <span>Changes Are Automatically Saved</span>
-    </div>
-  );
-}
-
-function FeatureTipsPanel({
-  tab,
-  onSettingsFocusRequest,
-  audioHapticsOpen = false
-}: FeatureTipsPanelProps) {
-  const [featureTileSampleActive, setFeatureTileSampleActive] = useState(false);
-  const tips: Array<{
-    key: string;
-    icon: ReactNode;
-    title: string;
-    text: string;
-    tone?: 'success';
-  }> = [
-    {
-      key: 'toggle',
-      icon: <IconSparkleHighlight size={16} />,
-      title: 'Feature Tiles',
-      text: 'Click the square icon tile to enable or disable that feature.'
-    },
-    {
-      key: 'unavailable',
-      icon: <Settings2 size={16} />,
-      title: 'Unavailable',
-      text: 'Dimmed controls need the bridge, controller, or matching feature enabled.'
-    }
-  ];
-
-  if (tab === 'haptics' && audioHapticsOpen) {
-    tips.push({
-      key: 'audio-haptics',
-      icon: <IconDeviceAudioTape size={16} />,
-      title: 'Audio Haptics',
-      text: 'Audio Haptics turns system audio into haptic feedback.'
-    });
-  } else if (tab === 'audio') {
-    tips.push({
-      key: 'headphones',
-      icon: <Headphones size={16} />,
-      title: 'Headphones',
-      text: 'Headphones use the same bridge-local audio path as the controller speaker.'
-    });
-  } else {
-    tips.push({
-      key: 'power-saving',
-      icon: <IconBatteryEco size={16} />,
-      title: 'Green Icon',
-      text: 'Power saving is temporarily capping this setting while headphones are connected.',
-      tone: 'success'
-    });
-  }
-
-  if (tab === 'haptics' && audioHapticsOpen) {
-    tips.push({
-      key: 'audio-haptics-mode',
-      icon: <IconBrandDeezer size={16} />,
-      title: 'Mix / Replace',
-      text: 'Mix adds audio feedback to native haptics and rumble; Replace uses only the derived audio feel.'
-    });
-  } else if (tab === 'lighting') {
-    tips.push({
-      key: 'custom-color',
-      icon: <Palette size={16} />,
-      title: 'Custom Color',
-      text: 'Double-click the final color swatch to choose a custom lightbar color.'
-    });
-  } else if (tab !== 'triggers') {
-    // The triggers tab has no tests any more -- it is enable/disable plus intensity.
-    tips.push({
-      key: 'tests',
-      icon: <Play size={16} />,
-      title: 'Tests',
-      text: 'Tests may pause while a game or audio stream is actively using the controller.'
-    });
-  }
-
-  return (
-    <section className="feature-help-panel" aria-label={`${tab} tips`}>
-      <div className="feature-help-heading">
-        <IconQuestionMark size={16} />
-        <h3>Tips</h3>
-      </div>
-      <div className="feature-help-grid">
-        {tips.map((tip) => (
-          <div
-            className="feature-help-item"
-            key={tip.key}
-          >
-            {tip.key === 'toggle' ? (
-              <button
-                className={`feature-help-icon feature-help-icon-button ${featureTileSampleActive ? 'active' : ''}`}
-                type="button"
-                aria-pressed={featureTileSampleActive}
-                aria-label="Toggle feature tile example"
-                onClick={() => setFeatureTileSampleActive((active) => !active)}
-              >
-                {tip.icon}
-              </button>
-            ) : tip.key === 'power-saving' ? (
-              <button
-                className={`feature-help-icon feature-help-icon-button ${tip.tone ?? ''}`}
-                type="button"
-                aria-label="Open Controller Power Saving settings"
-                onClick={() => onSettingsFocusRequest?.('controller-power-saving')}
-              >
-                {tip.icon}
-              </button>
-            ) : (
-              <span className={`feature-help-icon ${tip.tone ?? ''}`} aria-hidden="true">
-                {tip.icon}
-              </span>
-            )}
-            <span className="feature-help-copy">
-              <strong>{tip.title}</strong>
-              <span>{tip.text}</span>
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function controllerProfileSettingsFromSnapshot(snapshot: BridgeSnapshot): ControllerProfileSettings {
-  return {
-    hapticsEnabled: snapshot.settings.hapticsEnabled,
-    hapticsGainPercent: snapshot.settings.hapticsGainPercent,
-    feedbackBoostEnabled: snapshot.settings.feedbackBoostEnabled,
-    classicRumbleEnabled: snapshot.settings.classicRumbleEnabled,
-    classicRumbleGainPercent: snapshot.settings.classicRumbleGainPercent,
-    classicRumbleV1Enabled: snapshot.settings.classicRumbleV1Enabled,
-    adaptiveTriggersEnabled: snapshot.settings.adaptiveTriggersEnabled,
-    triggerEffectIntensityPercent: snapshot.settings.triggerEffectIntensityPercent,
-    triggerTestMode: snapshot.settings.triggerTestMode,
-    speakerEnabled: snapshot.settings.speakerEnabled,
-    speakerVolumePercent: snapshot.settings.speakerVolumePercent,
-    micVolumePercent: snapshot.settings.micVolumePercent,
-    micMuted: snapshot.settings.micMuted,
-    lightbarEnabled: snapshot.settings.lightbarEnabled,
-    lightbarColor: snapshot.settings.lightbarColor,
-    lightbarBrightnessPercent: snapshot.settings.lightbarBrightnessPercent,
-    lightbarOverrideEnabled: snapshot.settings.lightbarOverrideEnabled,
-    muteButtonMode: snapshot.settings.muteButtonMode,
-    muteKeyboardUsage: snapshot.settings.muteKeyboardUsage,
-    muteKeyboardModifiers: snapshot.settings.muteKeyboardModifiers,
-    muteKeyboardBehavior: snapshot.settings.muteKeyboardBehavior,
-    muteKeyboardChordStarterEnabled: snapshot.settings.muteKeyboardChordStarterEnabled,
-    sleepKeybindEnabled: snapshot.settings.sleepKeybindEnabled,
-    speakerVolumeShortcutEnabled: snapshot.settings.speakerVolumeShortcutEnabled,
-    pollingRateMode: snapshot.settings.pollingRateMode,
-    hostPersonaMode: snapshot.settings.hostPersonaMode,
-    duplexMicEnabled: snapshot.settings.duplexMicEnabled,
-    audioReactiveHapticsEnabled: snapshot.settings.audioReactiveHapticsEnabled,
-    audioReactiveHapticsSource: snapshot.settings.audioReactiveHapticsSource,
-    audioReactiveHapticsMode: snapshot.settings.audioReactiveHapticsMode,
-    audioReactiveHapticsGainPercent: snapshot.settings.audioReactiveHapticsGainPercent,
-    audioReactiveHapticsBassFocus: snapshot.settings.audioReactiveHapticsBassFocus,
-    audioReactiveHapticsResponse: snapshot.settings.audioReactiveHapticsResponse,
-    audioReactiveHapticsAttack: snapshot.settings.audioReactiveHapticsAttack,
-    audioReactiveHapticsRelease: snapshot.settings.audioReactiveHapticsRelease,
-    controllerPowerSavingEnabled: snapshot.settings.controllerPowerSavingEnabled
-  };
-}
-
-function optionLabel<T extends string | number>(options: Array<[string, T]>, value: T): string {
-  return options.find(([, optionValue]) => optionValue === value)?.[0] ?? String(value);
-}
-
-function enabledLabel(enabled: boolean): string {
-  return enabled ? 'On' : 'Off';
-}
-
-function percentLabel(value: number): string {
-  return `${value}%`;
-}
-
-function lightbarColorLabel(color: string): string {
-  return LIGHTBAR_COLOR_NAMES[color.toLowerCase()] ?? color.toUpperCase();
-}
-
-// Under vdsd only Normal and Chord exist; other saved modes act as Normal.
-const MIC_PROCESSING_OPTIONS: Array<[string, number]> = [
-  ['No Processing', 0],
-  ['Noise', 1],
-  ['Echo', 2],
-  ['Noise + Echo', 3]
-];
-
-const SPEAKER_BOOST_OPTIONS: Array<[string, number]> = Array.from(
-  { length: 18 },
-  (_, index) => [`${18 - index} dB`, 18 - index] as [string, number]
-);
-
-// Average speaker limiting (dB) above which Diagnostics suggests a lower boost.
-const SPEAKER_LIMITING_WARN_DB = 3;
-
-const MIC_SPEAKER_GAIN_OPTIONS: Array<[string, number]> = [
-  ['Same', 0],
-  ...SPEAKER_GAIN_OPTIONS
-];
-
-const VDS_PACKET_MODE_LABELS: Record<string, string> = {
-  haptics: 'Haptics only',
-  'haptics+speaker': 'Haptics + speaker',
-  'haptics+mic': 'Haptics + mic',
-  'haptics+speaker+mic': 'Haptics + speaker + mic',
-  mic: 'Mic only',
-  idle: 'None'
-};
-
-function vdsPacketModeLabel(mode: string, hapticsOnly: boolean, streaming: boolean): string {
-  if (mode) {
-    return VDS_PACKET_MODE_LABELS[mode] ?? mode;
-  }
-  // Older vdsd without packet_mode.
-  if (!streaming) {
-    return 'None';
-  }
-  return hapticsOnly ? 'Haptics only' : 'Haptics + speaker';
-}
-
-function effectiveMuteButtonMode(mode: MuteButtonMode): MuteButtonMode {
-  return VDS_AVAILABLE && mode !== 'chord' ? 'normal' : mode;
-}
-
-function muteButtonSummary(settings: ControllerProfileSettings): string {
-  if (effectiveMuteButtonMode(settings.muteButtonMode) === 'normal') {
-    return 'Normal';
-  }
-  if (settings.muteButtonMode === 'quiet') {
-    return 'Quiet Toggle';
-  }
-  const key = optionLabel(MUTE_KEY_OPTIONS, settings.muteKeyboardUsage);
-  const modifiers = MUTE_MODIFIER_OPTIONS
-    .filter(([, bit]) => (settings.muteKeyboardModifiers & bit) !== 0)
-    .map(([label]) => label);
-  const chordStarter = settings.muteButtonMode === 'keyboard' && settings.muteKeyboardChordStarterEnabled
-    ? ['Chord Starter']
-    : [];
-  return [...modifiers, key, ...chordStarter].join(' + ');
-}
-
-function SystemProfileSummary({
-  settings,
-  powerSavingActive
-}: {
-  settings: ControllerProfileSettings;
-  powerSavingActive: boolean;
-}) {
-  const ecoValueClass = (active: boolean) => (active ? ' eco-limited' : '');
-  const effectiveEcoPercent = (value: number) => percentLabel(Math.min(value, CONTROLLER_POWER_SAVING_CAP_PERCENT));
-  const hapticsEcoLimited = powerSavingActive
-    && settings.hapticsEnabled
-    && settings.hapticsGainPercent > 0;
-  const rumbleEcoLimited = powerSavingActive
-    && settings.classicRumbleEnabled
-    && settings.classicRumbleGainPercent > 0;
-  const triggersEcoLimited = powerSavingActive
-    && settings.adaptiveTriggersEnabled
-    && settings.triggerEffectIntensityPercent > 0;
-  const lightbarEcoLimited = powerSavingActive
-    && settings.lightbarEnabled
-    && settings.lightbarBrightnessPercent > 0;
-
-  return (
-    <div className="system-profile-summary" aria-label="Current profile settings">
-      <div className="system-profile-summary-group">
-        <div className="system-profile-summary-heading">
-          <Volume2 size={15} />
-          <h3>Audio</h3>
-        </div>
-        <dl>
-          <div><dt>Speaker</dt><dd>{settings.speakerEnabled ? percentLabel(settings.speakerVolumePercent) : 'Off'}</dd></div>
-          <div><dt>Mic</dt><dd>{settings.micMuted ? 'Muted' : percentLabel(settings.micVolumePercent)}</dd></div>
-          <div><dt>Pass-through</dt><dd>{enabledLabel(settings.duplexMicEnabled)}</dd></div>
-        </dl>
-      </div>
-
-      <div className="system-profile-summary-group">
-        <div className="system-profile-summary-heading">
-          <Sparkles size={15} />
-          <h3>Feel</h3>
-        </div>
-        <dl>
-          <div><dt>HD Haptics</dt><dd className={ecoValueClass(hapticsEcoLimited)}>{settings.hapticsEnabled ? (hapticsEcoLimited ? effectiveEcoPercent(settings.hapticsGainPercent) : percentLabel(settings.hapticsGainPercent)) : 'Off'}</dd></div>
-          <div><dt>Rumble</dt><dd className={ecoValueClass(rumbleEcoLimited)}>{settings.classicRumbleEnabled ? (rumbleEcoLimited ? effectiveEcoPercent(settings.classicRumbleGainPercent) : percentLabel(settings.classicRumbleGainPercent)) : 'Off'}</dd></div>
-          <div><dt>Triggers</dt><dd className={ecoValueClass(triggersEcoLimited)}>{settings.adaptiveTriggersEnabled ? (triggersEcoLimited ? effectiveEcoPercent(settings.triggerEffectIntensityPercent) : percentLabel(settings.triggerEffectIntensityPercent)) : 'Off'}</dd></div>
-        </dl>
-      </div>
-
-      <div className="system-profile-summary-group">
-        <div className="system-profile-summary-heading">
-          <IconBulb size={15} />
-          <h3>Lighting</h3>
-        </div>
-        <dl>
-          <div><dt>Lightbar</dt><dd className={ecoValueClass(lightbarEcoLimited)}>{settings.lightbarEnabled ? (lightbarEcoLimited ? effectiveEcoPercent(settings.lightbarBrightnessPercent) : percentLabel(settings.lightbarBrightnessPercent)) : 'Off'}</dd></div>
-          <div><dt>Color</dt><dd>{lightbarColorLabel(settings.lightbarColor)}</dd></div>
-          <div><dt>Override</dt><dd>{enabledLabel(settings.lightbarOverrideEnabled)}</dd></div>
-        </dl>
-      </div>
-
-      <div className="system-profile-summary-group">
-        <div className="system-profile-summary-heading">
-          <Settings2 size={15} />
-          <h3>System</h3>
-        </div>
-        <dl>
-          <div><dt>Mute</dt><dd>{muteButtonSummary(settings)}</dd></div>
-          {!VDS_AVAILABLE && (
-            <div><dt>Polling</dt><dd>{optionLabel(POLLING_RATE_OPTIONS, settings.pollingRateMode)}</dd></div>
-          )}
-          <div><dt>Power Save</dt><dd>{enabledLabel(settings.controllerPowerSavingEnabled)}</dd></div>
-        </dl>
-      </div>
-    </div>
-  );
-}
-
-function normalizeHexColor(value: string): string {
-  return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : '#ffff00';
-}
-
-function normalizeLightbarPresetColor(value: string): string {
-  return normalizeHexColor(value);
-}
-
-function isLightbarPresetColor(value: string): boolean {
-  return LIGHTBAR_SWATCHES.includes(normalizeLightbarPresetColor(value));
-}
-
-function clampByte(value: number): number {
-  return Math.max(0, Math.min(255, Math.round(value)));
-}
-
-function rgbToHex(red: number, green: number, blue: number): string {
-  return `#${[red, green, blue].map((channel) => clampByte(channel).toString(16).padStart(2, '0')).join('')}`;
-}
-
-function hslToHex(hue: number, saturation: number, lightness: number): string {
-  const normalizedHue = (((hue % 360) + 360) % 360) / 360;
-  const normalizedSaturation = Math.max(0, Math.min(100, saturation)) / 100;
-  const normalizedLightness = Math.max(0, Math.min(100, lightness)) / 100;
-
-  if (normalizedSaturation === 0) {
-    const channel = clampByte(normalizedLightness * 255);
-    return rgbToHex(channel, channel, channel);
-  }
-
-  const q = normalizedLightness < 0.5
-    ? normalizedLightness * (1 + normalizedSaturation)
-    : normalizedLightness + normalizedSaturation - normalizedLightness * normalizedSaturation;
-  const p = 2 * normalizedLightness - q;
-  const hueToRgb = (offset: number) => {
-    let t = normalizedHue + offset;
-    if (t < 0) t += 1;
-    if (t > 1) t -= 1;
-    if (t < 1 / 6) return p + (q - p) * 6 * t;
-    if (t < 1 / 2) return q;
-    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-    return p;
-  };
-
-  return rgbToHex(hueToRgb(1 / 3) * 255, hueToRgb(0) * 255, hueToRgb(-1 / 3) * 255);
-}
-
-function makeLightbarCustomPalette(): LightbarPaletteCell[][] {
-  const hues = [
-    { hue: 0, name: 'Red' },
-    { hue: 30, name: 'Orange' },
-    { hue: 60, name: 'Yellow' },
-    { hue: 90, name: 'Lime' },
-    { hue: 120, name: 'Green' },
-    { hue: 150, name: 'Mint' },
-    { hue: 180, name: 'Cyan' },
-    { hue: 210, name: 'Sky' },
-    { hue: 240, name: 'Blue' },
-    { hue: 270, name: 'Violet' },
-    { hue: 300, name: 'Magenta' },
-    { hue: 330, name: 'Rose' }
-  ];
-  const rows = [
-    { saturation: 28, lightness: 88, tone: 'Pale', gray: '#ffffff', grayName: 'White' },
-    { saturation: 58, lightness: 78, tone: 'Soft', gray: '#d9d9d9', grayName: 'Light Gray' },
-    { saturation: 82, lightness: 66, tone: 'Light', gray: '#b3b3b3', grayName: 'Silver' },
-    { saturation: 100, lightness: 58, tone: 'Bright', gray: '#8a8a8a', grayName: 'Gray' },
-    { saturation: 100, lightness: 50, tone: 'Pure', gray: '#666666', grayName: 'Dim Gray' },
-    { saturation: 100, lightness: 40, tone: 'Deep', gray: '#4a4a4a', grayName: 'Charcoal' },
-    { saturation: 100, lightness: 30, tone: 'Dark', gray: '#333333', grayName: 'Dark Gray' },
-    { saturation: 100, lightness: 20, tone: 'Midnight', gray: '#1a1a1a', grayName: 'Near Black' },
-    { saturation: 100, lightness: 10, tone: 'Blackened', gray: '#000000', grayName: 'Black' }
-  ];
-  return rows.map((row) => [
-    ...hues.map((hue) => ({
-      color: hslToHex(hue.hue, row.saturation, row.lightness),
-      name: `${row.tone} ${hue.name}`
-    })),
-    {
-      color: row.gray,
-      name: row.grayName
-    }
-  ]);
-}
-
-function makeLightbarColorNames(): Record<string, string> {
-  const names = { ...LIGHTBAR_SWATCH_NAMES };
-  for (const row of LIGHTBAR_CUSTOM_PALETTE) {
-    for (const cell of row) {
-      names[cell.color] ??= cell.name;
-    }
-  }
-  names[LIGHTBAR_DEFAULT_CUSTOM_COLOR] = 'Custom';
-  return names;
-}
-
-function lightbarColorFromSnapshot(snapshot: BridgeSnapshot): string {
-  if (snapshot.status?.firmwareFlags.lightbarControl) {
-    const color = snapshot.status.lightbarColor;
-    return normalizeLightbarPresetColor(rgbToHex(color.red, color.green, color.blue));
-  }
-  return normalizeLightbarPresetColor(snapshot.settings.lightbarColor);
-}
-
-function lightbarBrightnessFromSnapshot(snapshot: BridgeSnapshot): number {
-  if (snapshot.status?.firmwareFlags.lightbarControl) {
-    return snapshot.status.lightbarColor.brightnessPercent;
-  }
-  return snapshot.settings.lightbarBrightnessPercent;
-}
-
-function batteryLabel(snapshot: BridgeSnapshot | null | undefined): string {
-  const battery = snapshot?.status?.batteryPercent;
-  return battery === null || battery === undefined ? '--' : `${battery}%`;
-}
-
-function batteryTone(percent: number | null | undefined): 'healthy' | 'warning' | 'low' | 'unknown' {
-  if (percent === null || percent === undefined) return 'unknown';
-  if (percent <= 20) return 'low';
-  if (percent <= 45) return 'warning';
-  return 'healthy';
-}
-
-function isChargingPowerState(rawPowerState: number | undefined): boolean {
-  return rawPowerState === 0x01 || rawPowerState === 0x02;
-}
-
-function controllerName(type: string | undefined): string {
-  if (type === 'dualsense-edge') return 'DualSense Edge';
-  if (type === 'dualsense') return 'DualSense';
-  return 'Controller';
-}
-
-function healthLabel(snapshot: BridgeSnapshot | null | undefined): string {
-  if (!snapshot) return 'Unavailable';
-  if (snapshot.state !== 'connected') {
-    return /^Firmware .+ update required$/i.test(snapshot.message)
-      ? 'Update required: Bridge Settings > Firmware'
-      : snapshot.message;
-  }
-  if (snapshot.diagnostics.lastError) return snapshot.diagnostics.lastError;
-  if (snapshot.diagnostics.firmwareUpdateAvailable) {
-    return `Firmware ${snapshot.diagnostics.firmwareUpdateAvailable.availableVersion} available`;
-  }
-  return 'All systems normal';
-}
-
-function hexByte(value: number): string {
-  return value.toString(16).padStart(2, '0').toUpperCase();
-}
-
-function normalizeAudioDeviceLabel(label: string): string {
-  return label
-    .toLowerCase()
-    .replace(/^\s*\d+\s*-\s*/, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function isBridgeAudioLabel(label: string): boolean {
-  return BRIDGE_AUDIO_OUTPUT_RE.test(normalizeAudioDeviceLabel(label));
-}
-
-function bridgeAudioOutputScore(device: MediaDeviceInfo): number {
-  const label = normalizeAudioDeviceLabel(device.label);
-  let score = 1;
-  if (label.includes('dualsense') || label.includes('dual sense')) score += 4;
-  if (label.includes('wireless controller')) score += 3;
-  if (label.includes('speaker') || label.includes('headphone') || label.includes('headset')) score += 2;
-  if (label.includes('microphone') || label.includes('mic')) score -= 4;
-  if (label.includes('ds5') || label.includes('bridge')) score += 1;
-  return score;
-}
-
-function bridgeAudioInputScore(device: MediaDeviceInfo): number {
-  const label = normalizeAudioDeviceLabel(device.label);
-  let score = 1;
-  if (label.includes('dualsense') || label.includes('dual sense')) score += 4;
-  if (label.includes('wireless controller')) score += 3;
-  if (label.includes('microphone') || label.includes('mic')) score += 2;
-  if (label.includes('speaker') || label.includes('headphone')) score -= 4;
-  if (label.includes('ds5') || label.includes('bridge')) score += 1;
-  return score;
-}
-
-async function findBridgeAudioOutputIdOnce(): Promise<string | null> {
-  if (!navigator.mediaDevices?.enumerateDevices) {
-    return null;
-  }
-
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const outputs = devices.filter((device) => (
-      device.kind === 'audiooutput'
-      && isBridgeAudioLabel(device.label)
-      && device.deviceId
-      && device.deviceId !== 'default'
-      && device.deviceId !== 'communications'
-    ));
-    outputs.sort((left, right) => bridgeAudioOutputScore(right) - bridgeAudioOutputScore(left));
-    const output = outputs[0];
-    return output?.deviceId ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function findBridgeAudioInputIdOnce(): Promise<string | null> {
-  if (!navigator.mediaDevices?.enumerateDevices) {
-    return null;
-  }
-
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const inputs = devices.filter((device) => (
-      device.kind === 'audioinput'
-      && BRIDGE_AUDIO_INPUT_RE.test(normalizeAudioDeviceLabel(device.label))
-      && device.deviceId
-      && device.deviceId !== 'default'
-      && device.deviceId !== 'communications'
-    ));
-    inputs.sort((left, right) => bridgeAudioInputScore(right) - bridgeAudioInputScore(left));
-    const input = inputs[0];
-    return input?.deviceId ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function unlockMediaDeviceLabels(): Promise<boolean> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    return false;
-  }
-
-  let permissionStream: MediaStream | null = null;
-  try {
-    permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    return true;
-  } catch {
-    return false;
-  } finally {
-    permissionStream?.getTracks().forEach((track) => track.stop());
-  }
-}
-
-async function findBridgeAudioInputId(): Promise<string | null> {
-  let inputId = await findBridgeAudioInputIdOnce();
-  if (inputId || !navigator.mediaDevices?.getUserMedia) {
-    return inputId;
-  }
-
-  if (!await unlockMediaDeviceLabels()) {
-    return null;
-  }
-
-  inputId = await findBridgeAudioInputIdOnce();
-  return inputId;
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
-
-function writeAscii(view: DataView, offset: number, value: string): void {
-  for (let index = 0; index < value.length; index += 1) {
-    view.setUint8(offset + index, value.charCodeAt(index));
-  }
-}
-
-let speakerPrerollSilenceUrl: string | null = null;
-
-function getSpeakerPrerollSilenceUrl(): string {
-  if (speakerPrerollSilenceUrl) {
-    return speakerPrerollSilenceUrl;
-  }
-
-  const sampleRate = 48000;
-  const channels = 2;
-  const bytesPerSample = 2;
-  const frames = Math.round((sampleRate * TEST_SPEAKER_PREROLL_MS) / 1000);
-  const dataSize = frames * channels * bytesPerSample;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-
-  writeAscii(view, 0, 'RIFF');
-  view.setUint32(4, 36 + dataSize, true);
-  writeAscii(view, 8, 'WAVE');
-  writeAscii(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, channels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * channels * bytesPerSample, true);
-  view.setUint16(32, channels * bytesPerSample, true);
-  view.setUint16(34, bytesPerSample * 8, true);
-  writeAscii(view, 36, 'data');
-  view.setUint32(40, dataSize, true);
-
-  speakerPrerollSilenceUrl = URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
-  return speakerPrerollSilenceUrl;
-}
-
-async function findBridgeAudioOutputId(attempts = 1): Promise<string | null> {
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const sinkId = await findBridgeAudioOutputIdOnce();
-    if (sinkId) {
-      return sinkId;
-    }
-    if (attempt + 1 < attempts) {
-      await delay(TEST_SPEAKER_ENDPOINT_RETRY_MS);
-    }
-  }
-  if (await unlockMediaDeviceLabels()) {
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const sinkId = await findBridgeAudioOutputIdOnce();
-      if (sinkId) {
-        return sinkId;
-      }
-      if (attempt + 1 < attempts) {
-        await delay(TEST_SPEAKER_ENDPOINT_RETRY_MS);
-      }
-    }
-  }
-  return null;
-}
-
-let speakerToneAudio: SinkSelectableAudio | null = null;
-let speakerToneSinkId: string | null = null;
-
-function resetSpeakerToneAudio(): void {
-  if (speakerToneAudio) {
-    try {
-      speakerToneAudio.pause();
-      speakerToneAudio.removeAttribute('src');
-      speakerToneAudio.load();
-    } catch {
-      // Ignore teardown races while Windows is removing the audio endpoint.
-    }
-  }
-  speakerToneAudio = null;
-  speakerToneSinkId = null;
-}
-
-async function playSpeakerAudioSource(sourceUrl: string): Promise<void> {
-  const sinkId = await findBridgeAudioOutputId(TEST_SPEAKER_ENDPOINT_ATTEMPTS);
-  if (!sinkId) {
-    throw new Error(BRIDGE_AUDIO_ENDPOINT_UNAVAILABLE);
-  }
-
-  // Reuse the persistent Audio element if the endpoint hasn't changed.
-  // This keeps the WASAPI session alive so the firmware audio pipeline stays warm.
-  if (!speakerToneAudio || speakerToneSinkId !== sinkId) {
-    const audio = new Audio() as SinkSelectableAudio;
-    audio.volume = 1;
-    if (!audio.setSinkId) {
-      throw new Error(BRIDGE_AUDIO_ENDPOINT_UNAVAILABLE);
-    }
-    try {
-      await audio.setSinkId(sinkId);
-    } catch {
-      throw new Error(BRIDGE_AUDIO_ENDPOINT_UNAVAILABLE);
-    }
-    if (audio.sinkId !== undefined && audio.sinkId !== sinkId) {
-      throw new Error(BRIDGE_AUDIO_ENDPOINT_UNAVAILABLE);
-    }
-    speakerToneAudio = audio;
-    speakerToneSinkId = sinkId;
-  }
-
-  const audio = speakerToneAudio;
-  audio.src = sourceUrl;
-  audio.currentTime = 0;
-
-  await new Promise<void>((resolve, reject) => {
-    let settled = false;
-    const mediaDevices = navigator.mediaDevices;
-    const fail = (error: Error) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      cleanup();
-      reject(error);
-    };
-    const finish = () => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      cleanup();
-      resolve();
-    };
-    const verifySink = () => {
-      void (async () => {
-        const currentSinkId = await findBridgeAudioOutputIdOnce();
-        if (
-          currentSinkId !== sinkId
-          || (audio.sinkId !== undefined && audio.sinkId !== sinkId)
-        ) {
-          resetSpeakerToneAudio();
-          fail(new Error(BRIDGE_AUDIO_ENDPOINT_UNAVAILABLE));
-        }
-      })();
-    };
-    const verifyTimer = window.setInterval(verifySink, TEST_SPEAKER_ENDPOINT_VERIFY_MS);
-    function cleanup() {
-      window.clearInterval(verifyTimer);
-      audio.removeEventListener('ended', finish);
-      audio.removeEventListener('error', onAudioError);
-      mediaDevices?.removeEventListener?.('devicechange', verifySink);
-    }
-    function onAudioError() {
-      fail(new Error('Speaker test audio playback failed.'));
-    }
-
-    audio.addEventListener('ended', finish, { once: true });
-    audio.addEventListener('error', onAudioError, { once: true });
-    mediaDevices?.addEventListener?.('devicechange', verifySink);
-    audio.play().then(verifySink).catch((error: unknown) => {
-      fail(error instanceof Error ? error : new Error('Speaker test audio playback failed.'));
-    });
-  });
-}
-
-async function playSpeakerToneFile(): Promise<void> {
-  await playSpeakerAudioSource(getSpeakerPrerollSilenceUrl());
-  await delay(25);
-  await playSpeakerAudioSource(testSpeakerToneUrl);
-}
-
-let micListenAudio: HTMLAudioElement | null = null;
-let micListenStream: MediaStream | null = null;
-let micListenTimer: number | null = null;
-let micListenResolve: (() => void) | null = null;
-
-function stopMicLiveListen(): void {
-  if (micListenTimer !== null) {
-    window.clearTimeout(micListenTimer);
-  }
-  micListenTimer = null;
-  if (micListenAudio) {
-    try {
-      micListenAudio.pause();
-      micListenAudio.srcObject = null;
-    } catch {
-      // Ignore teardown races while the mic endpoint is closing.
-    }
-  }
-  micListenAudio = null;
-  micListenStream?.getTracks().forEach((track) => track.stop());
-  micListenStream = null;
-  const resolve = micListenResolve;
-  micListenResolve = null;
-  resolve?.();
-}
-
-async function openBridgeMicStream(): Promise<MediaStream> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error(BRIDGE_MIC_ENDPOINT_UNAVAILABLE);
-  }
-
-  const inputId = await findBridgeAudioInputId();
-  if (!inputId) {
-    throw new Error(BRIDGE_MIC_ENDPOINT_UNAVAILABLE);
-  }
-
-  return navigator.mediaDevices.getUserMedia({
-    audio: {
-      deviceId: { exact: inputId },
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false
-    },
-    video: false
-  });
-}
-
-async function playMicLiveListen(durationMs: number): Promise<void> {
-  stopMicLiveListen();
-  const stream = await openBridgeMicStream();
-  const audio = new Audio();
-  audio.srcObject = stream;
-  audio.volume = 1;
-  micListenAudio = audio;
-  micListenStream = stream;
-
-  try {
-    await audio.play();
-  } catch (error) {
-    stopMicLiveListen();
-    throw error;
-  }
-
-  await new Promise<void>((resolve) => {
-    micListenResolve = resolve;
-    micListenTimer = window.setTimeout(stopMicLiveListen, durationMs);
-  });
-}
-
-function CustomSelect<T extends SelectValue>({
-  value,
-  options,
-  disabled = false,
-  className = '',
-  floatingMenu = false,
-  floatingMenuMinWidth,
-  suspendOutsideClose = false,
-  showSelectedCheck = true,
-  closeOnSelect = true,
-  searchable = false,
-  searchPlaceholder,
-  getOptionClassName,
-  renderValue,
-  renderOption,
-  renderMenuFooter,
-  ariaLabel,
-  onChange
-}: CustomSelectProps<T>) {
-  const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const rootRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const selected = options.find(([, optionValue]) => optionValue === value);
-  const visibleOptions = searchable ? filterSelectOptionsByLabel(options, searchQuery) : options;
-  const longList = options.length > 18;
-  const defaultMenuMaxHeight = longList ? 360 : 232;
-  const [menuMaxHeight, setMenuMaxHeight] = useState(defaultMenuMaxHeight);
-  const [menuPlacement, setMenuPlacement] = useState<'top' | 'bottom'>('bottom');
-  const [floatingMenuStyle, setFloatingMenuStyle] = useState<CustomSelectMenuStyle>({});
-
-  function updateMenuMaxHeight() {
-    const root = rootRef.current;
-    if (!root) {
-      setMenuMaxHeight(defaultMenuMaxHeight);
-      return;
-    }
-
-    const rootRect = root.getBoundingClientRect();
-    const boundary = floatingMenu
-      ? null
-      : root.closest('.system-card, .feature-card, .settings-menu, .control-page') as HTMLElement | null;
-    const boundaryRect = boundary?.getBoundingClientRect();
-    const menuGap = 6;
-    const viewportPadding = floatingMenu ? 8 : 0;
-    const lowerLimit = Math.min(window.innerHeight - viewportPadding, boundaryRect?.bottom ?? window.innerHeight);
-    const upperLimit = Math.max(viewportPadding, boundaryRect?.top ?? 0);
-    const spaceBelow = Math.max(1, Math.floor(lowerLimit - rootRect.bottom - menuGap));
-    const spaceAbove = Math.max(1, Math.floor(rootRect.top - upperLimit - menuGap));
-    const preferredVisibleHeight = Math.min(defaultMenuMaxHeight, 184);
-    const nextPlacement = spaceBelow < preferredVisibleHeight && spaceAbove > spaceBelow ? 'top' : 'bottom';
-    const availableSpace = nextPlacement === 'top' ? spaceAbove : spaceBelow;
-    const nextMaxHeight = longList ? availableSpace : Math.min(defaultMenuMaxHeight, availableSpace);
-
-    setMenuPlacement(nextPlacement);
-    setMenuMaxHeight(Math.max(1, nextMaxHeight));
-
-    if (floatingMenu) {
-      const minimumWidth = floatingMenuMinWidth ?? rootRect.width;
-      const width = Math.min(
-        Math.max(rootRect.width, minimumWidth),
-        Math.max(1, window.innerWidth - viewportPadding * 2)
-      );
-      const idealLeft = rootRect.left + (rootRect.width - width) / 2;
-      const left = Math.min(
-        Math.max(viewportPadding, idealLeft),
-        Math.max(viewportPadding, window.innerWidth - viewportPadding - width)
-      );
-      setFloatingMenuStyle({
-        left: `${Math.round(left)}px`,
-        width: `${Math.round(width)}px`,
-        ...(nextPlacement === 'top'
-          ? { bottom: `${Math.round(window.innerHeight - rootRect.top + menuGap)}px` }
-          : { top: `${Math.round(rootRect.bottom + menuGap)}px` }),
-        '--custom-select-menu-max-height': `${Math.max(1, nextMaxHeight)}px`
-      });
-    }
-  }
-
-  useEffect(() => {
-    if (!open) return undefined;
-    function closeIfOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (
-        !suspendOutsideClose
-        && !rootRef.current?.contains(target)
-        && !menuRef.current?.contains(target)
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', closeIfOutside);
-    return () => document.removeEventListener('mousedown', closeIfOutside);
-  }, [open, suspendOutsideClose]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    updateMenuMaxHeight();
-    window.addEventListener('resize', updateMenuMaxHeight);
-    window.addEventListener('scroll', updateMenuMaxHeight, true);
-    return () => {
-      window.removeEventListener('resize', updateMenuMaxHeight);
-      window.removeEventListener('scroll', updateMenuMaxHeight, true);
-    };
-  }, [open, defaultMenuMaxHeight, floatingMenu, floatingMenuMinWidth, longList]);
-
-  useEffect(() => {
-    if (!open) {
-      setSearchQuery('');
-      return;
-    }
-    if (searchable) {
-      window.requestAnimationFrame(() => searchInputRef.current?.focus());
-    }
-  }, [open, searchable]);
-
-  useEffect(() => {
-    if (!open) return;
-    window.requestAnimationFrame(() => {
-      const menu = menuRef.current;
-      const optionsContainer = menu?.querySelector('.custom-select-menu-options') as HTMLElement | null;
-      const selectedElement = menu?.querySelector('[data-selected="true"]') as HTMLElement | null;
-      if (!optionsContainer || !selectedElement) {
-        return;
-      }
-      const selectedCenter = selectedElement.offsetTop + selectedElement.offsetHeight / 2;
-      optionsContainer.scrollTop = Math.max(0, selectedCenter - optionsContainer.clientHeight / 2);
-    });
-  }, [open]);
-
-  function choose(nextValue: T) {
-    if (closeOnSelect) {
-      setOpen(false);
-    }
-    if (nextValue !== value) {
-      onChange(nextValue);
-    }
-  }
-
-  function toggleOpen() {
-    if (!open) {
-      updateMenuMaxHeight();
-    }
-    setOpen((nextOpen) => !nextOpen);
-  }
-
-  function openMenu() {
-    updateMenuMaxHeight();
-    setOpen(true);
-  }
-
-  const menu = open ? (
-    <div ref={menuRef} className="custom-select-menu" role="listbox" aria-label={ariaLabel}>
-      {searchable && (
-        <div className="custom-select-menu-search">
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            placeholder={searchPlaceholder ?? 'Search'}
-            aria-label={`${ariaLabel} search`}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.stopPropagation();
-                setOpen(false);
-              }
-            }}
-          />
-        </div>
-      )}
-      <div className="custom-select-menu-options">
-        {searchable && visibleOptions.length === 0 && (
-          <div className="custom-select-menu-empty">No matches</div>
-        )}
-        {visibleOptions.map(([label, optionValue]) => {
-          const selectedOption = optionValue === value;
-          const optionClassName = getOptionClassName?.(label, optionValue);
-          return (
-            <button
-              key={String(optionValue)}
-              type="button"
-              role="option"
-              aria-selected={selectedOption}
-              data-selected={selectedOption ? 'true' : undefined}
-              className={[selectedOption ? 'selected' : '', optionClassName].filter(Boolean).join(' ')}
-              onClick={() => choose(optionValue)}
-            >
-              <span>{renderOption?.(label, optionValue) ?? label}</span>
-              {showSelectedCheck && selectedOption && <Check size={15} />}
-            </button>
-          );
-        })}
-      </div>
-      {renderMenuFooter && (
-        <div className="custom-select-menu-footer">
-          {renderMenuFooter(() => setOpen(false))}
-        </div>
-      )}
-    </div>
-  ) : null;
-
-  const portalTarget = floatingMenu
-    ? (rootRef.current?.closest('.shell') as HTMLElement | null) ?? document.body
-    : null;
-
-  return (
-    <div
-      ref={rootRef}
-      className={`custom-select ${className} ${open ? 'open' : ''} menu-${menuPlacement} ${disabled ? 'disabled' : ''}`}
-      style={{ '--custom-select-menu-max-height': `${menuMaxHeight}px` } as CSSProperties}
-    >
-      <button
-        type="button"
-        className="custom-select-button"
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={toggleOpen}
-        onKeyDown={(event) => {
-          if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            openMenu();
-          }
-          if (event.key === 'Escape') {
-            setOpen(false);
-          }
-        }}
-      >
-        <span>{selected ? (renderValue?.(selected[0], selected[1]) ?? selected[0]) : String(value)}</span>
-        <ChevronDown size={18} />
-      </button>
-      {floatingMenu && portalTarget && menu
-        ? createPortal(
-          <div
-            className={`custom-select custom-select-floating-layer open menu-${menuPlacement} ${suspendOutsideClose ? 'dialog-suspended' : ''} ${className}`}
-            style={floatingMenuStyle}
-          >
-            {menu}
-          </div>,
-          portalTarget
-        )
-        : menu}
-    </div>
-  );
-}
-
-function ThemeOption({ label, value }: { label: string; value: UiThemePreset }) {
-  return (
-      <span className="theme-option">
-        <span className="theme-option-swatches" aria-hidden="true">
-        {UI_THEME_PREVIEW_SWATCHES[value].map((swatch) => (
-          <span key={`${value}-${swatch.role}`} title={swatch.role} style={{ background: swatch.color }} />
-        ))}
-      </span>
-      <span className="theme-option-label">{label}</span>
-    </span>
-  );
-}
-
-function AudioHapticsConfigLabel({
-  id,
-  label,
-  tooltip,
-  className = '',
-  showQuestionMark = false
-}: {
-  id: string;
-  label: string;
-  tooltip: string;
-  className?: string;
-  showQuestionMark?: boolean;
-}) {
-  return (
-    <span className={`audio-haptics-config-label ${className}`.trim()} tabIndex={0} aria-describedby={id}>
-      {label}
-      {showQuestionMark ? <IconQuestionMark size={12} stroke={3} aria-hidden="true" /> : null}
-      <span id={id} className="settings-shortcut-tooltip shortcut-glyph-tooltip audio-haptics-config-tooltip" role="tooltip">
-        {tooltip}
-      </span>
-    </span>
-  );
-}
-
-function UptimeValue({
-  active,
-  lastPollAt,
-  uptimeSeconds
-}: {
-  active: boolean;
-  lastPollAt: number | null;
-  uptimeSeconds: number | null;
-}) {
-  const [displayUptime, setDisplayUptime] = useState<number | null>(uptimeSeconds);
-
-  useEffect(() => {
-    if (!active || !lastPollAt || uptimeSeconds === null) {
-      setDisplayUptime(uptimeSeconds);
-      return;
-    }
-
-    const updateUptime = () => {
-      const elapsedSeconds = Math.floor((Date.now() - lastPollAt) / 1000);
-      setDisplayUptime(uptimeSeconds + Math.max(0, elapsedSeconds));
-    };
-
-    updateUptime();
-    const handle = window.setInterval(updateUptime, 1000);
-    return () => window.clearInterval(handle);
-  }, [active, lastPollAt, uptimeSeconds]);
-
-  return <span className="uptime-value">{displayUptime ?? '--'}s</span>;
-}
-
-function RemapGlyphOption({ label, value }: { label: string; value: RemapButtonId }) {
-  const button = REMAP_BUTTONS[value];
-
-  return (
-    <span className="remap-glyph-option" title={label}>
-      {button.glyphUrl ? (
-        <img src={button.glyphUrl} alt={label} />
-      ) : (
-        <span className="remap-text-glyph" aria-hidden="true">{button.textGlyph ?? button.label}</span>
-      )}
-    </span>
-  );
-}
-
-function RemapSourceGlyph({ button }: { button: RemapButtonDefinition }) {
-  return button.glyphUrl ? (
-    <img src={button.glyphUrl} alt={button.label} title={button.label} />
-  ) : (
-    <span className="remap-text-glyph remap-text-glyph-source" title={button.label}>
-      {button.textGlyph ?? button.label}
-    </span>
-  );
-}
-
-function ChordStarterGlyph({ starter, label = CHORD_STARTERS[starter].label }: { starter: ChordStarterId; label?: string }) {
-  const button = CHORD_STARTERS[starter];
-  const Icon = button.Icon;
-
-  return Icon ? (
-    <span className="chords-unassigned-glyph chords-starter-icon-glyph" title={label} aria-label={label}>
-      <Icon size={18} />
-    </span>
-  ) : button.glyphUrl ? (
-    <img src={button.glyphUrl} alt={label} title={label} />
-  ) : (
-    <span className="remap-text-glyph remap-text-glyph-source" title={label}>
-      {button.textGlyph ?? button.label}
-    </span>
-  );
-}
-
-function ChordStarterGlyphOption({ label, value }: { label: string; value: ChordStarterId }) {
-  return (
-    <span className="chords-starter-glyph-option" title={label}>
-      <ChordStarterGlyph starter={value} label={label} />
-    </span>
-  );
-}
-
-function ChordButtonGlyphOption({ label, value }: { label: string; value: ChordButtonSelectValue }) {
-  if (value === CHORD_UNASSIGNED_BUTTON) {
-    return (
-      <span className="chords-unassigned-glyph" title={label} aria-label={label}>
-        <IconQuestionMark size={16} />
-      </span>
-    );
-  }
-
-  return <RemapGlyphOption label={label} value={value} />;
-}
-
-const HOST_PERSONA_FULL_LABELS: Record<HostPersonaMode, string> = {
-  dualsense: 'DualSense',
-  ds4: 'DualShock 4',
-  xbox: 'Xbox 360'
-};
-
-function HostPersonaBrandIcon({ mode, size }: { mode: HostPersonaMode; size: number }) {
-  if (mode === 'xbox') {
-    return <IconBrandXbox size={size} aria-hidden="true" />;
-  }
-  return (
-    <span
-      className="host-persona-brand-icon"
-      style={{
-        '--host-persona-brand-mask': `url("${playStationLogoUrl}")`,
-        width: size,
-        height: size,
-        flex: `0 0 ${size}px`
-      } as CSSProperties}
-      aria-hidden="true"
-    />
-  );
-}
-
-function HostPersonaOption({ label, value }: { label: string; value: HostPersonaMode }) {
-  const sonyPersona = value === 'dualsense' || value === 'ds4';
-  return (
-    <span className="host-persona-option">
-      {sonyPersona ? (
-        <span
-          className="host-persona-brand-icon"
-          style={{ '--host-persona-brand-mask': `url("${playStationLogoUrl}")` } as CSSProperties}
-          aria-hidden="true"
-        />
-      ) : (
-        <IconBrandXbox size={18} aria-hidden="true" />
-      )}
-      <span className="host-persona-label">{label}</span>
-    </span>
-  );
-}
-
-function AudioHapticsSourceOption({
-  label,
-  value,
-  session,
-  loading
-}: {
-  label: string;
-  value: string;
-  session?: AudioHapticsSession;
-  loading?: boolean;
-}) {
-  const system = value === 'system-audio';
-  const unavailable = !system && !session;
-  let sublabel = 'System mix';
-  if (!system) {
-    if (!session) {
-      sublabel = loading ? 'Scanning' : 'Unavailable';
-    } else {
-      sublabel = session.state === 'active'
-        ? session.endpointName || 'Active'
-        : 'Idle';
-    }
-  }
-  return (
-    <span className={`audio-haptics-source-option ${unavailable ? 'unavailable' : ''}`}>
-      <span className="audio-haptics-source-icon" aria-hidden="true">
-        {system ? (
-          <IconDeviceAudioTape size={17} />
-        ) : session?.iconDataUrl ? (
-          <img src={session.iconDataUrl} alt="" />
-        ) : (
-          <IconBrandDeezer size={17} />
-        )}
-      </span>
-      <span className="audio-haptics-source-copy">
-        <strong>{label}</strong>
-        <small>{sublabel}</small>
-      </span>
-    </span>
-  );
-}
-
-function remapTargetOptionsFor(buttonId: RemapButtonId): Array<[string, RemapButtonId]> {
-  if ((REMAP_EDGE_BUTTON_IDS as readonly RemapButtonId[]).includes(buttonId)) {
-    return [...REMAP_TARGET_OPTIONS, [REMAP_BUTTONS[buttonId].label, buttonId]];
-  }
-  return REMAP_TARGET_OPTIONS;
-}
-
-function chordFunctionTypeLabel(type: ChordFunctionType): string {
-  return CHORD_FUNCTION_TYPE_OPTIONS.find(([, value]) => value === type)?.[0] ?? 'Function';
-}
-
-function chordMediaActionLabel(action: ChordMediaAction): string {
-  return CHORD_MEDIA_ACTION_OPTIONS.find(([, value]) => value === action)?.[0] ?? 'Media Action';
-}
-
-function chordNotchTargetForAction(action: ChordControllerSettingAction): {
-  target: (typeof CHORD_NOTCH_TARGETS)[number];
-  direction: ChordNotchDirection;
-} | null {
-  for (const target of CHORD_NOTCH_TARGETS) {
-    if (target.downAction === action) {
-      return { target, direction: 'down' };
-    }
-    if (target.upAction === action) {
-      return { target, direction: 'up' };
-    }
-  }
-  return null;
-}
-
-function chordControllerSettingSelectValue(action: ChordControllerSettingAction): ChordControllerSettingSelectValue {
-  const notchTarget = chordNotchTargetForAction(action);
-  if (notchTarget) {
-    return notchTarget.target.id;
-  }
-  return action as ChordControllerSettingSelectValue;
-}
-
-function chordControllerSettingActionFromSelectValue(
-  value: ChordControllerSettingSelectValue,
-  currentAction: ChordControllerSettingAction
-): ChordControllerSettingAction {
-  const target = CHORD_NOTCH_TARGETS.find((candidate) => candidate.id === value);
-  if (!target) {
-    return value as ChordControllerSettingAction;
-  }
-  const currentTarget = chordNotchTargetForAction(currentAction);
-  return currentTarget?.target.id === target.id && currentTarget.direction === 'down'
-    ? target.downAction
-    : target.upAction;
-}
-
-function chordControllerSettingActionLabel(action: ChordControllerSettingAction): string {
-  const notchTarget = chordNotchTargetForAction(action);
-  if (notchTarget) {
-    return notchTarget.target.label;
-  }
-  return CHORD_CONTROLLER_SETTING_ACTION_OPTIONS.find(([, value]) => value === action)?.[0] ?? 'Controller Setting';
-}
-
-function chordControllerSettingSummary(action: ChordControllerSettingAction, stepPercent?: number): string {
-  const notchTarget = chordNotchTargetForAction(action);
-  if (notchTarget) {
-    const actionText = `${notchTarget.direction === 'up' ? 'Increase' : 'Decrease'} ${notchTarget.target.label}`;
-    return typeof stepPercent === 'number'
-      ? `${actionText} — ${stepPercent}% step`
-      : actionText;
-  }
-  switch (action) {
-    case 'toggle-audio-haptics':
-      return 'Toggle Audio Haptics';
-    case 'toggle-lightbar-override':
-      return 'Toggle Lightbar Override';
-    case 'toggle-mic-mute':
-      return 'Toggle Mic Mute';
-    case 'sleep-controller':
-      return 'Turn Off Controller';
-    case 'persona-dualsense':
-      return 'Set Persona: DualSense';
-    case 'persona-ds4':
-      return 'Set Persona: DualShock 4';
-    case 'persona-xbox':
-      return 'Set Persona: Xbox';
-  }
-  return 'Controller Setting';
-}
-
-function chordControllerSettingAdjustmentText(action: ChordControllerSettingAction): string {
-  const notchTarget = chordNotchTargetForAction(action);
-  if (!notchTarget) {
-    return chordControllerSettingSummary(action);
-  }
-  return `${notchTarget.direction === 'up' ? 'Increase' : 'Decrease'} ${notchTarget.target.label}`;
-}
-
-function chordStarterLabel(starter: ChordStarterId): string {
-  return CHORD_STARTER_OPTIONS.find(([, value]) => value === starter)?.[0] ?? starter.toUpperCase();
-}
-
-function chordButtonLabel(button: ChordAssignableButtonId): string {
-  return REMAP_BUTTONS[button].label;
-}
-
-function chordFunctionSummary(func: ChordFunction): string {
-  switch (func.type) {
-    case 'keyboard':
-      return func.keys.join(' + ');
-    case 'media':
-      return chordMediaActionLabel(func.action);
-    case 'controller-setting':
-      return chordControllerSettingSummary(func.action, func.stepPercent);
-  }
-}
-
-function chordFunctionToDraft(func: ChordFunction | null): ChordFunctionDraft {
-  if (!func) {
-    return { ...EMPTY_CHORD_FUNCTION_DRAFT };
-  }
-  const keyboardParts = func.type === 'keyboard'
-    ? chordKeyboardParts(func.keys)
-    : chordKeyboardParts(DEFAULT_CHORD_KEYBOARD_KEYS);
-  return {
-    id: func.id,
-    name: func.name,
-    type: func.type,
-    keyboardKey: keyboardParts.key,
-    keyboardModifiers: keyboardParts.modifiers,
-    mediaAction: func.type === 'media' ? func.action : 'play-pause',
-    controllerAction: func.type === 'controller-setting' ? func.action : 'sleep-controller',
-    controllerStepPercent: func.type === 'controller-setting'
-      ? normalizeChordControllerSettingStepPercent(func.stepPercent)
-      : CHORD_CONTROLLER_SETTING_STEP_DEFAULT
-  };
-}
-
-function normalizeChordKeyLabel(key: string): string {
-  const trimmed = key.trim();
-  const normalized = trimmed.replace(/\s+/g, ' ').toLowerCase();
-  switch (normalized) {
-    case 'control':
-    case 'ctrl':
-      return 'Ctrl';
-    case 'escape':
-    case 'esc':
-      return 'Esc';
-    case 'windows':
-    case 'win':
-    case 'meta':
-      return 'Win';
-    case 'spacebar':
-    case 'space':
-      return 'Space';
-    case 'left arrow':
-      return 'Left';
-    case 'right arrow':
-      return 'Right';
-    case 'up arrow':
-      return 'Up';
-    case 'down arrow':
-      return 'Down';
-    case 'print screen':
-    case 'printscreen':
-    case 'prtsc':
-    case 'prtscn':
-    case 'snapshot':
-      return 'Print Screen';
-    default:
-      return trimmed.length === 1 ? trimmed.toUpperCase() : trimmed;
-  }
-}
-
-function chordKeyboardParts(keys: string[]): {
-  key: string;
-  modifiers: ChordKeyboardModifier[];
-} {
-  const normalizedKeys = keys.map(normalizeChordKeyLabel);
-  const modifiers = CHORD_KEYBOARD_MODIFIER_OPTIONS
-    .map(([, modifier]) => modifier)
-    .filter((modifier) => normalizedKeys.includes(modifier))
-    .slice(0, MAX_KEYBOARD_FUNCTION_KEYS - 1);
-  const supportedKeys = new Set(CHORD_KEYBOARD_KEY_OPTIONS.map(([, value]) => value));
-  const key = normalizedKeys.find((candidate) => supportedKeys.has(candidate)) ?? 'Esc';
-  return { key, modifiers };
-}
-
-function chordFunctionFromDraft(draft: ChordFunctionDraft): ChordFunction {
-  const name = (draft.name.trim() || chordFunctionTypeLabel(draft.type)).slice(0, MAX_CHORD_FUNCTION_NAME_LENGTH);
-  const id = draft.id || `function-${Date.now().toString(36)}`;
-  switch (draft.type) {
-    case 'keyboard':
-      return {
-        id,
-        name,
-        type: 'keyboard',
-        keys: [...draft.keyboardModifiers, draft.keyboardKey].slice(0, MAX_KEYBOARD_FUNCTION_KEYS)
-      };
-    case 'media':
-      return {
-        id,
-        name,
-        type: 'media',
-        action: draft.mediaAction
-      };
-    case 'controller-setting':
-      return {
-        id,
-        name,
-        type: 'controller-setting',
-        action: draft.controllerAction,
-        stepPercent: normalizeChordControllerSettingStepPercent(draft.controllerStepPercent)
-      };
-  }
-}
-
-function chordAssignmentLabel(assignment: ChordAssignment): string {
-  return `${chordStarterLabel(assignment.starter)} + ${chordButtonLabel(assignment.button)}`;
-}
-
-function chordBindingKey(starter: ChordStarterId, button: ChordAssignableButtonId): string {
-  return `chord:${starter}:${button}`;
-}
-
-function chordAssignmentKey(assignment: ChordAssignment): string {
-  return chordBindingKey(assignment.starter, assignment.button);
-}
-
-function createChordAssignmentId(starter: ChordStarterId, button: ChordAssignableButtonId): string {
-  return `chord-${starter}-${button}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
 
 export function App() {
   const [snapshot, setSnapshot] = useState<BridgeSnapshot | null>(null);
