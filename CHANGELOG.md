@@ -17,7 +17,7 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
-## [1.9.13] - Unreleased — Clearer when the controller isn't connected
+## [1.9.13] - 2026-10-17 — Clearer when the controller isn't connected
 
 Every page now says when the controller isn't connected, and the test buttons
 wait for it. **Update as usual.**
