@@ -3172,6 +3172,8 @@ export function App() {
   const [updateState, setUpdateState] = useState<UpdateState>({ phase: 'idle' });
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [settingsPath, setSettingsPath] = useState<string | null>(null);
+  const [backupStatus, setBackupStatus] = useState('');
+  const [backupBusy, setBackupBusy] = useState(false);
   const [manualUpdateCheck, setManualUpdateCheck] = useState<'idle' | 'checking' | 'current' | 'failed' | 'found'>('idle');
   const navHistoryRef = useRef<Array<{ tab: ControlTab; gameId: string | null }>>([
     { tab: 'game-profile', gameId: null }
@@ -4731,6 +4733,26 @@ export function App() {
       setLargerAudioBlocksState(await window.vds.getLargerAudioBlocks().catch(() => largerAudioBlocks));
     } finally {
       setLargerAudioBlocksPending(false);
+    }
+  }
+
+  async function runBackupAction(kind: 'backup' | 'restore') {
+    if (backupBusy) return;
+    setBackupBusy(true);
+    setBackupStatus('');
+    try {
+      if (kind === 'backup') {
+        const result = await window.appInfo.backupSettings();
+        setBackupStatus(result === 'saved' ? 'Backup saved' : '');
+      } else {
+        const result = await window.appInfo.restoreSettings();
+        setBackupStatus(result === 'restarting' ? 'Restarting…' : '');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(error);
+      setBackupStatus(message);
+    } finally {
+      setBackupBusy(false);
     }
   }
 
@@ -11677,6 +11699,30 @@ export function App() {
                       <div className="device-row">
                         <span>Config file</span>
                         <strong className="device-mono" title={settingsPath ?? undefined}>{settingsPath ?? '--'}</strong>
+                      </div>
+                      <div className="device-row device-update-row">
+                        <span>Settings backup</span>
+                        <div className="device-update-control">
+                          <span className="device-update-status" aria-live="polite">{backupStatus}</span>
+                          <button
+                            type="button"
+                            className="secondary-action device-update-button"
+                            disabled={backupBusy}
+                            title="Save your settings, trigger profiles and game artwork to one file"
+                            onClick={() => void runBackupAction('backup')}
+                          >
+                            Back Up…
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary-action device-update-button"
+                            disabled={backupBusy}
+                            title="Replace your settings with a backup; OpenDS5 restarts"
+                            onClick={() => void runBackupAction('restore')}
+                          >
+                            Restore…
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </section>

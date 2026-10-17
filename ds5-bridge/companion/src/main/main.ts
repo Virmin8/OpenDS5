@@ -25,6 +25,7 @@ import { appImagePath } from './appimage-updater';
 import { isCheckDue, UpdateService, type UpdateState } from './update-service';
 import { watchForPackageUpgrade } from './package-upgrade-watcher';
 import { largerAudioBlocksEnabled, setLargerAudioBlocks } from './audio-blocks';
+import { applyPendingRestore, createBackup, parseBackup, stageRestore } from './settings-backup';
 import { RELEASES_PAGE_URL } from './update-ipc';
 import { defaultWindowSize, growBoundsToMinimum, loadWindowState, resolveWindowBounds, saveWindowState } from './window-state';
 import { deriveLegacyUserDataPath, migrateLegacyUserData } from './user-data-migration';
@@ -161,6 +162,17 @@ function createImageAsset(relativePath: string): Electron.NativeImage {
 
 function createRuntimeIcon(): Electron.NativeImage {
   return createImageAsset(APP_MARK_PNG);
+}
+
+/**
+ * Restarts OpenDS5 after a clean shutdown. An AppImage relaunches from its
+ * file (its FUSE mount is gone after exit) and a distro package through its
+ * launcher.
+ */
+function relaunchApp(): void {
+  const launcher = process.platform === 'linux' ? (appImagePath() || SYSTEM_PACKAGE_LAUNCHER) : '';
+  app.relaunch(launcher ? { execPath: launcher, args: [] } : undefined);
+  app.quit();
 }
 
 /** The latest bridge snapshot not yet sent to the hidden main window. */
@@ -1897,6 +1909,59 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('app:settings-path', () => path.join(app.getPath('userData'), 'settings.json'));
 
+  ipcMain.handle('app:backup-settings', async (): Promise<'saved' | 'cancelled'> => {
+    const date = new Date().toISOString().slice(0, 10);
+    const options: Electron.SaveDialogOptions = {
+      title: 'Back up OpenDS5 settings',
+      defaultPath: `OpenDS5-settings-${date}.json`,
+      filters: [{ name: 'OpenDS5 settings backup', extensions: ['json'] }]
+    };
+    const result = mainWindow
+      ? await dialog.showSaveDialog(mainWindow, options)
+      : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) {
+      return 'cancelled';
+    }
+    const backup = createBackup(app.getPath('userData'), app.getVersion());
+    fs.writeFileSync(result.filePath, `${JSON.stringify(backup, null, 2)}\n`);
+    return 'saved';
+  });
+
+  // Checks the file, asks, stages it and restarts; the next launch applies it
+  // before anything loads the settings.
+  ipcMain.handle('app:restore-settings', async (): Promise<'restarting' | 'cancelled'> => {
+    const options: Electron.OpenDialogOptions = {
+      title: 'Restore OpenDS5 settings',
+      properties: ['openFile'],
+      filters: [{ name: 'OpenDS5 settings backup', extensions: ['json'] }]
+    };
+    const picked = mainWindow
+      ? await dialog.showOpenDialog(mainWindow, options)
+      : await dialog.showOpenDialog(options);
+    if (picked.canceled || picked.filePaths.length === 0) {
+      return 'cancelled';
+    }
+    const backup = parseBackup(fs.readFileSync(picked.filePaths[0], 'utf8'));
+    const made = backup.createdAt ? ` from ${new Date(backup.createdAt).toLocaleString()}` : '';
+    const confirmOptions: Electron.MessageBoxOptions = {
+      type: 'question',
+      buttons: ['Restore and Restart', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+      message: `Restore the settings backup${made}?`,
+      detail: 'Your current settings, trigger profiles and game artwork are replaced. OpenDS5 restarts to finish.'
+    };
+    const confirm = mainWindow
+      ? await dialog.showMessageBox(mainWindow, confirmOptions)
+      : await dialog.showMessageBox(confirmOptions);
+    if (confirm.response !== 0) {
+      return 'cancelled';
+    }
+    stageRestore(app.getPath('userData'), backup);
+    relaunchApp();
+    return 'restarting';
+  });
+
   ipcMain.handle('update:check', async (): Promise<UpdateState> => {
     // A previous run may have been killed mid-download; drop its leftovers.
     updateService.cleanStaleDownload();
@@ -2030,6 +2095,13 @@ app.whenReady().then(async () => {
   app.setName(APP_NAME);
   ensureWindowsNotificationShortcut();
   Menu.setApplicationMenu(null);
+  try {
+    if (applyPendingRestore(app.getPath('userData'))) {
+      console.log('[main] restored settings from a backup');
+    }
+  } catch (error) {
+    console.error('[main] settings restore failed', error);
+  }
   const settingsStore = new SettingsStore(app.getPath('userData'));
   if (process.platform === 'linux') {
     // The autostart file is the source of truth on Linux (the installer or the

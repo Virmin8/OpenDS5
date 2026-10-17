@@ -415,6 +415,8 @@ contextBridge.exposeInMainWorld('update', updateApi);
 const appInfoApi = {
   version: (): Promise<string> => ipcRenderer.invoke('app:version'),
   settingsPath: (): Promise<string> => ipcRenderer.invoke('app:settings-path'),
+  backupSettings: (): Promise<'saved' | 'cancelled'> => ipcRenderer.invoke('app:backup-settings'),
+  restoreSettings: (): Promise<'restarting' | 'cancelled'> => ipcRenderer.invoke('app:restore-settings'),
 };
 contextBridge.exposeInMainWorld('appInfo', appInfoApi);
 
