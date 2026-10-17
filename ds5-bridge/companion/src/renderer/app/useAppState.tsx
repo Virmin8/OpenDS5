@@ -534,6 +534,8 @@ export function useAppState() {
   const connected = snapshot?.state === 'connected';
   const controllerConnected = Boolean(snapshot?.status?.controllerConnected);
   const controllerControlsAvailable = connected && controllerConnected;
+  // Shown on each page's status badges while there is nothing to talk to.
+  const CONTROLLER_NOT_CONNECTED = 'Controller not connected';
   const liveControllerType = snapshot?.status?.controllerType;
   const remapControllerType = snapshot?.status?.controllerConnected && liveControllerType && liveControllerType !== 'unknown'
     ? liveControllerType
@@ -1498,8 +1500,8 @@ export function useAppState() {
     || pendingAction !== null
     || audioReactiveHapticsCommitPending;
   const audioReactiveHapticsConfigDisabled = audioReactiveHapticsControlDisabled || !audioReactiveHapticsEnabled;
-  const audioReactiveHapticsStatusLabel = !connected
-    ? 'Unavailable'
+  const audioReactiveHapticsStatusLabel = !controllerControlsAvailable
+    ? CONTROLLER_NOT_CONNECTED
     : !audioReactiveHapticsSupported
       ? 'Update Firmware'
       : !hapticsEnabled
@@ -1507,7 +1509,9 @@ export function useAppState() {
         : audioReactiveHapticsEnabled
           ? 'Ready'
           : 'Off';
-  const audioReactiveHapticsStatusTone = audioReactiveHapticsEnabled
+  const audioReactiveHapticsStatusTone = !controllerControlsAvailable
+    ? 'warn'
+    : audioReactiveHapticsEnabled
     && hapticsEnabled
     && audioReactiveHapticsRouteSupported
     ? 'good'
@@ -1530,7 +1534,7 @@ export function useAppState() {
       ? 'Mic Standby'
       : 'Off';
   const speakerOutputMissing = false;
-  const testHapticsUnavailable = !connected
+  const testHapticsUnavailable = !controllerControlsAvailable
     || !hapticsEnabled
     || pendingAction !== null
     || speakerVolumeCommitPending
@@ -1538,7 +1542,7 @@ export function useAppState() {
     || testLocked
     || Boolean(snapshot?.status?.testHapticsBusy)
     || Boolean(snapshot?.status?.testHapticsCooldown);
-  const testRumbleUnavailable = !connected
+  const testRumbleUnavailable = !controllerControlsAvailable
     || !classicRumbleEnabled
     || pendingAction !== null
     || speakerVolumeCommitPending
@@ -1554,30 +1558,38 @@ export function useAppState() {
     && classicRumbleEnabled
     && !testLocked
     && !snapshot?.status?.testHapticsBusy;
-  const hapticsStatusLabel = testLocked || snapshot?.status?.testHapticsBusy
+  const hapticsStatusLabel = !controllerControlsAvailable
+    ? CONTROLLER_NOT_CONNECTED
+    : testLocked || snapshot?.status?.testHapticsBusy
     ? 'Testing'
       : snapshot?.status?.testHapticsCooldown
         ? 'Cooling Down'
       : hapticsStatusReady
         ? 'Ready'
         : 'Unavailable';
-  const rumbleStatusLabel = testLocked
+  const rumbleStatusLabel = !controllerControlsAvailable
+    ? CONTROLLER_NOT_CONNECTED
+    : testLocked
     ? 'Testing'
     : rumbleStatusReady
       ? 'Ready'
       : 'Unavailable';
-  const hapticsStatusTone = testLocked || snapshot?.status?.testHapticsBusy || hapticsStatusReady
+  const hapticsStatusTone = !controllerControlsAvailable
+    ? 'warn'
+    : testLocked || snapshot?.status?.testHapticsBusy || hapticsStatusReady
     ? 'good'
     : connected && snapshot?.status?.testHapticsCooldown
       ? 'warn'
       : 'idle';
-  const rumbleStatusTone = testLocked || rumbleStatusReady
+  const rumbleStatusTone = !controllerControlsAvailable
+    ? 'warn'
+    : testLocked || rumbleStatusReady
     ? 'good'
     : 'idle';
   const activeFeedbackTestUnavailable = showClassicRumbleControl ? testRumbleUnavailable : testHapticsUnavailable;
   const activeFeedbackStatusLabel = showClassicRumbleControl ? rumbleStatusLabel : hapticsStatusLabel;
   const activeFeedbackStatusTone = showClassicRumbleControl ? rumbleStatusTone : hapticsStatusTone;
-  const testSpeakerUnavailable = !connected
+  const testSpeakerUnavailable = !controllerControlsAvailable
     || !speakerVolumeSupported
     || !speakerEnabled
     || pendingAction !== null
@@ -1586,7 +1598,7 @@ export function useAppState() {
     || speakerTestLocked
     || gameStreamActive
     || Boolean(snapshot?.status?.testHapticsBusy);
-  const testMicUnavailable = !connected
+  const testMicUnavailable = !controllerControlsAvailable
     || !duplexMicEnabled
     || pendingAction !== null
     || micVolumeCommitPending
@@ -1604,7 +1616,9 @@ export function useAppState() {
     && duplexMicEnabled
     && !micTestLocked
     && !gameStreamActive;
-  const speakerStatusLabel = speakerTestLocked
+  const speakerStatusLabel = !controllerControlsAvailable
+    ? CONTROLLER_NOT_CONNECTED
+    : speakerTestLocked
     ? 'Playing'
     : connected && speakerTestError
       ? speakerTestError
@@ -1615,21 +1629,27 @@ export function useAppState() {
           : connected && gameStreamActive
             ? 'Game Audio Active'
             : 'Unavailable';
-  const speakerStatusTone = speakerTestLocked || speakerStatusReady
+  const speakerStatusTone = !controllerControlsAvailable
+    ? 'warn'
+    : speakerTestLocked || speakerStatusReady
     ? 'good'
     : connected && (speakerTestError || speakerOutputMissing)
         ? 'bad'
       : connected && gameStreamActive
         ? 'warn'
         : 'idle';
-  const micTestStatusLabel = micTestLocked
+  const micTestStatusLabel = !controllerControlsAvailable
+    ? CONTROLLER_NOT_CONNECTED
+    : micTestLocked
     ? 'Listening'
     : connected && micTestError
       ? micTestError
       : micStatusReady
         ? 'Ready'
         : 'Unavailable';
-  const micTestStatusTone = micTestLocked || micStatusReady
+  const micTestStatusTone = !controllerControlsAvailable
+    ? 'warn'
+    : micTestLocked || micStatusReady
     ? 'good'
     : connected && micTestError
       ? 'bad'
@@ -1684,7 +1704,7 @@ export function useAppState() {
     ? 'warn'
     : snapshot?.diagnostics.lastError
       ? 'bad'
-      : firmwareUpdateAvailable
+      : firmwareUpdateAvailable || !controllerControlsAvailable
         ? 'warn'
         : 'good';
   const overviewConnectionStatus = personaTransitionActive
@@ -1751,8 +1771,11 @@ export function useAppState() {
       ? 'Active'
       : 'Enabled'
     : 'Off';
-  const lightbarStateActive = connected && lightbarSupported && lightbarEnabled;
-  const lightbarStateLabel = lightbarStateActive
+  const lightbarStateActive = controllerControlsAvailable && lightbarSupported && lightbarEnabled;
+  const lightbarStateTone = !controllerControlsAvailable ? 'warn' : lightbarStateActive ? 'good' : 'idle';
+  const lightbarStateLabel = !controllerControlsAvailable
+    ? CONTROLLER_NOT_CONNECTED
+    : lightbarStateActive
     ? 'Active'
     : connected && lightbarSupported
       ? 'Off'
@@ -4372,7 +4395,7 @@ export function useAppState() {
     isPreservingPowerSavingCap, largerAudioBlocks, largerAudioBlocksError, largerAudioBlocksPending,
     lastAck, lastAutoMatchedProfileRef, lastRemapControllerType, lightbarBrightnessEditingRef,
     lightbarBrightnessValue, lightbarColor, lightbarColorName, lightbarCommitPending,
-    lightbarEnabled, lightbarOverrideSupported, lightbarStateActive, lightbarStateLabel,
+    lightbarEnabled, lightbarOverrideSupported, lightbarStateActive, lightbarStateLabel, lightbarStateTone,
     lightbarSupported, linkedProfileFor, liveControllerType, loadInstalledGames,
     loadTriggerProfileDraft, lowBatteryToastEnabled, mainUiMounted, manualUpdateCheck, microphoneOn,
     micStatusReady, micTestError, micTestLocked, micTestStatusLabel, micTestStatusTone,

@@ -302,6 +302,7 @@ export function healthLabel(snapshot: BridgeSnapshot | null | undefined): string
       : snapshot.message;
   }
   if (snapshot.diagnostics.lastError) return snapshot.diagnostics.lastError;
+  if (!snapshot.status?.controllerConnected) return 'Controller not connected';
   if (snapshot.diagnostics.firmwareUpdateAvailable) {
     return `Firmware ${snapshot.diagnostics.firmwareUpdateAvailable.availableVersion} available`;
   }

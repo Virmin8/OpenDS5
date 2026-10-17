@@ -17,6 +17,20 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.9.13] - Unreleased — Clearer when the controller isn't connected
+
+Every page now says when the controller isn't connected, and the test buttons
+wait for it. **Update as usual.**
+
+### 🔧 Changed
+- **"Controller not connected"** on the status badges of the Haptics, Audio, Lighting, Overview and System pages, like the Triggers page already had. Before, Haptics and Audio said **Ready** whenever the bridge was running, even with no controller.
+- **Test buttons are disabled without a controller** — Test Haptics, Test Rumble, Test Speaker and Test Mic, on their pages and in Overview's Quick Actions.
+
+### 🛠️ Developer
+- `DS5_BRIDGE_MOCK_CONTROLLER_DISCONNECTED=1` makes the mock bridge report no controller, for UI checks.
+
+---
+
 ## [1.9.12] - 2026-10-17 — Battery warning, settings backup and Electron 44
 
 A low-battery warning on the lightbar, a one-file settings backup, a switch for

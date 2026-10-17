@@ -13,6 +13,7 @@ import {
  * In-memory companion transport used for UI automation (layout-check /
  * visual-smoke) so the app renders as if a firmware-current DualSense is
  * connected without any real hardware. Gated behind DS5_BRIDGE_MOCK_CONTROLLER.
+ * DS5_BRIDGE_MOCK_CONTROLLER_DISCONNECTED=1 shows the bridge with no controller.
  */
 export class MockCompanionTransport extends EventEmitter implements CompanionTransport {
   readonly path = 'mock://ds5-bridge';
@@ -51,7 +52,7 @@ export class MockCompanionTransport extends EventEmitter implements CompanionTra
 
   private statusReport(): number[] {
     const report = headerReport(REPORT_ID.STATUS);
-    report[7] = 1; // controllerConnected
+    report[7] = process.env.DS5_BRIDGE_MOCK_CONTROLLER_DISCONNECTED === '1' ? 0 : 1; // controllerConnected
     report[8] = 1; // controllerType: dualsense
     report[9] = 80; // batteryPercent
     report[12] = 1; // hapticsReady

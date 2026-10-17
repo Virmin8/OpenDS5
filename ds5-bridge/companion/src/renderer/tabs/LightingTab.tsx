@@ -19,7 +19,7 @@ export function LightingTab({ app, snapshot }: { app: AppState; snapshot: Bridge
     controllerPowerSavingActive, customColorDraft, customColorPickerDisabled, customColorPickerRef,
     customLightbarColor, customSwatchColor, customSwatchPrimed, customSwatchSelected,
     focusBridgeSettings, lightbarBrightnessEditingRef, lightbarBrightnessValue, lightbarColor,
-    lightbarColorName, lightbarOverrideSupported, lightbarStateActive, lightbarStateLabel,
+    lightbarColorName, lightbarOverrideSupported, lightbarStateLabel, lightbarStateTone,
     lightbarSupported, normalizedLightbarColor, openCustomLightbarPicker, pendingAction,
     percentSliderMax, previewCustomLightbarColor, runAction, saveCustomLightbarColor,
     selectCustomLightbarColor, selectLightbarColor, setLightbarBrightnessValue, setLightbarPreset,
@@ -248,8 +248,8 @@ export function LightingTab({ app, snapshot }: { app: AppState; snapshot: Bridge
               </div>
             </div>
             <div className="feature-status lighting-status">
-              <span className={`status-badge ${lightbarStateActive ? 'good' : 'idle'}`}>
-                <span className={`dot ${lightbarStateActive ? 'good' : 'idle'}`} />
+              <span className={`status-badge ${lightbarStateTone}`}>
+                <span className={`dot ${lightbarStateTone}`} />
                 <strong>{lightbarStateLabel}</strong>
               </span>
             </div>
