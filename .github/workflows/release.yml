@@ -55,6 +55,13 @@ jobs:
       - name: build vds-bin
         run: bash scripts/collect-vds-bin.sh
 
+      # vds has no CI of its own; its tests run here.
+      - name: test vds
+        run: |
+          cmake -S vds -B vds/build-test -DCMAKE_BUILD_TYPE=Release
+          cmake --build vds/build-test --parallel
+          ctest --test-dir vds/build-test --output-on-failure
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -266,14 +273,15 @@ jobs:
           "VDS_VCPKG_ROOT=$(Split-Path -Parent $VcpkgPath)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       # vds-win/ is gitignored and consumed via extraResources.
-      - name: build vdsd
+      - name: build and test vdsd
         shell: pwsh
         run: |
           cmake -S vds -B vds\build-win `
             -DVDS_STATIC_MSVC_RUNTIME=ON `
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DCMAKE_TOOLCHAIN_FILE="$env:VDS_VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
-          cmake --build vds\build-win --config Release --parallel --target vdsd vdsctl
+          cmake --build vds\build-win --config Release --parallel
+          ctest --test-dir vds\build-win -C Release --output-on-failure
           New-Item -ItemType Directory -Force -Path vds-win | Out-Null
           Copy-Item vds\build-win\Release\vdsd.exe, vds\build-win\Release\vdsctl.exe vds-win\
           $Dlls = Get-ChildItem vds\build-win\Release\*.dll -ErrorAction SilentlyContinue
