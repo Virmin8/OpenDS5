@@ -23,9 +23,6 @@ on:
 jobs:
   flake:
     runs-on: ubuntu-latest
-    permissions:
-      # Lets the npmDepsHash step push its fix back to the branch.
-      contents: write
     env:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
       CACHIX_CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME || 'opends5' }}
@@ -42,28 +39,6 @@ jobs:
           authToken: ${{ env.CACHIX_AUTH_TOKEN }}
       - name: flake evaluates
         run: nix flake check --no-build
-      # The npm deps output embeds package-lock.json, so any lockfile change (even a release
-      # version bump) changes npmDepsHash. On pushes, take the correct hash from the mismatch
-      # error, commit it back and build with it; pull requests just fail on the stale hash.
-      - name: update npmDepsHash if the lockfile changed
-        if: github.event_name == 'push'
-        run: |
-          if nix build .#opends5.npmDeps --no-link 2> npm-deps.log; then
-            exit 0
-          fi
-          cat npm-deps.log
-          hash=$(sed -n 's/^ *got: *\(sha256-[A-Za-z0-9+/=]*\).*/\1/p' npm-deps.log | head -n 1)
-          if [ -z "$hash" ]; then
-            echo "::error::npm dependencies failed to build for a reason other than a hash mismatch"
-            exit 1
-          fi
-          sed -i "s|npmDepsHash = \"sha256-[^\"]*\";|npmDepsHash = \"$hash\";|" nix/opends5.nix
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898283+github-actions[bot]@users.noreply.github.com'
-          git commit -m "Update npmDepsHash for package-lock.json" -- nix/opends5.nix
-          git pull --rebase origin "$GITHUB_REF_NAME"
-          git push origin "HEAD:$GITHUB_REF_NAME"
-          echo "::notice::npmDepsHash updated to $hash"
       - name: build userspace (vdsd, vdsctl)
         run: nix build .#vds --print-build-logs
       - name: build kernel module

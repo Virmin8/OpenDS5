@@ -2,6 +2,7 @@
   lib,
   stdenv,
   buildNpmPackage,
+  importNpmLock,
   electron_42,
   nodejs,
   libusb1,
@@ -15,7 +16,12 @@ buildNpmPackage {
 
   src = ../.;
 
-  npmDepsHash = "sha256-90vpR0f3X2vKVluJlQOANotguGDFs27CtKp4K8EyS3Y=";
+  # Fetch each dependency by the integrity hash package-lock.json already
+  # records, so there is no npmDepsHash to bump when the lockfile changes.
+  npmDeps = importNpmLock {
+    npmRoot = ../ds5-bridge/companion;
+  };
+  npmConfigHook = importNpmLock.npmConfigHook;
 
   postPatch = ''
     cp ds5-bridge/companion/package-lock.json ./package-lock.json
