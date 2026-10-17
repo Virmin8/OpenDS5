@@ -517,7 +517,6 @@ function applyLaunchAtStartup(enabled: boolean): void {
   try {
     app.setLoginItemSettings({
       openAtLogin: enabled,
-      openAsHidden: enabled,
       path: process.execPath,
       args: loginItemArgs()
     });
@@ -566,6 +565,8 @@ function createWindow(uiScalePercent: UiScalePercent): BrowserWindow {
     show: false,
     title: 'OpenDS5',
     frame: false,
+    // Electron 43+ rounds frameless windows on Linux; keep the square edge.
+    roundedCorners: process.platform !== 'linux',
     resizable: true,
     maximizable: true,
     fullscreenable: false,

@@ -3,7 +3,7 @@
   stdenv,
   buildNpmPackage,
   importNpmLock,
-  electron_42,
+  electron_44,
   nodejs,
   libusb1,
   makeWrapper,
@@ -27,10 +27,6 @@ buildNpmPackage {
     cp ds5-bridge/companion/package-lock.json ./package-lock.json
     cp ds5-bridge/companion/package.json ./package.json
   '';
-
-  env = {
-    ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
-  };
 
   nativeBuildInputs = [
     makeWrapper
@@ -79,7 +75,7 @@ buildNpmPackage {
     cp "$companion/src/renderer/assets/test-speaker-tone-silence-tail.mp3" \
       "$out/share/opends5/native/test-speaker-tone-silence-tail.mp3"
 
-    makeWrapper ${electron_42}/bin/electron "$out/bin/opends5" \
+    makeWrapper ${electron_44}/bin/electron "$out/bin/opends5" \
       --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [
       libusb1
       stdenv.cc.cc.lib

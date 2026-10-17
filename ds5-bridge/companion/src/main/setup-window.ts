@@ -27,6 +27,8 @@ export function openSetupWindow(opts: {
     height: 520,
     resizable: false,
     frame: false,
+    // Electron 43+ rounds frameless windows on Linux; keep the square edge.
+    roundedCorners: process.platform !== 'linux',
     title: 'OpenDS5 Setup',
     backgroundColor: '#0b1017',
     ...(opts.icon ? { icon: opts.icon } : {}),
@@ -77,13 +79,13 @@ export function openSetupWindow(opts: {
       void shell.openPath(logPath);
     }
   });
-  ipcMain.handle(SETUP_CHANNELS.copyDiagnostics, () => {
+  ipcMain.handle(SETUP_CHANNELS.copyDiagnostics, async () => {
     let tail = '';
     if (logPath && fs.existsSync(logPath)) {
       const lines = fs.readFileSync(logPath, 'utf8').split('\n');
       tail = lines.slice(-80).join('\n');
     }
-    clipboard.writeText(`OpenDS5 install diagnostics\n${tail}`);
+    await clipboard.writeText(`OpenDS5 install diagnostics\n${tail}`);
   });
 
   win.on('closed', () => {

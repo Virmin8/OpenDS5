@@ -8,7 +8,7 @@
   "license": "AGPL-3.0-only",
   "main": "dist/main/main/main.js",
   "scripts": {
-    "dev": "npm run build && electron .",
+    "dev": "npm run build && install-electron && electron .",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.json --noEmit",
     "build:audio-helper": "dotnet publish native/AudioHelper/AudioHelper.csproj -c Release -r win-x64 --self-contained true -o native/AudioHelper/bin/publish/win-x64",
     "build:firmware-tools": "powershell -NoProfile -ExecutionPolicy Bypass -File ../tools/build-pico-universal-flash-nuke.ps1",
@@ -21,8 +21,8 @@
     "test:installer": "node scripts/check-installer-upgrade-config.mjs",
     "test:native": "dotnet test native/AudioHelper.Tests/AudioHelper.Tests.csproj --nologo",
     "test:firmware": "cmake -S ../tests/firmware -B ../build-firmware-tests -G Ninja && cmake --build ../build-firmware-tests && ctest --test-dir ../build-firmware-tests --output-on-failure",
-    "visual:smoke": "npm run build && node scripts/visual-smoke.mjs",
-    "layout:check": "npm run build && node scripts/layout-check.mjs",
+    "visual:smoke": "npm run build && install-electron && node scripts/visual-smoke.mjs",
+    "layout:check": "npm run build && install-electron && node scripts/layout-check.mjs",
     "installer:linux": "npm run build:app && electron-builder --linux AppImage --x64"
   },
   "build": {
@@ -195,7 +195,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
-    "electron": "^39.8.10",
+    "electron": "^44.7.2",
     "electron-builder": "^26.8.1",
     "lucide-react": "^0.561.0",
     "playwright": "^1.59.1",
@@ -207,7 +207,6 @@
     "vitest": "^4.0.16"
   },
   "allowScripts": {
-    "electron@39.8.10": true,
     "node-hid@3.3.0": true,
     "esbuild@0.27.7": true
   }
