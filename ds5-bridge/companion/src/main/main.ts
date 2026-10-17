@@ -1718,6 +1718,12 @@ function registerIpc(
   ipcMain.handle('bridge:setNotifyLowBattery', (_event, value: boolean) => (
     service.setNotifyLowBattery(value)
   ));
+  ipcMain.handle('bridge:setNotifyChargeComplete', (_event, value: boolean) => (
+    service.setNotifyChargeComplete(value)
+  ));
+  ipcMain.handle('bridge:setLightbarBatteryWarningEnabled', (_event, value: boolean) => (
+    service.setLightbarBatteryWarningEnabled(value)
+  ));
   ipcMain.handle('bridge:testNotification', () => service.testNotification());
   ipcMain.handle('bridge:testHaptics', () => service.testHaptics());
   ipcMain.handle('bridge:testSpeaker', () => service.testSpeaker());

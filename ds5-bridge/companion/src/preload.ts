@@ -207,6 +207,12 @@ const api = {
   setNotifyLowBattery: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setNotifyLowBattery', value)
   ),
+  setNotifyChargeComplete: (value: boolean): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setNotifyChargeComplete', value)
+  ),
+  setLightbarBatteryWarningEnabled: (value: boolean): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setLightbarBatteryWarningEnabled', value)
+  ),
   setTouchpadMouseEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setTouchpadMouseEnabled', value)
   ),

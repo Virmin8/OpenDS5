@@ -331,6 +331,33 @@ function emptyDiagnostics(rawDevices: HidDeviceSummary[]): BridgeDiagnostics {
   };
 }
 
+const POWER_STATE_CHARGING = 0x01;
+const POWER_STATE_CHARGE_COMPLETE = 0x02;
+const BATTERY_WARNING_CRITICAL_PERCENT = 10;
+const BATTERY_WARNING_BRIGHTNESS_PERCENT = 60;
+
+/**
+ * The lightbar color that warns about a low battery (amber at 20% or below,
+ * red at 10% or below), or null while no warning is due: the setting is
+ * off, the controller is charging, or the battery is fine.
+ */
+export function batteryWarningColor(
+  status: Pick<BridgeStatusPayload, 'controllerConnected' | 'batteryPercent' | 'rawPowerState'>,
+  enabled: boolean
+): { red: number; green: number; blue: number } | null {
+  if (!enabled || !status.controllerConnected || status.batteryPercent === null) {
+    return null;
+  }
+  const charging = status.rawPowerState === POWER_STATE_CHARGING
+    || status.rawPowerState === POWER_STATE_CHARGE_COMPLETE;
+  if (charging || status.batteryPercent > LOW_BATTERY_PERCENT) {
+    return null;
+  }
+  return status.batteryPercent <= BATTERY_WARNING_CRITICAL_PERCENT
+    ? { red: 255, green: 24, blue: 24 }
+    : { red: 255, green: 128, blue: 0 };
+}
+
 function parseHexColor(color: string): { hex: string; red: number; green: number; blue: number } {
   const hex = /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : '#0000ff';
   return {
@@ -1464,6 +1491,9 @@ export class BridgeService extends EventEmitter {
   private hostPersonaDefaultRenderRestore: HostPersonaDefaultRenderRestore | null = null;
   private controllerPowerSavingActive: boolean | null = null;
   private previousControllerConnected: boolean | null = null;
+  private previousPowerState: number | null = null;
+  /** The battery warning is on the lightbar and the user's lighting needs restoring. */
+  private batteryWarningShown = false;
   private lowBatteryToastActive = false;
   private shortcutFeaturePollRetryAt = 0;
   private shortcutActionQueue: Promise<void> = Promise.resolve();
@@ -3183,6 +3213,21 @@ export class BridgeService extends EventEmitter {
     return this.getSnapshot();
   }
 
+  async setNotifyChargeComplete(enabled: boolean): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ notifyChargeComplete: enabled });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setLightbarBatteryWarningEnabled(enabled: boolean): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ lightbarBatteryWarningEnabled: enabled });
+    if (this.snapshot.state === 'connected' && this.snapshot.status) {
+      await this.syncBatteryWarningLightbar(this.snapshot.status, this.snapshot.settings);
+    }
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   async testNotification(): Promise<BridgeSnapshot> {
     this.emit('toast', {
       title: 'OpenDS5',
@@ -3897,6 +3942,7 @@ export class BridgeService extends EventEmitter {
     }
     await this.updateMicKeepaliveEngine(status.controllerConnected);
     await this.syncControllerPowerSavingState(settings);
+    await this.syncBatteryWarningLightbar(status, settings);
 
     if (status.controllerConnected) {
       if (this.controllerConnectedSince === 0) {
@@ -4035,6 +4081,57 @@ export class BridgeService extends EventEmitter {
       } satisfies BridgeToast);
     }
     this.lowBatteryToastActive = lowBattery;
+
+    const powerState = controllerConnected ? status.rawPowerState : null;
+    if (
+      settings.notifyChargeComplete
+      && this.previousPowerState === POWER_STATE_CHARGING
+      && powerState === POWER_STATE_CHARGE_COMPLETE
+    ) {
+      this.emit('toast', {
+        title: 'OpenDS5',
+        body: 'Controller fully charged'
+      } satisfies BridgeToast);
+    }
+    this.previousPowerState = powerState;
+  }
+
+  /**
+   * Shows or clears the low-battery lightbar warning. Compares against what
+   * the controller reports, so the warning comes back if a profile switch or
+   * the user repaints the lightbar while it is due.
+   */
+  private async syncBatteryWarningLightbar(status: BridgeStatusPayload, settings: CompanionSettings): Promise<void> {
+    const warning = batteryWarningColor(status, settings.lightbarBatteryWarningEnabled);
+    if (warning) {
+      const shown = status.lightbarOverrideEnabled
+        && status.lightbarColor.red === warning.red
+        && status.lightbarColor.green === warning.green
+        && status.lightbarColor.blue === warning.blue
+        && status.lightbarColor.brightnessPercent > 0;
+      if (!shown) {
+        await this.showBatteryWarning(warning, true);
+      }
+      return;
+    }
+    if (this.batteryWarningShown) {
+      this.batteryWarningShown = false;
+      if (status.controllerConnected) {
+        await this.applyLightbarSettings(settings, true);
+      }
+    }
+  }
+
+  private async showBatteryWarning(
+    warning: { red: number; green: number; blue: number },
+    expectSettingsRevisionChange: boolean
+  ): Promise<void> {
+    this.batteryWarningShown = true;
+    await this.sendCommand(COMMAND_ID.SET_LIGHTBAR_COLOR, BATTERY_WARNING_BRIGHTNESS_PERCENT, {
+      expectSettingsRevisionChange,
+      extraPayload: [warning.red, warning.green, warning.blue]
+    });
+    await this.sendCommand(COMMAND_ID.SET_LIGHTBAR_OVERRIDE, 1, { expectSettingsRevisionChange });
   }
 
   private noteControllerUnavailableForToasts(): void {
@@ -4046,6 +4143,7 @@ export class BridgeService extends EventEmitter {
       } satisfies BridgeToast);
     }
     this.previousControllerConnected = false;
+    this.previousPowerState = null;
     this.lowBatteryToastActive = false;
   }
 
@@ -4219,6 +4317,13 @@ export class BridgeService extends EventEmitter {
   }
 
   private async applyLightbarSettings(settings: CompanionSettings, expectSettingsRevisionChange: boolean): Promise<void> {
+    const warning = this.snapshot.status
+      ? batteryWarningColor(this.snapshot.status, settings.lightbarBatteryWarningEnabled)
+      : null;
+    if (warning) {
+      await this.showBatteryWarning(warning, expectSettingsRevisionChange);
+      return;
+    }
     const color = settings.lightbarEnabled ? parseHexColor(settings.lightbarColor) : { red: 0, green: 0, blue: 0 };
     await this.sendCommand(
       COMMAND_ID.SET_LIGHTBAR_COLOR,

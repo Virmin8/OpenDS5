@@ -278,7 +278,7 @@ type FeatureTipsPanelProps = {
   audioHapticsOpen?: boolean;
 };
 type SettingsFocusTarget = 'controller-power-saving' | 'sleep-shortcut' | 'volume-shortcut' | 'profile-shortcut';
-type NotificationFocusTarget = 'controller-status' | 'low-battery' | 'all';
+type NotificationFocusTarget = 'controller-status' | 'low-battery' | 'charge-complete' | 'all';
 
 const HAPTICS_STEP = 20;
 const STANDARD_FEEDBACK_GAIN_PERCENT = 200;
@@ -4221,7 +4221,8 @@ export function App() {
   const sleepKeybindEnabled = Boolean(snapshot?.settings.sleepKeybindEnabled);
   const controllerToastEnabled = Boolean(snapshot?.settings.notifyControllerConnection);
   const lowBatteryToastEnabled = Boolean(snapshot?.settings.notifyLowBattery);
-  const notificationsEnabled = controllerToastEnabled || lowBatteryToastEnabled;
+  const chargeCompleteToastEnabled = Boolean(snapshot?.settings.notifyChargeComplete);
+  const notificationsEnabled = controllerToastEnabled || lowBatteryToastEnabled || chargeCompleteToastEnabled;
   const gameStreamActive = Boolean(snapshot?.status?.hostOutputRecent);
   const adaptiveTriggerOutputActive = Boolean(snapshot?.status?.adaptiveTriggerOutputRecent);
   const audioStatus = snapshot?.diagnostics.audioStatus;
@@ -4510,7 +4511,8 @@ export function App() {
   ].filter((item): item is { id: 'sleep' | 'volume' | 'profile'; label: string } => Boolean(item));
   const overviewNotificationItems = [
     controllerToastEnabled ? { id: 'controller-status', label: 'Controller Status' } : null,
-    lowBatteryToastEnabled ? { id: 'low-battery', label: 'Low Battery' } : null
+    lowBatteryToastEnabled ? { id: 'low-battery', label: 'Low Battery' } : null,
+    chargeCompleteToastEnabled ? { id: 'charge-complete', label: 'Fully Charged' } : null
   ].filter((item): item is { id: NotificationFocusTarget; label: string } => Boolean(item));
   const overviewPowerSavingLabel = snapshot?.settings.controllerPowerSavingEnabled
     ? controllerPowerSavingActive
@@ -6990,6 +6992,13 @@ export function App() {
     ));
   }
 
+  function toggleChargeCompleteNotifications() {
+    if (!snapshot) return;
+    void runAction('notify-charged', () => (
+      window.bridge.setNotifyChargeComplete(!snapshot.settings.notifyChargeComplete)
+    ));
+  }
+
   function setPollingRateMode(mode: PollingRateMode) {
     void runAction('polling-rate', () => window.bridge.setPollingRateMode(mode));
   }
@@ -7338,6 +7347,22 @@ export function App() {
                       className={`switch ${lowBatteryToastEnabled ? 'on' : ''}`}
                       disabled={pendingAction !== null}
                       onClick={toggleLowBatteryNotifications}
+                    >
+                      <span />
+                    </button>
+                  </div>
+                  <div className={`settings-menu-row ${notificationFocusTarget === 'charge-complete' || notificationFocusTarget === 'all' ? 'settings-menu-row-highlight' : ''}`}>
+                    <div>
+                      <strong>Fully Charged</strong>
+                      <span>Toast when the controller finishes charging</span>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={chargeCompleteToastEnabled}
+                      className={`switch ${chargeCompleteToastEnabled ? 'on' : ''}`}
+                      disabled={pendingAction !== null}
+                      onClick={toggleChargeCompleteNotifications}
                     >
                       <span />
                     </button>
@@ -10465,6 +10490,25 @@ export function App() {
                         {label}
                       </button>
                     ))}
+                  </div>
+                  <div className="behavior-toggle-row battery-warning-row">
+                    <div>
+                      <strong>Battery Warning</strong>
+                      <p>Amber at 20% battery, red at 10%, until it charges</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={snapshot.settings.lightbarBatteryWarningEnabled}
+                      aria-label="Battery warning on the light bar"
+                      className={`switch ${snapshot.settings.lightbarBatteryWarningEnabled ? 'on' : ''}`}
+                      disabled={!connected || !lightbarSupported || pendingAction !== null}
+                      onClick={() => void runAction('lightbar-battery-warning', () => (
+                        window.bridge.setLightbarBatteryWarningEnabled(!snapshot.settings.lightbarBatteryWarningEnabled)
+                      ))}
+                    >
+                      <span />
+                    </button>
                   </div>
                 </section>
                 <section className="feature-card behavior-card">

@@ -5448,6 +5448,17 @@ button.feature-icon {
   align-items: start;
 }
 
+.battery-warning-row {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--surface-divider);
+}
+
+.battery-warning-row p {
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
 .behavior-toggle-row strong {
   color: var(--text-primary);
   font-size: 14px;

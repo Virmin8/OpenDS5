@@ -205,6 +205,8 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   hostPersonaMode: 'dualsense',
   notifyControllerConnection: false,
   notifyLowBattery: false,
+  notifyChargeComplete: false,
+  lightbarBatteryWarningEnabled: false,
   touchpadMouseEnabled: true,
   duplexMicEnabled: DEFAULT_CONTROLLER_PROFILE_SETTINGS.duplexMicEnabled,
   controllerPowerSavingEnabled: DEFAULT_CONTROLLER_PROFILE_SETTINGS.controllerPowerSavingEnabled,
@@ -1071,6 +1073,12 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     notifyLowBattery: typeof value?.notifyLowBattery === 'boolean'
       ? value.notifyLowBattery
       : DEFAULT_SETTINGS.notifyLowBattery,
+    notifyChargeComplete: typeof value?.notifyChargeComplete === 'boolean'
+      ? value.notifyChargeComplete
+      : DEFAULT_SETTINGS.notifyChargeComplete,
+    lightbarBatteryWarningEnabled: typeof value?.lightbarBatteryWarningEnabled === 'boolean'
+      ? value.lightbarBatteryWarningEnabled
+      : DEFAULT_SETTINGS.lightbarBatteryWarningEnabled,
     touchpadMouseEnabled: typeof value?.touchpadMouseEnabled === 'boolean'
       ? value.touchpadMouseEnabled
       : DEFAULT_SETTINGS.touchpadMouseEnabled,

@@ -79,7 +79,7 @@ vi.mock('./audio-helper', async (importOriginal) => {
   };
 });
 
-import { BridgeService, hapticsBufferCommandValue } from './bridge-service';
+import { BridgeService, batteryWarningColor, hapticsBufferCommandValue } from './bridge-service';
 import { SettingsStore } from './settings-store';
 
 type StatusOverrides = {
@@ -550,6 +550,81 @@ describe('BridgeService', () => {
 
     expect(service.getSnapshot().state).toBe('normal-firmware');
     expect(hidMock.devices).toHaveBeenCalledTimes(2);
+  });
+
+  describe('battery warning on the lightbar', () => {
+    const AMBER = [255, 128, 0];
+    const RED = [255, 24, 24];
+    const lightbarColors = (device: MockHidDevice) => device.sentReports
+      .filter((report) => report[7] === COMMAND_ID.SET_LIGHTBAR_COLOR)
+      .map((report) => report.slice(11, 14));
+
+    it('picks amber at 20% or below, red at 10% or below, nothing while charging or when off', () => {
+      const status = (batteryPercent: number | null, rawPowerState = 0) => ({
+        controllerConnected: true, batteryPercent, rawPowerState
+      });
+      expect(batteryWarningColor(status(21), true)).toBeNull();
+      expect(batteryWarningColor(status(20), true)).toEqual({ red: 255, green: 128, blue: 0 });
+      expect(batteryWarningColor(status(10), true)).toEqual({ red: 255, green: 24, blue: 24 });
+      expect(batteryWarningColor(status(5, 0x01), true)).toBeNull();
+      expect(batteryWarningColor(status(5, 0x02), true)).toBeNull();
+      expect(batteryWarningColor(status(null), true)).toBeNull();
+      expect(batteryWarningColor(status(5), false)).toBeNull();
+      expect(batteryWarningColor({ ...status(5), controllerConnected: false }, true)).toBeNull();
+    });
+
+    it('shows the warning while the battery is low and restores the lightbar after', async () => {
+      const service = serviceFixture({ lightbarBatteryWarningEnabled: true, lightbarColor: '#00ff00' });
+      const device = new MockHidDevice();
+      device.status = statusReport({ batteryPercent: 15 });
+      device.status[10] = 0;
+      hidMock.state.devicesList = [companionDeviceInfo()];
+      hidMock.state.openDevices.set('companion-path', device);
+
+      await poll(service);
+      await flushReapply();
+      expect(lightbarColors(device)).toContainEqual(AMBER);
+      expect(device.sentReports.filter((report) => report[7] === COMMAND_ID.SET_LIGHTBAR_OVERRIDE).at(-1)?.[9]).toBe(1);
+
+      device.status[9] = 8;
+      await poll(service);
+      await flushReapply();
+      expect(lightbarColors(device).at(-1)).toEqual(RED);
+
+      device.status[10] = 1;
+      await poll(service);
+      await flushReapply();
+      expect(lightbarColors(device).at(-1)).toEqual([0, 255, 0]);
+    });
+
+    it('leaves the lightbar alone when the warning is off', async () => {
+      const service = serviceFixture({ lightbarColor: '#00ff00' });
+      const device = new MockHidDevice();
+      device.status = statusReport({ batteryPercent: 15 });
+      device.status[10] = 0;
+      hidMock.state.devicesList = [companionDeviceInfo()];
+      hidMock.state.openDevices.set('companion-path', device);
+
+      await poll(service);
+      await flushReapply();
+      expect(lightbarColors(device)).not.toContainEqual(AMBER);
+    });
+  });
+
+  it('notifies once when charging completes, if enabled', async () => {
+    const service = serviceFixture({ notifyChargeComplete: true });
+    const toasts: string[] = [];
+    service.on('toast', (toast: { body: string }) => toasts.push(toast.body));
+    const device = new MockHidDevice();
+    hidMock.state.devicesList = [companionDeviceInfo()];
+    hidMock.state.openDevices.set('companion-path', device);
+
+    await poll(service);
+    device.status[10] = 2;
+    await poll(service);
+    await poll(service);
+
+    expect(toasts.filter((body) => body === 'Controller fully charged')).toHaveLength(1);
   });
 
   it('treats WinUSB transport close as a bridge disconnect', async () => {
