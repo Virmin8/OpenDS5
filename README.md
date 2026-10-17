@@ -271,8 +271,9 @@ added. The Bluetooth tab tells you which; the fix is
 
 ### 🔄 New version doesn't show up after updating
 
-Fully quit OpenDS5 from its **tray icon** and start it again; closing the
-window only hides it.
+With the pacman package, OpenDS5 notices the upgrade and offers **Restart
+now**. On NixOS, fully quit OpenDS5 from its **tray icon** and start it again;
+closing the window only hides it.
 
 ## ⚙️ How it works
 

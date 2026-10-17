@@ -23,6 +23,7 @@ import {
 import { SettingsStore } from './settings-store';
 import { appImagePath } from './appimage-updater';
 import { isCheckDue, UpdateService, type UpdateState } from './update-service';
+import { watchForPackageUpgrade } from './package-upgrade-watcher';
 import { RELEASES_PAGE_URL } from './update-ipc';
 import { defaultWindowSize, growBoundsToMinimum, loadWindowState, resolveWindowBounds, saveWindowState } from './window-state';
 import { deriveLegacyUserDataPath, migrateLegacyUserData } from './user-data-migration';
@@ -933,6 +934,20 @@ function showBridgeNotification(toast: BridgeToast): void {
 // Desktop notification for a newly found update, once per version per run:
 // the in-app toast is unseen while the app sits in the tray.
 const notifiedUpdateVersions = new Set<string>();
+
+function notifyPackageUpgraded(version: string): void {
+  if (!Notification.isSupported()) {
+    return;
+  }
+  const notification = new Notification({
+    title: `${APP_NAME} ${version} is installed`,
+    body: 'Restart OpenDS5 to start using it.',
+    icon: createRuntimeIcon(),
+    silent: false
+  });
+  notification.on('click', () => showMainWindow());
+  notification.show();
+}
 
 function notifyUpdateAvailable(state: UpdateState): void {
   if (state.phase !== 'offer' && state.phase !== 'notify' && state.phase !== 'readonly') {
@@ -1957,7 +1972,24 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
     // "Remind me later" writes no state; the next check past the window re-offers.
   });
 
+  if (SYSTEM_PACKAGE_LAUNCHER) {
+    watchForPackageUpgrade({
+      currentVersion: app.getVersion(),
+      onUpgrade: (version) => {
+        updateService.packageUpgraded(version);
+        notifyPackageUpgraded(version);
+      }
+    });
+  }
+
   ipcMain.handle('update:restart', () => {
+    if (SYSTEM_PACKAGE_LAUNCHER) {
+      // The launcher starts the newly installed files; quit (not exit) so the
+      // bridge shuts down cleanly first.
+      app.relaunch({ execPath: SYSTEM_PACKAGE_LAUNCHER, args: [] });
+      app.quit();
+      return;
+    }
     const installer = updateService.verifiedWindowsInstaller();
     if (installer) {
       // electron-builder's NSIS: --updated runs the upgrade path (no pages, old

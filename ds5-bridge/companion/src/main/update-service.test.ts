@@ -527,3 +527,39 @@ describe('UpdateService on Windows', () => {
     expect(fs.existsSync(path.join(dir, 'update'))).toBe(false);
   });
 });
+
+describe('UpdateService.packageUpgraded', () => {
+  function service() {
+    const states: UpdateState[] = [];
+    const setup = { install: vi.fn() } as unknown as SetupService;
+    const svc = new UpdateService('1.9.11', setup, (s) => states.push(s), {
+      platform: 'linux',
+      appImagePath: () => null,
+      isNixOS: () => false,
+      fetchLatestRelease: vi.fn(),
+    });
+    return { svc, states };
+  }
+
+  it('asks for a restart, replacing a pending "update with pacman" notice', () => {
+    const { svc, states } = service();
+    (svc as unknown as { state: UpdateState }).state = {
+      phase: 'notify', version: '1.9.12', url: 'https://x', manager: 'package',
+    };
+
+    svc.packageUpgraded('1.9.12');
+
+    expect(svc.getState()).toEqual({ phase: 'restart', version: '1.9.12' });
+    expect(states).toEqual([{ phase: 'restart', version: '1.9.12' }]);
+  });
+
+  it('leaves an update the app is installing itself alone', () => {
+    const { svc } = service();
+    const downloading: UpdateState = { phase: 'downloading', version: '1.9.12', received: 1, total: 2 };
+    (svc as unknown as { state: UpdateState }).state = downloading;
+
+    svc.packageUpgraded('1.9.12');
+
+    expect(svc.getState()).toEqual(downloading);
+  });
+});

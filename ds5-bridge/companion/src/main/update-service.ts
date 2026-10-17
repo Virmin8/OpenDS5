@@ -331,6 +331,18 @@ export class UpdateService {
   }
 
   /**
+   * The package manager installed `version` under the running app, which
+   * keeps running the old one until it restarts. Leaves an update the app
+   * is installing itself alone.
+   */
+  packageUpgraded(version: string): void {
+    const phase = this.state.phase;
+    if (phase === 'idle' || phase === 'notify' || phase === 'readonly' || phase === 'restart') {
+      this.set({ phase: 'restart', version });
+    }
+  }
+
+  /**
    * A hard kill mid-download leaves a ~100MB hidden sibling of the AppImage. The next
    * download truncates it, but it should not linger. Called on launch; must never throw
    * into the launch path.
