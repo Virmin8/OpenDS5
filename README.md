@@ -282,9 +282,10 @@ sound briefly) and reconnect the controller. Delete the file to undo.
 ### 🎮 No adaptive triggers or haptics in a Steam game
 
 If Steam Input is on for the game, Steam takes over the controller and the
-game only sees a basic gamepad (the **Game Profile** page warns you when this
-happens). For games with native DualSense support, open the game's
-**Properties → Controller** in Steam and choose **Disable Steam Input**.
+game only sees a basic gamepad. In Steam, open **Settings → Controller** and set
+**PlayStation Controller Support** to **Enabled in Games w/o Support** (the
+**Game Profile** page warns you when it's set to **Enabled**). For a single
+game, open its **Properties → Controller** and choose **Disable Steam Input**.
 
 ### 📶 "vdsd is not reachable" on the Bluetooth tab
 

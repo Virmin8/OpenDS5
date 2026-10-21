@@ -27,7 +27,7 @@ import { installedModuleVersion, isCheckDue, isNixOS, UpdateService, type Update
 import { watchForPackageUpgrade } from './package-upgrade-watcher';
 import { trayMenuSignature, trayMenuTemplate } from './tray-menu';
 import { buildSupportReport } from './support-report';
-import { steamHasVirtualController } from './steam-input';
+import { steamInputTakesOverController } from './steam-input';
 import { ControllerPairing, type PairingResult } from './controller-pairing';
 import { pairNewController } from './pair-flow';
 import { formatTimeLeft } from '../shared/battery-time';
@@ -1628,7 +1628,7 @@ function registerIpc(
     pairCancelled = true;
     pairing.cancel();
   });
-  ipcMain.handle('vds:steamInputActive', () => process.platform === 'linux' && steamHasVirtualController());
+  ipcMain.handle('vds:steamInputActive', () => process.platform === 'linux' && steamInputTakesOverController(os.homedir()));
   ipcMain.handle('vds:getLargerAudioBlocks', () => largerAudioBlocksEnabled());
   ipcMain.handle('vds:setLargerAudioBlocks', (_event, enabled: boolean) => setLargerAudioBlocks(Boolean(enabled)));
   ipcMain.handle('vds:getVersion', () => getVdsVersion());

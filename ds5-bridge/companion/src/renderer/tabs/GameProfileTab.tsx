@@ -70,11 +70,11 @@ export function GameProfileTab({ app }: { app: AppState }) {
               <div className="steam-input-notice" role="status">
                 <IconAlertTriangle size={18} stroke={2.2} aria-hidden="true" />
                 <div>
-                  <strong>Steam Input is using your controller</strong>
+                  <strong>Steam Input is taking over your controller</strong>
                   <span>
-                    Games with native DualSense support lose adaptive triggers and haptics, and may see
-                    double input. For those games, open the game&apos;s <b>Properties → Controller</b> in
-                    Steam and choose <b>Disable Steam Input</b>.
+                    Steam&apos;s PlayStation Controller Support is set to <b>Enabled</b>, so games with
+                    native DualSense support lose adaptive triggers and haptics. In Steam, open
+                    <b> Settings → Controller</b> and set it to <b>Enabled in Games w/o Support</b>.
                   </span>
                 </div>
                 <button type="button" className="secondary-action" onClick={dismissSteamInputNotice}>
