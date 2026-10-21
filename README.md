@@ -47,7 +47,7 @@ Bluetooth.
 - 🎭 **Controller personas** — appear as a **DualShock 4** or **Xbox 360** controller for games without DualSense support.
 - 🎯 **Game-linked profiles** — switch profiles automatically while a game runs; finds **Steam, Heroic and Lutris** games (**Steam, Epic and Heroic** on Windows).
 - 🔊 **Audio** — controller speaker and headphone jack, with a loudness boost for the built-in speaker.
-- 🎙️ **Microphone** — controller or headset mic in Linux, with one on/off switch, the Mute button and mute light, level and processing.
+- 🎙️ **Microphone** — controller or headset mic, with one on/off switch, the Mute button and mute light, level and processing.
 - 💡 **Lighting** — lightbar and player LEDs, with an optional low-battery warning on the lightbar.
 - 🎛️ **Remapping & chords** — remap buttons and trigger actions with button combos.
 - 📶 **Bluetooth pairing** — pair and forget controllers from the app; on Linux, switch between OpenDS5 mode and normal mode (keyboards and mice work again), or automatically.
@@ -153,7 +153,7 @@ Controller**. Turn the controller off, hold **Create** + **PS** until the
 lightbar flashes rapidly, and press **Start**. OpenDS5 switches Bluetooth to
 Normal mode, pairs the controller, switches back and attaches it.
 
-To do it by hand instead:
+To do it by hand on Linux instead:
 
 1. In OpenDS5, open the **Bluetooth** tab and set **Bluetooth Mode** to **Normal**.
 2. Hold **Create** + **PS** for about three seconds, until the lightbar flashes rapidly.
@@ -166,7 +166,7 @@ controller, click **Forget** next to it (click twice to confirm): it is
 detached and removed from your system's Bluetooth devices, on Linux and Windows.
 
 > [!NOTE]
-> In OpenDS5 mode, BlueZ's input plugin is off so vds can own the controller,
+> On Linux, in OpenDS5 mode, BlueZ's input plugin is off so vds can own the controller,
 > which means other Bluetooth keyboards and mice don't work. Switch to
 > **Normal** on the Bluetooth tab when you need them, or turn on **Auto switch**.
 
@@ -219,14 +219,14 @@ limiter is cutting. Headphones bypass the boost.
 
 ## 🎙️ Microphone
 
-The controller's mic (or a headset's, when one is plugged in) shows up in Linux
-as **Wireless Controller Mic**. It's **off by default**, because the mic stream
-costs the controller speaker some quality.
+The controller's mic (or a headset's, when one is plugged in) shows up as a
+microphone on your PC (**Wireless Controller Mic** in Linux). It's **off by
+default**, because the mic stream costs the controller speaker some quality.
 
 - **Turn it on** with the **Microphone** switch on **Audio → Mic**, in the
   Overview's Quick Controls, or by pressing **Mute** on the controller.
-- **Off** means the controller's mic is closed, **Wireless Controller Mic** is
-  muted in Linux and the **mute light** is on, like on a PS5.
+- **Off** means the controller's mic is closed and the **mute light** is on,
+  like on a PS5. In Linux, **Wireless Controller Mic** is muted too.
 - **On**, the controller's mic stays open, so recordings start instantly.
   Bluetooth packets carry the mic alongside haptics and the speaker; with it
   off they carry only what's needed (shown under **System → Diagnostics**).
@@ -235,7 +235,7 @@ On the **Mic** view:
 
 | Setting | What it does |
 | --- | --- |
-| **Level** | Mic volume as Linux hears it |
+| **Level** | Mic volume as your PC hears it |
 | **Mic Processing** | **Echo** (default), **Noise**, **Noise + Echo** or **No Processing**, done in the controller |
 | **Mute Button** | **Normal** toggles the mic; **Chord** lets Mute start chords instead |
 | **Mute Light** | Turn off to keep the mute light dark |
@@ -255,7 +255,7 @@ the end of the `vdsd` log; Bluetooth addresses and your home folder are hidden.
 
 ### 🔊 If controller audio crackles
 
-OpenDS5 runs the controller's audio in small 2.7 ms blocks to keep haptics
+On Linux, OpenDS5 runs the controller's audio in small 2.7 ms blocks to keep haptics
 tight. If your PC can't keep up (crackling speaker, stuttering haptics), turn on
 **Audio → Audio Blocks → Larger Audio Blocks**. It switches to PipeWire's usual
 blocks and restarts PipeWire for you (all sound stops for a moment).
@@ -291,7 +291,7 @@ game only sees a basic gamepad. In Steam, open **Settings → Controller** and s
 **Game Profile** page warns you when it's set to **Enabled**). For a single
 game, open its **Properties → Controller** and choose **Disable Steam Input**.
 
-### 📶 "vdsd is not reachable" on the Bluetooth tab
+### 📶 "vdsd is not reachable" on the Bluetooth tab (Linux)
 
 You're not in the `vds` group yet, or haven't logged in again since being
 added. The Bluetooth tab tells you which; the fix is
@@ -334,8 +334,9 @@ everything you control on top.
 - **Weapon states are inferred.** Switching states follows your button presses,
   so it can drift if the game blocks a swap; one press on the state chips
   re-syncs it.
-- **Reactive effects need input access.** Your user usually has to be in the
-  `input` group; without it only the base effect runs.
+- **Reactive effects need input access.** On Linux your user usually has to be
+  in the `input` group; without it only the base effect runs. They aren't on
+  Windows yet.
 
 ## 🆕 About this fork
 
