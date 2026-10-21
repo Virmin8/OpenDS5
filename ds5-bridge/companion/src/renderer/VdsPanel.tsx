@@ -5,11 +5,28 @@ import {
   IconDeviceGamepad2,
   IconPlugConnected,
   IconPlugConnectedX,
+  IconPlus,
   IconRefresh
 } from '@tabler/icons-react';
 import type { VdsBluetoothMode, VdsController, VdsStatus } from '../shared/vds';
 
 const POLL_INTERVAL_MS = 2000;
+const PAIR_STAGE_TEXT: Record<string, string> = {
+  'to-normal': 'Switching Bluetooth to Normal mode for pairing…',
+  restoring: 'Switching Bluetooth back to OpenDS5 mode…',
+  starting: 'Starting Bluetooth…',
+  searching: 'Looking for the controller…',
+  pairing: 'Pairing…',
+  trusting: 'Pairing…',
+  attaching: 'Attaching to OpenDS5…'
+};
+
+type PairState =
+  | { phase: 'closed' }
+  | { phase: 'ready' }
+  | { phase: 'running'; stage: string }
+  | { phase: 'done'; name: string }
+  | { phase: 'failed'; error: string };
 const IDLE_OPTIONS: Array<[label: string, seconds: number]> = [
   ['1 min', 60],
   ['2 min', 120],
@@ -58,6 +75,27 @@ export function VdsPanel({ active }: { active: boolean }) {
     const timer = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [active, pageVisible, refresh]);
+
+  const [pair, setPair] = useState<PairState>({ phase: 'closed' });
+  useEffect(() => window.vds.onPairProgress((stage) => {
+    setPair((current) => (current.phase === 'running' ? { phase: 'running', stage } : current));
+  }), []);
+  const startPairing = async () => {
+    setPair({ phase: 'running', stage: 'starting' });
+    try {
+      const { result, status: next } = await window.vds.pairStart();
+      if (next) setStatus(next);
+      if (result.ok) {
+        setPair({ phase: 'done', name: result.name });
+      } else if (result.cancelled) {
+        setPair({ phase: 'ready' });
+      } else {
+        setPair({ phase: 'failed', error: result.error });
+      }
+    } catch (error) {
+      setPair({ phase: 'failed', error: error instanceof Error ? error.message : String(error) });
+    }
+  };
 
   const run = async (key: string, action: () => Promise<VdsStatus>) => {
     setPending(key);
@@ -209,15 +247,60 @@ export function VdsPanel({ active }: { active: boolean }) {
               <h3>Controllers</h3>
               <p>Paired controllers. Attach one to bridge it through OpenDS5.</p>
             </div>
+            {bluetoothModes && pair.phase === 'closed' && (
+              <button
+                type="button"
+                className="heading-action"
+                disabled={pending !== null || !status?.available}
+                onClick={() => setPair({ phase: 'ready' })}
+              >
+                <IconPlus size={18} />
+                Pair New Controller
+              </button>
+            )}
           </div>
           <div className="system-fields">
+            {pair.phase !== 'closed' && (
+              <div className="vds-pair-panel" aria-live="polite">
+                <strong>Pair a new controller</strong>
+                {(pair.phase === 'ready' || pair.phase === 'failed') && (
+                  <ol>
+                    <li>Turn the controller off (hold PS for about 10 seconds).</li>
+                    <li>Hold <b>PS</b> and <b>Create</b> until the light bar flashes quickly.</li>
+                    <li>Press <b>{pair.phase === 'failed' ? 'Try Again' : 'Start'}</b>.</li>
+                  </ol>
+                )}
+                {pair.phase === 'running' && <p>{PAIR_STAGE_TEXT[pair.stage] ?? 'Pairing…'}</p>}
+                {pair.phase === 'done' && (
+                  <p className="vds-pair-done">Paired {pair.name} and attached it. It connects to OpenDS5 in a few seconds.</p>
+                )}
+                {pair.phase === 'failed' && <p className="vds-error">{pair.error}</p>}
+                <div className="vds-pair-actions">
+                  {(pair.phase === 'ready' || pair.phase === 'failed') && (
+                    <button type="button" className="primary-action" onClick={() => void startPairing()}>
+                      {pair.phase === 'failed' ? 'Try Again' : 'Start'}
+                    </button>
+                  )}
+                  {pair.phase === 'running' ? (
+                    <button type="button" className="secondary-action" onClick={() => void window.vds.pairCancel()}>
+                      Cancel
+                    </button>
+                  ) : (
+                    <button type="button" className="secondary-action" onClick={() => setPair({ phase: 'closed' })}>
+                      {pair.phase === 'done' ? 'Done' : 'Close'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             {!bluetoothModes && status && (status.accessHint || !status.available) && (
               <p className="vds-error">{status.accessHint ?? `vdsd is not reachable: ${status.error}`}</p>
             )}
             {status?.available && status.controllers.length === 0 && (
               <p className="vds-hint">
-                No paired controllers found. Pair the DualSense in your Bluetooth settings first
-                (hold Create + PS until the light bar flashes).
+                {bluetoothModes
+                  ? 'No paired controllers found. Use Pair New Controller above.'
+                  : 'No paired controllers found. Pair the DualSense in your Bluetooth settings first (hold Create + PS until the light bar flashes).'}
               </p>
             )}
             {status?.controllers.map((controller) => (

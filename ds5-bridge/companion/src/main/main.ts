@@ -28,6 +28,8 @@ import { watchForPackageUpgrade } from './package-upgrade-watcher';
 import { trayMenuSignature, trayMenuTemplate } from './tray-menu';
 import { buildSupportReport } from './support-report';
 import { steamHasVirtualController } from './steam-input';
+import { ControllerPairing, type PairingResult } from './controller-pairing';
+import { pairNewController } from './pair-flow';
 import { formatTimeLeft } from '../shared/battery-time';
 import { largerAudioBlocksEnabled, setLargerAudioBlocks } from './audio-blocks';
 import { applyPendingRestore, createBackup, parseBackup, stageRestore } from './settings-backup';
@@ -77,7 +79,7 @@ import {
   setVdsBluetoothAuto,
   setVdsBluetoothMode
 } from './vds-control';
-import type { VdsBluetoothMode, VdsTraceScope } from '../shared/vds';
+import type { VdsBluetoothMode, VdsStatus, VdsTraceScope } from '../shared/vds';
 import { DEFAULT_PROFILE_ID, type TriggerProfile } from '../shared/trigger-profiles';
 import type {
   AudioHapticsSession,
@@ -1590,6 +1592,28 @@ function registerIpc(
 
   ipcMain.handle('bridge:getStatus', () => service.getSnapshot());
   ipcMain.handle('vds:getStatus', () => getVdsStatus());
+  // Bluetooth tab > Pair New Controller: pair through BlueZ, then attach to vdsd.
+  const pairing = new ControllerPairing();
+  pairing.on('progress', (stage) => sendToMainWindow('vds:pairProgress', stage));
+  // A cancel can arrive while Bluetooth is still switching modes, before
+  // bluetoothctl runs; remember it so pairing is skipped.
+  let pairCancelled = false;
+  ipcMain.handle('vds:pairStart', (): Promise<{ result: PairingResult; status: VdsStatus | null }> => {
+    pairCancelled = false;
+    return pairNewController({
+      status: getVdsStatus,
+      setMode: setVdsBluetoothMode,
+      pair: () => (pairCancelled
+        ? Promise.resolve({ ok: false, cancelled: true, error: 'Cancelled.' } as const)
+        : pairing.start()),
+      attach: attachVdsController,
+      progress: (stage) => sendToMainWindow('vds:pairProgress', stage)
+    });
+  });
+  ipcMain.handle('vds:pairCancel', () => {
+    pairCancelled = true;
+    pairing.cancel();
+  });
   ipcMain.handle('vds:steamInputActive', () => process.platform === 'linux' && steamHasVirtualController());
   ipcMain.handle('vds:getLargerAudioBlocks', () => largerAudioBlocksEnabled());
   ipcMain.handle('vds:setLargerAudioBlocks', (_event, enabled: boolean) => setLargerAudioBlocks(Boolean(enabled)));

@@ -146,7 +146,12 @@ pair the controller in **Settings → Bluetooth & devices**, then in OpenDS5 ope
 the **Bluetooth** tab and click **Attach** under **Controllers**. Your other
 Bluetooth devices keep working.
 
-**On Linux:**
+**On Linux:** in OpenDS5, open the **Bluetooth** tab and click **Pair New
+Controller**. Turn the controller off, hold **Create** + **PS** until the
+lightbar flashes rapidly, and press **Start**. OpenDS5 switches Bluetooth to
+Normal mode, pairs the controller, switches back and attaches it.
+
+To do it by hand instead:
 
 1. In OpenDS5, open the **Bluetooth** tab and set **Bluetooth Mode** to **Normal**.
 2. Hold **Create** + **PS** for about three seconds, until the lightbar flashes rapidly.
@@ -154,7 +159,7 @@ Bluetooth devices keep working.
 4. Back in OpenDS5, set **Bluetooth Mode** to **OpenDS5**.
 5. Under **Controllers**, click **Attach**, then press **PS**.
 
-You only do this once; after that, **PS** connects straight to OpenDS5.
+You only pair once; after that, **PS** connects straight to OpenDS5.
 
 > [!NOTE]
 > In OpenDS5 mode, BlueZ's input plugin is off so vds can own the controller,

@@ -10688,3 +10688,49 @@ button.trigger-lab-chip {
   padding: 0 12px;
   min-height: 32px;
 }
+
+/* Bluetooth > Controllers: pairing a new controller. */
+.vds-pair-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-control-soft);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.vds-pair-panel > strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.vds-pair-panel ol {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.vds-pair-panel b {
+  color: var(--text-primary);
+}
+
+.vds-pair-panel p {
+  margin: 0;
+}
+
+.vds-pair-done {
+  color: var(--success);
+}
+
+.vds-pair-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.vds-pair-actions button {
+  width: auto;
+  min-height: 34px;
+  padding: 0 16px;
+}

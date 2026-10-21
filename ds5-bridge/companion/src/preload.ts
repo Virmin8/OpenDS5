@@ -36,6 +36,8 @@ import type { GameProcessCandidate } from './main/game-watcher';
 import type { SetupProgressEvent } from './main/setup-service';
 import type { UpdateState } from './main/update-service';
 import type { VdsAudioStats, VdsBluetoothMode, VdsDaemonLog, VdsStatus, VdsTraceScope } from './shared/vds';
+import type { PairingResult, PairingStage } from './main/controller-pairing';
+import type { PairFlowStage } from './main/pair-flow';
 
 // The preload runs sandboxed: only `require('electron')` is available, so the
 // setup channel names are inlined rather than imported from ./main/setup-ipc.
@@ -451,6 +453,14 @@ const vdsApi = {
   getDaemonLog: (lines?: number): Promise<VdsDaemonLog> => ipcRenderer.invoke('vds:getDaemonLog', lines),
   getAudioStats: (): Promise<VdsAudioStats> => ipcRenderer.invoke('vds:getAudioStats'),
   /** Linux: PipeWire's usual 256-frame blocks for the controller (fixes crackling). */
+  /** Linux: pair a DualSense in pairing mode through BlueZ, then attach it. */
+  pairStart: (): Promise<{ result: PairingResult; status: VdsStatus | null }> => ipcRenderer.invoke('vds:pairStart'),
+  pairCancel: (): Promise<void> => ipcRenderer.invoke('vds:pairCancel'),
+  onPairProgress: (cb: (stage: PairingStage | PairFlowStage) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, stage: PairingStage | PairFlowStage) => cb(stage);
+    ipcRenderer.on('vds:pairProgress', listener);
+    return () => ipcRenderer.removeListener('vds:pairProgress', listener);
+  },
   /** Linux: Steam Input has the virtual DualSense open. */
   steamInputActive: (): Promise<boolean> => ipcRenderer.invoke('vds:steamInputActive'),
   getLargerAudioBlocks: (): Promise<boolean> => ipcRenderer.invoke('vds:getLargerAudioBlocks'),
