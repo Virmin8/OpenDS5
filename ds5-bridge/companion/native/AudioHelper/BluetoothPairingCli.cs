@@ -16,7 +16,9 @@ static class BluetoothPairingCli
     private static readonly string[] Properties =
     {
         "System.Devices.Aep.DeviceAddress",
-        "System.Devices.Aep.IsPaired"
+        "System.Devices.Aep.IsPaired",
+        "System.Devices.Aep.IsPresent",
+        "System.Devices.Aep.SignalStrength"
     };
 
     public static async Task<int> PairAsync(TimeSpan searchTimeout)
@@ -56,18 +58,31 @@ static class BluetoothPairingCli
 
     public static async Task<int> UnpairAsync(string address)
     {
+        try
+        {
+            return await UnpairCoreAsync(address);
+        }
+        catch (TimeoutException)
+        {
+            return Fail("Windows did not respond. Remove the controller in Settings > Bluetooth & devices.");
+        }
+    }
+
+    private static async Task<int> UnpairCoreAsync(string address)
+    {
         var wanted = NormalizeAddress(address);
-        var query = $"System.Devices.Aep.ProtocolId:=\"{ClassicBluetoothProtocol}\" AND " +
-                    "System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True";
-        var paired = await DeviceInformation.FindAllAsync(query, Properties, DeviceInformationKind.AssociationEndpoint);
-        var device = paired.FirstOrDefault((info) => AddressOf(info) == wanted);
+        // Paired devices from the PnP store. An AssociationEndpoint query can
+        // block indefinitely on some adapters, even for paired-only filters.
+        var paired = await DeviceInformation.FindAllAsync(BluetoothDevice.GetDeviceSelectorFromPairingState(true))
+            .AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+        var device = paired.FirstOrDefault((info) => AddressFromId(info.Id) == wanted);
         if (device is null)
         {
             // Already gone from Windows: nothing to do.
             Result(new { ok = true, address = wanted });
             return 0;
         }
-        var result = await device.Pairing.UnpairAsync();
+        var result = await device.Pairing.UnpairAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(15));
         if (result.Status is not (DeviceUnpairingResultStatus.Unpaired or DeviceUnpairingResultStatus.AlreadyUnpaired))
         {
             return Fail($"Windows could not forget the controller ({result.Status}).");
@@ -86,16 +101,16 @@ static class BluetoothPairingCli
         watcher.Added += (_, info) =>
         {
             lock (seen) seen[info.Id] = info;
-            if (ControllerName.IsMatch(info.Name ?? string.Empty)) found.TrySetResult(info);
+            if (IsPairableController(info)) found.TrySetResult(info);
         };
-        // Names can arrive after the device does.
+        // Names and signal strength can arrive after the device does.
         watcher.Updated += (_, update) =>
         {
             DeviceInformation? info;
             lock (seen) seen.TryGetValue(update.Id, out info);
             if (info is null) return;
             info.Update(update);
-            if (ControllerName.IsMatch(info.Name ?? string.Empty)) found.TrySetResult(info);
+            if (IsPairableController(info)) found.TrySetResult(info);
         };
         watcher.Start();
         var winner = await Task.WhenAny(found.Task, Task.Delay(timeout));
@@ -108,6 +123,16 @@ static class BluetoothPairingCli
             // already stopped
         }
         return winner == found.Task ? found.Task.Result : null;
+    }
+
+    // Windows also lists recently forgotten controllers from its cache, with no
+    // signal strength. Pairing one of those fails (AuthenticationFailure), so
+    // wait for a controller the scan actually hears.
+    private static bool IsPairableController(DeviceInformation info)
+    {
+        return ControllerName.IsMatch(info.Name ?? string.Empty) &&
+               info.Properties.TryGetValue("System.Devices.Aep.SignalStrength", out var signal) && signal is not null &&
+               !(info.Properties.TryGetValue("System.Devices.Aep.IsPresent", out var present) && present is false);
     }
 
     private static string? AddressOf(DeviceInformation info)
@@ -130,6 +155,14 @@ static class BluetoothPairingCli
         {
             return null;
         }
+    }
+
+    // Device ids look like "Bluetooth#Bluetooth00:1a:7d:da:71:03-4c:b9:9b:ba:7c:9b";
+    // the part after the dash is the controller.
+    internal static string? AddressFromId(string id)
+    {
+        var dash = id.LastIndexOf('-');
+        return dash < 0 ? null : NormalizeAddress(id[(dash + 1)..]);
     }
 
     internal static string NormalizeAddress(string address)

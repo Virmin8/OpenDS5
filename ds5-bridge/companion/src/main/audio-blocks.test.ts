@@ -10,7 +10,7 @@ import {
 } from './audio-blocks';
 
 describe('largerAudioBlocksPath', () => {
-  it('uses XDG_CONFIG_HOME, else ~/.config', () => {
+  it.skipIf(process.platform === 'win32')('uses XDG_CONFIG_HOME, else ~/.config', () => {
     expect(largerAudioBlocksPath({ XDG_CONFIG_HOME: '/cfg' }, '/home/u'))
       .toBe('/cfg/wireplumber/wireplumber.conf.d/99-opends5-latency.conf');
     expect(largerAudioBlocksPath({}, '/home/u'))

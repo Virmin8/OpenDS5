@@ -4,7 +4,8 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { steamHasVirtualController, steamInputTakesOverController, steamPlayStationSupport } from './steam-input';
 
-describe('steamHasVirtualController', () => {
+// Linux only: the fake /sys tree has ':' in its names, which Windows rejects.
+describe.skipIf(process.platform === 'win32')('steamHasVirtualController', () => {
   let root: string;
   let roots: { proc: string; sys: string; dev: string };
 
