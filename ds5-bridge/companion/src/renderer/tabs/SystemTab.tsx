@@ -1,4 +1,5 @@
 import {
+  IconClipboardCopy,
   IconInfoCircle,
   IconStethoscope,
   IconTool,
@@ -42,7 +43,7 @@ export function SystemTab({ app, snapshot }: { app: AppState; snapshot: BridgeSn
     personaTransitionActive, pollingRateControlSupported, renameControllerProfile, runAction,
     runBackupAction, saveControllerProfile, selectedControllerProfileIsDefault,
     selectedControllerProfileIsGameOwned, setHostPersonaMode, setPollingRateMode, setShowDiagnostics,
-    settingsPath, setVdsTrace, showDiagnostics, speakerVolumeCommitPending, statusTone,
+    settingsPath, setVdsTrace, showDiagnostics, copySupportReport, supportReportState, speakerVolumeCommitPending, statusTone,
     systemHealthTone, triggerTraceText, updateState, vdsAudioStats, vdsDaemonLog, vdsDaemonLogRef,
     vdsDiagnostics, vdsTracePending, vdsVersion
   } = app;
@@ -99,6 +100,23 @@ export function SystemTab({ app, snapshot }: { app: AppState; snapshot: BridgeSn
                       : VDS_AVAILABLE ? 'Bluetooth bridge' : 'Firmware'}
                   </p>
               </div>
+              <div className="system-card-heading-actions">
+              {showDiagnostics && (
+                <button
+                  type="button"
+                  className="secondary-action support-report-button"
+                  disabled={supportReportState === 'copying'}
+                  title="Copy versions, controller state, key settings and the end of the vdsd log, for a bug report. Bluetooth addresses and your home folder are hidden."
+                  onClick={() => void copySupportReport()}
+                >
+                  <IconClipboardCopy size={15} />
+                  {supportReportState === 'copied'
+                    ? 'Copied'
+                    : supportReportState === 'failed'
+                      ? "Couldn't copy"
+                      : 'Copy Support Report'}
+                </button>
+              )}
               <div className="dual-selector system-mode-selector" role="tablist" aria-label="System control mode">
                 <button
                   type="button"
@@ -118,6 +136,7 @@ export function SystemTab({ app, snapshot }: { app: AppState; snapshot: BridgeSn
                 >
                   Diagnostics
                 </button>
+              </div>
               </div>
             </div>
             {showDiagnostics ? (

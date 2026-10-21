@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, nativeTheme, powerMonitor, screen, shell } from 'electron';
+import { app, BrowserWindow, Menu, Notification, Tray, clipboard, dialog, ipcMain, nativeImage, nativeTheme, powerMonitor, screen, shell } from 'electron';
 import { recolorMarkForLightTaskbar, trayBatteryPalette, trayTheme, type TrayTheme } from './tray-icon-theme';
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -22,9 +22,11 @@ import {
 } from './pico-firmware-updater';
 import { SettingsStore } from './settings-store';
 import { appImagePath } from './appimage-updater';
-import { isCheckDue, UpdateService, type UpdateState } from './update-service';
+import os from 'node:os';
+import { installedModuleVersion, isCheckDue, isNixOS, UpdateService, type UpdateState } from './update-service';
 import { watchForPackageUpgrade } from './package-upgrade-watcher';
 import { trayMenuSignature, trayMenuTemplate } from './tray-menu';
+import { buildSupportReport } from './support-report';
 import { largerAudioBlocksEnabled, setLargerAudioBlocks } from './audio-blocks';
 import { applyPendingRestore, createBackup, parseBackup, stageRestore } from './settings-backup';
 import { RELEASES_PAGE_URL } from './update-ipc';
@@ -1935,6 +1937,55 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
 
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('app:settings-path', () => path.join(app.getPath('userData'), 'settings.json'));
+
+  // Diagnostics > Copy Support Report: what a bug report needs, on the clipboard.
+  ipcMain.handle('app:copy-support-report', async (): Promise<void> => {
+    if (!bridgeService) {
+      throw new Error('OpenDS5 is still starting.');
+    }
+    const snapshot = bridgeService.getSnapshot();
+    const vdsd = VDSD_BACKEND;
+    const [vdsdVersion, vds, daemonLog] = vdsd
+      ? await Promise.all([getVdsVersion(), getVdsStatus(), getVdsDaemonLog(200)])
+      : [null, null, null];
+    let osName = `${os.type()} ${os.release()}`;
+    if (process.platform === 'linux') {
+      try {
+        const release = fs.readFileSync('/etc/os-release', 'utf8');
+        osName = /^PRETTY_NAME="?([^"\n]*)"?/m.exec(release)?.[1] ?? osName;
+      } catch {
+        // keep the generic name
+      }
+    } else if (process.platform === 'win32') {
+      osName = os.version();
+    }
+    const installType = process.platform === 'win32'
+      ? 'Windows installer'
+      : appImagePath()
+        ? 'AppImage'
+        : SYSTEM_PACKAGE_LAUNCHER
+          ? 'distro package'
+          : isNixOS()
+            ? 'NixOS'
+            : process.defaultApp ? 'development build' : 'unknown';
+    const report = buildSupportReport({
+      appVersion: app.getVersion(),
+      electronVersion: process.versions.electron,
+      platform: process.platform,
+      arch: process.arch,
+      osName,
+      kernel: os.release(),
+      installType,
+      vdsdVersion,
+      moduleVersion: process.platform === 'linux' ? installedModuleVersion() : null,
+      snapshot,
+      vds,
+      daemonLog,
+      homeDir: os.homedir(),
+      now: new Date()
+    });
+    await clipboard.writeText(report);
+  });
 
   ipcMain.handle('app:backup-settings', async (): Promise<'saved' | 'cancelled'> => {
     const date = new Date().toISOString().slice(0, 10);

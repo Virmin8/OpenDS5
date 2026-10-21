@@ -23,6 +23,7 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ### ✨ Added
 - **Tray menu** — right-click the tray icon for the controller's battery and charging state, switch profile or controller mode (DualSense / DualShock 4 / Xbox 360), turn the microphone on or off, and turn off the controller, without opening the window.
+- **Copy Support Report** in **System → Diagnostics** — copies versions, controller state, key settings and the end of the `vdsd` log for a bug report. Bluetooth addresses and your home folder are hidden, and your SteamGridDB key is never included.
 
 ---
 

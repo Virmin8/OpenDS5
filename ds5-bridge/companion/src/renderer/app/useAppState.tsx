@@ -1989,6 +1989,19 @@ export function useAppState() {
     }
   }
 
+  const [supportReportState, setSupportReportState] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
+  async function copySupportReport() {
+    if (supportReportState === 'copying') return;
+    setSupportReportState('copying');
+    try {
+      await window.appInfo.copySupportReport();
+      setSupportReportState('copied');
+    } catch {
+      setSupportReportState('failed');
+    }
+    window.setTimeout(() => setSupportReportState('idle'), 2500);
+  }
+
   async function runBackupAction(kind: 'backup' | 'restore') {
     if (backupBusy) return;
     setBackupBusy(true);
@@ -4365,7 +4378,7 @@ export function useAppState() {
     commitChordAssignment, commitChordAssignmentDraft, commitChordConfiguration,
     commitChordFunctionDraft, commitClassicRumbleValue, commitHapticsValue, commitLightbar,
     commitMicVolume, commitSpeakerVolume, commitTriggerEffectIntensity, confirmDeleteGameProfile,
-    confirmDeleteTriggerProfile, confirmResetTriggerProfile, connected, controllerConnected,
+    confirmDeleteTriggerProfile, confirmResetTriggerProfile, connected, copySupportReport, supportReportState, controllerConnected,
     controllerControlsAvailable, controllerPowerSavingActive, controllerProfileDialogMode,
     controllerProfileNameDraft, controllerProfileOptions, controllerToastEnabled,
     createChordAssignmentDragOverlay, createChordFunction, createTriggerProfile, customColorDraft,

@@ -238,6 +238,12 @@ On the **Mic** view:
 
 ## 🔧 Troubleshooting
 
+### 🐞 Reporting a problem
+
+Open **System → Diagnostics → Copy Support Report** and paste it into your
+[issue](../../issues). It has the versions, controller state, key settings and
+the end of the `vdsd` log; Bluetooth addresses and your home folder are hidden.
+
 ### 🔊 If controller audio crackles
 
 OpenDS5 runs the controller's audio in small 2.7 ms blocks to keep haptics

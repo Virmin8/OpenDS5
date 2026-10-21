@@ -10632,3 +10632,20 @@ button.trigger-lab-chip {
   font-size: 12px;
   font-weight: 750;
 }
+
+/* System > Diagnostics header: Copy Support Report beside the Device / Diagnostics switch. */
+.system-card-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.support-report-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  min-height: 34px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
