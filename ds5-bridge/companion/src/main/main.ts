@@ -24,6 +24,7 @@ import { SettingsStore } from './settings-store';
 import { appImagePath } from './appimage-updater';
 import { isCheckDue, UpdateService, type UpdateState } from './update-service';
 import { watchForPackageUpgrade } from './package-upgrade-watcher';
+import { trayMenuSignature, trayMenuTemplate } from './tray-menu';
 import { largerAudioBlocksEnabled, setLargerAudioBlocks } from './audio-blocks';
 import { applyPendingRestore, createBackup, parseBackup, stageRestore } from './settings-backup';
 import { RELEASES_PAGE_URL } from './update-ipc';
@@ -456,9 +457,35 @@ function updateTrayIcon(snapshot: BridgeSnapshot): void {
   }
 }
 
+let trayMenuShown = '';
+
+function updateTrayMenu(snapshot: BridgeSnapshot): void {
+  const service = bridgeService;
+  if (!tray || !service) {
+    return;
+  }
+  const signature = trayMenuSignature(snapshot, VDSD_BACKEND);
+  if (signature === trayMenuShown) {
+    return;
+  }
+  trayMenuShown = signature;
+  const run = (label: string, action: () => Promise<unknown>) => {
+    action().catch((error) => console.warn(`Tray ${label} failed:`, error));
+  };
+  tray.setContextMenu(Menu.buildFromTemplate(trayMenuTemplate(snapshot, {
+    open: showMainWindow,
+    quit: () => app.quit(),
+    selectProfile: (id) => run('profile switch', () => service.selectControllerProfile(id)),
+    setPersona: (mode) => run('controller mode', () => service.setHostPersonaMode(mode)),
+    setMicrophone: (on) => run('microphone', () => service.setDuplexMicEnabled(on)),
+    turnOffController: () => run('turn off', () => service.sleepController())
+  }, { appName: APP_NAME, vdsd: VDSD_BACKEND })));
+}
+
 function updateTrayPresentation(snapshot: BridgeSnapshot): void {
   updateTrayTooltip(snapshot);
   updateTrayIcon(snapshot);
+  updateTrayMenu(snapshot);
 }
 
 function restoreMainWindowScale(recenter: boolean): void {
@@ -2215,11 +2242,6 @@ app.whenReady().then(async () => {
   trayDefaultIcon = await createTrayIcon();
   tray = new Tray(trayDefaultIcon);
   updateTrayPresentation(bridgeService.getSnapshot());
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: `Open ${APP_NAME}`, click: showMainWindow },
-    { type: 'separator' },
-    { label: 'Quit', click: () => app.quit() }
-  ]));
   tray.on('click', showMainWindow);
   // Switching the Windows taskbar between light and dark redraws the tray.
   nativeTheme.on('updated', () => {
