@@ -103,6 +103,7 @@ export interface CompanionSettings {
   notifyLowBattery: boolean;
   notifyChargeComplete: boolean;
   notifyWeakSignal: boolean;
+  steamInputNoticeDismissed: boolean;
   lightbarBatteryWarningEnabled: boolean;
   touchpadMouseEnabled: boolean;
   duplexMicEnabled: boolean;

@@ -207,6 +207,7 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   notifyLowBattery: false,
   notifyChargeComplete: false,
   notifyWeakSignal: false,
+  steamInputNoticeDismissed: false,
   lightbarBatteryWarningEnabled: false,
   touchpadMouseEnabled: true,
   duplexMicEnabled: DEFAULT_CONTROLLER_PROFILE_SETTINGS.duplexMicEnabled,
@@ -1080,6 +1081,9 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     notifyWeakSignal: typeof value?.notifyWeakSignal === 'boolean'
       ? value.notifyWeakSignal
       : DEFAULT_SETTINGS.notifyWeakSignal,
+    steamInputNoticeDismissed: typeof value?.steamInputNoticeDismissed === 'boolean'
+      ? value.steamInputNoticeDismissed
+      : DEFAULT_SETTINGS.steamInputNoticeDismissed,
     lightbarBatteryWarningEnabled: typeof value?.lightbarBatteryWarningEnabled === 'boolean'
       ? value.lightbarBatteryWarningEnabled
       : DEFAULT_SETTINGS.lightbarBatteryWarningEnabled,

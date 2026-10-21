@@ -213,6 +213,9 @@ const api = {
   setNotifyWeakSignal: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setNotifyWeakSignal', value)
   ),
+  setSteamInputNoticeDismissed: (value: boolean): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setSteamInputNoticeDismissed', value)
+  ),
   setLightbarBatteryWarningEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setLightbarBatteryWarningEnabled', value)
   ),
@@ -448,6 +451,8 @@ const vdsApi = {
   getDaemonLog: (lines?: number): Promise<VdsDaemonLog> => ipcRenderer.invoke('vds:getDaemonLog', lines),
   getAudioStats: (): Promise<VdsAudioStats> => ipcRenderer.invoke('vds:getAudioStats'),
   /** Linux: PipeWire's usual 256-frame blocks for the controller (fixes crackling). */
+  /** Linux: Steam Input has the virtual DualSense open. */
+  steamInputActive: (): Promise<boolean> => ipcRenderer.invoke('vds:steamInputActive'),
   getLargerAudioBlocks: (): Promise<boolean> => ipcRenderer.invoke('vds:getLargerAudioBlocks'),
   setLargerAudioBlocks: (enabled: boolean): Promise<boolean> => (
     ipcRenderer.invoke('vds:setLargerAudioBlocks', enabled)

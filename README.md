@@ -274,6 +274,13 @@ monitor.alsa.rules = [
 Then run `systemctl --user restart wireplumber pipewire pipewire-pulse` (cuts all
 sound briefly) and reconnect the controller. Delete the file to undo.
 
+### 🎮 No adaptive triggers or haptics in a Steam game
+
+If Steam Input is on for the game, Steam takes over the controller and the
+game only sees a basic gamepad (the **Game Profile** page warns you when this
+happens). For games with native DualSense support, open the game's
+**Properties → Controller** in Steam and choose **Disable Steam Input**.
+
 ### 📶 "vdsd is not reachable" on the Bluetooth tab
 
 You're not in the `vds` group yet, or haven't logged in again since being

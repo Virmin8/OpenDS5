@@ -3218,6 +3218,12 @@ export class BridgeService extends EventEmitter {
     return this.getSnapshot();
   }
 
+  async setSteamInputNoticeDismissed(dismissed: boolean): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ steamInputNoticeDismissed: dismissed });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   async setNotifyWeakSignal(enabled: boolean): Promise<BridgeSnapshot> {
     this.snapshot.settings = this.settingsStore.update({ notifyWeakSignal: enabled });
     this.emitSnapshot();

@@ -1972,6 +1972,31 @@ export function useAppState() {
     return lines.length > 0 ? lines.join('\n') : 'No non-zero feedback trace events captured yet.';
   }, [diagnosticsVisible, snapshot?.diagnostics.feedbackTraceLines]);
 
+  // Game Profile: is Steam Input holding the virtual controller? Checked only
+  // while that page is on screen.
+  const [steamInputActive, setSteamInputActive] = useState(false);
+  const steamInputNoticeDismissed = Boolean(snapshot?.settings.steamInputNoticeDismissed);
+  useEffect(() => {
+    if (!VDS_LINUX || steamInputNoticeDismissed || activeControlTab !== 'game-profile' || !pageVisible) {
+      return undefined;
+    }
+    let cancelled = false;
+    const check = () => {
+      void window.vds.steamInputActive()
+        .then((active) => { if (!cancelled) setSteamInputActive(active); })
+        .catch(() => undefined);
+    };
+    check();
+    const timer = window.setInterval(check, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeControlTab, pageVisible, steamInputNoticeDismissed]);
+  function dismissSteamInputNotice() {
+    void runAction('steam-input-notice', () => window.bridge.setSteamInputNoticeDismissed(true));
+  }
+
   const [largerAudioBlocks, setLargerAudioBlocksState] = useState<boolean | null>(null);
   const [largerAudioBlocksPending, setLargerAudioBlocksPending] = useState(false);
   const [largerAudioBlocksError, setLargerAudioBlocksError] = useState('');
@@ -4520,7 +4545,7 @@ export function useAppState() {
     submitGameCreate, submitRemapProfileDialog, supportedHostPersonaModes, systemHealthTone,
     testHapticsUnavailable, testLocked, testMicUnavailable, testNotifications, testRumbleUnavailable,
     testSpeakerUnavailable, toggleAdaptiveTriggersEnabled, toggleAudioEnabled,
-    toggleAudioHapticsFeature, toggleAudioReactiveHapticsEnabled, toggleChargeCompleteNotifications, toggleWeakSignalNotifications, weakSignalToastEnabled,
+    toggleAudioHapticsFeature, toggleAudioReactiveHapticsEnabled, toggleChargeCompleteNotifications, toggleWeakSignalNotifications, steamInputActive, steamInputNoticeDismissed, dismissSteamInputNotice, weakSignalToastEnabled,
     toggleChordFunctionKeyboardModifier, toggleClassicRumbleEnabled, toggleClassicRumbleV1Enabled,
     toggleControllerNotifications, toggleDuplexMicEnabled, toggleFeedbackBoostEnabled,
     toggleHapticsEnabled, toggleLargerAudioBlocks, toggleLightbarEnabled,

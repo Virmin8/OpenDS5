@@ -27,6 +27,7 @@ import { installedModuleVersion, isCheckDue, isNixOS, UpdateService, type Update
 import { watchForPackageUpgrade } from './package-upgrade-watcher';
 import { trayMenuSignature, trayMenuTemplate } from './tray-menu';
 import { buildSupportReport } from './support-report';
+import { steamHasVirtualController } from './steam-input';
 import { formatTimeLeft } from '../shared/battery-time';
 import { largerAudioBlocksEnabled, setLargerAudioBlocks } from './audio-blocks';
 import { applyPendingRestore, createBackup, parseBackup, stageRestore } from './settings-backup';
@@ -1589,6 +1590,7 @@ function registerIpc(
 
   ipcMain.handle('bridge:getStatus', () => service.getSnapshot());
   ipcMain.handle('vds:getStatus', () => getVdsStatus());
+  ipcMain.handle('vds:steamInputActive', () => process.platform === 'linux' && steamHasVirtualController());
   ipcMain.handle('vds:getLargerAudioBlocks', () => largerAudioBlocksEnabled());
   ipcMain.handle('vds:setLargerAudioBlocks', (_event, enabled: boolean) => setLargerAudioBlocks(Boolean(enabled)));
   ipcMain.handle('vds:getVersion', () => getVdsVersion());
@@ -1769,6 +1771,9 @@ function registerIpc(
   ));
   ipcMain.handle('bridge:setNotifyWeakSignal', (_event, value: boolean) => (
     service.setNotifyWeakSignal(value)
+  ));
+  ipcMain.handle('bridge:setSteamInputNoticeDismissed', (_event, value: boolean) => (
+    service.setSteamInputNoticeDismissed(value)
   ));
   ipcMain.handle('bridge:setLightbarBatteryWarningEnabled', (_event, value: boolean) => (
     service.setLightbarBatteryWarningEnabled(value)

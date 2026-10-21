@@ -1,5 +1,6 @@
 import {
   IconActivity as Activity,
+  IconAlertTriangle,
   IconChevronLeft as ChevronLeft,
   IconArrowLeft,
   IconBulb,
@@ -21,13 +22,13 @@ import { nativeGameFeatures } from '../game-library-match';
 
 export function GameProfileTab({ app }: { app: AppState }) {
   const {
-    activeControlTab, activeGameProfile, closeGameProfile, gameArtwork, gameHasSettings,
+    activeControlTab, activeGameProfile, closeGameProfile, dismissSteamInputNotice, gameArtwork, gameHasSettings,
     gameProfileLinkOptions, gameProfiles, gameSettingsScope, gameSettingsStatus, linkedProfileFor,
     nativeFeatureMap, openGameArtworkDialog, openGameCreateDialog, openGameProcessEditor,
     openGameProfile, openGameProfileEntry, openGameTriggerEditor, pendingAction, selectControlTab,
     selectEngineTriggerState, setGameDeleteConfirm, setGameProfileLink, setGameSettingsScope,
     toggleTriggerProfilesEnabled, triggerProfileEngineStatus, triggerProfiles,
-    triggerProfilesEnabled
+    triggerProfilesEnabled, steamInputActive, steamInputNoticeDismissed
   } = app;
 
   return (
@@ -65,6 +66,22 @@ export function GameProfileTab({ app }: { app: AppState }) {
             </div>
           </div>
           <div className="game-profile-content">
+            {steamInputActive && !steamInputNoticeDismissed && (
+              <div className="steam-input-notice" role="status">
+                <IconAlertTriangle size={18} stroke={2.2} aria-hidden="true" />
+                <div>
+                  <strong>Steam Input is using your controller</strong>
+                  <span>
+                    Games with native DualSense support lose adaptive triggers and haptics, and may see
+                    double input. For those games, open the game&apos;s <b>Properties → Controller</b> in
+                    Steam and choose <b>Disable Steam Input</b>.
+                  </span>
+                </div>
+                <button type="button" className="secondary-action" onClick={dismissSteamInputNotice}>
+                  Don&apos;t show again
+                </button>
+              </div>
+            )}
             {activeGameProfile && (
               <section className="game-hero" aria-label="Now playing">
                 <span

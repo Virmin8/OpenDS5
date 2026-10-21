@@ -10649,3 +10649,42 @@ button.trigger-lab-chip {
   padding: 0 12px;
   white-space: nowrap;
 }
+
+/* Game Profile: Steam Input has the virtual controller. */
+.steam-input-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--warning-border);
+  border-radius: var(--control-radius);
+  background: var(--warning-bg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.steam-input-notice > svg {
+  color: var(--warning);
+}
+
+.steam-input-notice strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.steam-input-notice b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.steam-input-notice .secondary-action {
+  width: auto;
+  white-space: nowrap;
+  padding: 0 12px;
+  min-height: 32px;
+}

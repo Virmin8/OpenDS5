@@ -25,6 +25,7 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 - **Tray menu** — right-click the tray icon for the controller's battery and charging state, switch profile or controller mode (DualSense / DualShock 4 / Xbox 360), turn the microphone on or off, and turn off the controller, without opening the window.
 - **Battery time left** — the sidebar, tray menu and tray tooltip estimate how long the controller will last (for example *Battery 80% · ~4 h*). OpenDS5 learns it from how long each 10% lasts while you play, so the estimate appears after the first few drops and improves over time.
 - **Weak Signal** notification (bell menu) — a toast when the controller's Bluetooth link stays weak enough to make haptics and audio stutter for a minute, with what to try. Brief dips don't count, and it won't repeat for 15 minutes. Off by default.
+- **Steam Input warning** (Linux) on the **Game Profile** page — when Steam Input has taken over the controller, OpenDS5 explains that games with native DualSense support lose adaptive triggers and haptics, and how to turn Steam Input off for those games. Dismiss it with **Don't show again** if you use Steam Input on purpose.
 - **Copy Support Report** in **System → Diagnostics** — copies versions, controller state, key settings and the end of the `vdsd` log for a bug report. Bluetooth addresses and your home folder are hidden, and your SteamGridDB key is never included.
 
 ---
