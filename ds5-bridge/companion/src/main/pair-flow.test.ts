@@ -22,6 +22,7 @@ function deps(start: 'vds' | 'normal', pairResult: Awaited<ReturnType<Parameters
       setMode: vi.fn(async (next: 'vds' | 'normal') => { calls.push(`mode ${next}`); mode = next; switchingPolls = 2; return vds(mode, true); }),
       pair: vi.fn(async () => { calls.push(`pair (in ${mode})`); return pairResult; }),
       attach: vi.fn(async (address: string) => { calls.push(`attach ${address}`); return vds(mode); }),
+      adapterReady: vi.fn(async (): Promise<boolean | null> => true),
       progress: vi.fn((stage: string) => calls.push(`> ${stage}`)),
       sleep: vi.fn(async () => undefined)
     }
@@ -50,6 +51,23 @@ describe('pairNewController', () => {
     const { result } = await pairNewController(d);
     expect(result).toMatchObject({ ok: false, cancelled: true });
     expect(calls).toEqual(['> to-normal', 'mode normal', 'pair (in normal)', '> restoring', 'mode vds']);
+  });
+
+  it('waits for the adapter to come back after bluetoothd restarts', async () => {
+    const { calls, deps: d } = deps('vds', { ok: true, address: 'AA:BB:CC:DD:EE:FF', name: 'Wireless Controller' });
+    d.adapterReady.mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValue(true);
+    await pairNewController(d);
+    expect(d.adapterReady).toHaveBeenCalledTimes(3);
+    expect(calls).toContain('pair (in normal)');
+  });
+
+  it('gives up and switches back when the adapter never comes back', async () => {
+    const { calls, deps: d } = deps('vds', { ok: true, address: 'x', name: 'y' });
+    d.adapterReady.mockResolvedValue(false);
+    const { result } = await pairNewController(d);
+    expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/adapter did not come back/) });
+    expect(calls).not.toContain('pair (in normal)');
+    expect(calls.slice(-2)).toEqual(['> restoring', 'mode vds']);
   });
 
   it('switches back even if pairing throws', async () => {

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Menu, Notification, Tray, clipboard, dialog, ipcMain, nativeImage, nativeTheme, powerMonitor, screen, shell } from 'electron';
 import { recolorMarkForLightTaskbar, trayBatteryPalette, trayTheme, type TrayTheme } from './tray-icon-theme';
-import { spawn, spawnSync } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -180,6 +180,19 @@ function relaunchApp(): void {
   const launcher = process.platform === 'linux' ? (appImagePath() || SYSTEM_PACKAGE_LAUNCHER) : '';
   app.relaunch(launcher ? { execPath: launcher, args: [] } : undefined);
   app.quit();
+}
+
+/** The Bluetooth adapter is up and powered; null when bluetoothctl isn't installed. */
+function bluetoothAdapterReady(): Promise<boolean | null> {
+  return new Promise((resolve) => {
+    execFile('bluetoothctl', ['show'], { timeout: 5000 }, (error, stdout) => {
+      if (error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+        resolve(null);
+        return;
+      }
+      resolve(/^Controller /m.test(stdout) && /Powered: yes/.test(stdout));
+    });
+  });
 }
 
 /** The latest bridge snapshot not yet sent to the hidden main window. */
@@ -1607,6 +1620,7 @@ function registerIpc(
         ? Promise.resolve({ ok: false, cancelled: true, error: 'Cancelled.' } as const)
         : pairing.start()),
       attach: attachVdsController,
+      adapterReady: bluetoothAdapterReady,
       progress: (stage) => sendToMainWindow('vds:pairProgress', stage)
     });
   });
