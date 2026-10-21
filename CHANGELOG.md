@@ -17,7 +17,7 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
-## [1.9.14] - Unreleased — More from the tray
+## [1.10.0] - 2026-10-21 — More from the tray
 
 **Update as usual.**
 
