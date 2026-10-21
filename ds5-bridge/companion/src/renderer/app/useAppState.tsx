@@ -193,6 +193,7 @@ import type {
   TriggerProfileDeleteConfirmState,
   TriggerProfileSlotKey
 } from './types';
+import { formatTimeLeftShort } from '../../shared/battery-time';
 
 /**
  * The main window's state and handlers. App renders the window chrome and
@@ -1682,7 +1683,7 @@ export function useAppState() {
   const sidebarBatteryLabel = personaTransitionActive
     ? 'Reconnecting'
     : connected && controllerConnected
-    ? `Battery ${batteryPercentLabel}`
+    ? `Battery ${batteryPercentLabel}${typeof snapshot?.batteryMinutesLeft === 'number' ? ` · ${formatTimeLeftShort(snapshot.batteryMinutesLeft)}` : ''}`
     : 'Battery unavailable';
   const pollingRateLabel = POLLING_RATE_OPTIONS.find(([, mode]) => mode === snapshot?.settings.pollingRateMode)?.[0]
     .replace(' / Real-time', '')

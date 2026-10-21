@@ -2,6 +2,7 @@ import type { MenuItemConstructorOptions } from 'electron';
 import type { HostPersonaMode } from '../shared/protocol';
 import type { BridgeSnapshot } from '../shared/types';
 import { isGameSettingsProfileId } from '../shared/game-settings';
+import { formatTimeLeft } from '../shared/battery-time';
 
 export interface TrayMenuActions {
   open(): void;
@@ -36,12 +37,14 @@ export function trayStatusLine(snapshot: BridgeSnapshot): string {
   if (status.batteryPercent === null) {
     return name;
   }
-  const charging = status.rawPowerState === 0x01
+  const detail = status.rawPowerState === 0x01
     ? ', charging'
     : status.rawPowerState === 0x02
       ? ', charged'
-      : '';
-  return `${name} — ${status.batteryPercent}%${charging}`;
+      : typeof snapshot.batteryMinutesLeft === 'number'
+        ? `, ${formatTimeLeft(snapshot.batteryMinutesLeft)} left`
+        : '';
+  return `${name} — ${status.batteryPercent}%${detail}`;
 }
 
 /** Whether the microphone counts as on, the same way the app's switch shows it. */

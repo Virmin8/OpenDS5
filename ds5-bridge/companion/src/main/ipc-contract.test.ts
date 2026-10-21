@@ -78,7 +78,7 @@ describe('IPC contract', () => {
     expect(mainSource).toContain('function trayTooltipForSnapshot(snapshot: BridgeSnapshot): string');
     expect(mainSource).toContain('if (!snapshot.status?.controllerConnected)');
     expect(mainSource).toContain('return APP_NAME;');
-    expect(mainSource).toContain("`${name} \\u2014 ${snapshot.status.batteryPercent}%`");
+    expect(mainSource).toContain("`${name} \\u2014 ${snapshot.status.batteryPercent}%${left}`");
     expect(mainSource).toContain('updateTrayPresentation(bridgeService.getSnapshot())');
     expect(mainSource).toContain("bridgeService.on('snapshot', (snapshot) => {");
     expect(mainSource).toContain('updateTrayPresentation(snapshot);');

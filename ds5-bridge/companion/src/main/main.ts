@@ -27,6 +27,7 @@ import { installedModuleVersion, isCheckDue, isNixOS, UpdateService, type Update
 import { watchForPackageUpgrade } from './package-upgrade-watcher';
 import { trayMenuSignature, trayMenuTemplate } from './tray-menu';
 import { buildSupportReport } from './support-report';
+import { formatTimeLeft } from '../shared/battery-time';
 import { largerAudioBlocksEnabled, setLargerAudioBlocks } from './audio-blocks';
 import { applyPendingRestore, createBackup, parseBackup, stageRestore } from './settings-backup';
 import { RELEASES_PAGE_URL } from './update-ipc';
@@ -301,9 +302,13 @@ function trayTooltipForSnapshot(snapshot: BridgeSnapshot): string {
   }
 
   const name = trayControllerName(snapshot.status.controllerType);
-  return snapshot.status.batteryPercent === null
-    ? name
-    : `${name} \u2014 ${snapshot.status.batteryPercent}%`;
+  if (snapshot.status.batteryPercent === null) {
+    return name;
+  }
+  const left = typeof snapshot.batteryMinutesLeft === 'number'
+    ? ` (${formatTimeLeft(snapshot.batteryMinutesLeft)} left)`
+    : '';
+  return `${name} \u2014 ${snapshot.status.batteryPercent}%${left}`;
 }
 
 type TrayBatteryIconColor = {

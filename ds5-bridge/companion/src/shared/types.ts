@@ -181,6 +181,8 @@ export interface BridgeSnapshot {
   settings: CompanionSettings;
   diagnostics: BridgeDiagnostics;
   personaTransition?: HostPersonaTransition | null;
+  /** Estimated minutes of play left on battery, or null when unknown. */
+  batteryMinutesLeft?: number | null;
 }
 
 export interface HostPersonaTransition {

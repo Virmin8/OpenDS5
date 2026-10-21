@@ -93,6 +93,7 @@ import { HidDiscoveryClient } from './hid-discovery-client';
 import { SettingsStore, normalizeUiScalePercent, normalizeUiThemePreset } from './settings-store';
 import { openCompanionTransport, type CompanionTransport } from './companion-transport';
 import { vdsdBackendActive } from './vdsd-backend';
+import { BatteryEstimator, loadBatteryState, saveBatteryState } from './battery-estimator';
 
 const POLL_INTERVAL_MS = 500;
 const SHORTCUT_POLL_INTERVAL_MS = 50;
@@ -1449,6 +1450,7 @@ export class BridgeService extends EventEmitter {
   private readonly audioHapticsSessionMonitor = new AudioHapticsSessionMonitor();
   private readonly micKeepaliveEngine = new MicKeepaliveEngine();
   private readonly hidDiscovery = new HidDiscoveryClient();
+  private readonly batteryEstimator: BatteryEstimator;
   private cachedRawDevices: HidDeviceSummary[] = [];
   private cachedRawDevicesAt = 0;
   private audioHapticsSessionCache: { key: string; expiresAt: number; sessions: AudioHapticsSession[] } | null = null;
@@ -1521,6 +1523,7 @@ export class BridgeService extends EventEmitter {
   ) {
     super();
     this.vdsMicSwitch = options.vdsMicSwitch ?? false;
+    this.batteryEstimator = new BatteryEstimator(loadBatteryState(settingsStore.userDataPath));
     this.setLinuxMicMuted = options.setLinuxMicMuted ?? setLinuxControllerMicMuted;
     this.snapshot = {
       state: 'no-bridge',
@@ -3930,7 +3933,8 @@ export class BridgeService extends EventEmitter {
         lastPollAt: Date.now(),
         rawDevices
       }),
-      personaTransition: transition
+      personaTransition: transition,
+      batteryMinutesLeft: this.updateBatteryEstimate(status, now)
     };
     this.emitSnapshot();
     if (transition) {
@@ -4435,7 +4439,21 @@ export class BridgeService extends EventEmitter {
     void this.stopControllerAudioPolling();
   }
 
+  /** Feeds the battery reading to the estimator and returns minutes left. */
+  private updateBatteryEstimate(status: BridgeStatusPayload, now: number): number | null {
+    const reading = {
+      connected: status.controllerConnected,
+      percent: status.batteryPercent,
+      charging: status.rawPowerState === POWER_STATE_CHARGING || status.rawPowerState === POWER_STATE_CHARGE_COMPLETE
+    };
+    if (this.batteryEstimator.update(reading, now)) {
+      saveBatteryState(this.settingsStore.userDataPath, this.batteryEstimator.getState());
+    }
+    return this.batteryEstimator.minutesLeft(reading, now);
+  }
+
   private markBridgeUnavailableAfterDisconnect(rawDevices: HidDeviceSummary[], normalFirmwarePresent = false): void {
+    this.batteryEstimator.update({ connected: false, percent: null, charging: false }, Date.now());
     if (this.applyHostPersonaTransitionSnapshot(rawDevices)) {
       return;
     }
@@ -4477,6 +4495,7 @@ export class BridgeService extends EventEmitter {
         : null,
       settings: this.snapshot.settings,
       personaTransition: this.snapshot.personaTransition,
+      batteryMinutesLeft: this.snapshot.batteryMinutesLeft ?? null,
       diagnostics: {
         hidPath: this.snapshot.diagnostics.hidPath,
         protocolVersion: this.snapshot.diagnostics.protocolVersion,
