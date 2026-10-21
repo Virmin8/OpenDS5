@@ -30,6 +30,8 @@ import { buildSupportReport } from './support-report';
 import { steamInputTakesOverController } from './steam-input';
 import { ControllerPairing, type PairingResult } from './controller-pairing';
 import { pairNewController } from './pair-flow';
+import { forgetSystemPairing, WindowsControllerPairing } from './windows-pairing';
+import { resolveAudioHelperCommands } from './audio-helper';
 import { formatTimeLeft } from '../shared/battery-time';
 import { largerAudioBlocksEnabled, setLargerAudioBlocks } from './audio-blocks';
 import { applyPendingRestore, createBackup, parseBackup, stageRestore } from './settings-backup';
@@ -1606,7 +1608,13 @@ function registerIpc(
   ipcMain.handle('bridge:getStatus', () => service.getSnapshot());
   ipcMain.handle('vds:getStatus', () => getVdsStatus());
   // Bluetooth tab > Pair New Controller: pair through BlueZ, then attach to vdsd.
-  const pairing = new ControllerPairing();
+  const helperLaunch = (args: string[]) => {
+    const [first] = resolveAudioHelperCommands(args);
+    return { command: first.command, args: first.args };
+  };
+  const pairing = process.platform === 'win32'
+    ? new WindowsControllerPairing(helperLaunch)
+    : new ControllerPairing();
   pairing.on('progress', (stage) => sendToMainWindow('vds:pairProgress', stage));
   // A cancel can arrive while Bluetooth is still switching modes, before
   // bluetoothctl runs; remember it so pairing is skipped.
@@ -1620,13 +1628,24 @@ function registerIpc(
         ? Promise.resolve({ ok: false, cancelled: true, error: 'Cancelled.' } as const)
         : pairing.start()),
       attach: attachVdsController,
-      adapterReady: bluetoothAdapterReady,
+      // Windows has no Bluetooth modes to switch, so no adapter restart to wait for.
+      adapterReady: process.platform === 'win32' ? async () => true : bluetoothAdapterReady,
       progress: (stage) => sendToMainWindow('vds:pairProgress', stage)
     });
   });
   ipcMain.handle('vds:pairCancel', () => {
     pairCancelled = true;
     pairing.cancel();
+  });
+  // Forget: detach from vdsd, then remove the system Bluetooth pairing.
+  ipcMain.handle('vds:forget', async (_event, address: string): Promise<{ status: VdsStatus; error: string }> => {
+    const target = String(address);
+    const before = await getVdsStatus();
+    if (before.controllers.some((controller) => controller.address.toLowerCase() === target.toLowerCase() && controller.registered)) {
+      await detachVdsController(target);
+    }
+    const removed = await forgetSystemPairing(target, process.platform, helperLaunch);
+    return { status: await getVdsStatus(), error: removed.ok ? '' : removed.error };
   });
   ipcMain.handle('vds:steamInputActive', () => process.platform === 'linux' && steamInputTakesOverController(os.homedir()));
   ipcMain.handle('vds:getLargerAudioBlocks', () => largerAudioBlocksEnabled());

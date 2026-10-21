@@ -10734,3 +10734,16 @@ button.trigger-lab-chip {
   min-height: 34px;
   padding: 0 16px;
 }
+
+/* Bluetooth > Controllers: Attach / Detach and Forget side by side. */
+.vds-controller-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.vds-controller-actions .heading-action.danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger);
+}

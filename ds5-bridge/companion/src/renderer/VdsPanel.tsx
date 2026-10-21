@@ -6,7 +6,8 @@ import {
   IconPlugConnected,
   IconPlugConnectedX,
   IconPlus,
-  IconRefresh
+  IconRefresh,
+  IconTrash
 } from '@tabler/icons-react';
 import type { VdsBluetoothMode, VdsController, VdsStatus } from '../shared/vds';
 
@@ -97,6 +98,26 @@ export function VdsPanel({ active }: { active: boolean }) {
     }
   };
 
+  // Forget asks twice: the first click arms it for a few seconds.
+  const [forgetArmed, setForgetArmed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!forgetArmed) return undefined;
+    const timer = window.setTimeout(() => setForgetArmed(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [forgetArmed]);
+  const forget = (address: string) => {
+    if (forgetArmed !== address) {
+      setForgetArmed(address);
+      return;
+    }
+    setForgetArmed(null);
+    void run(`forget-${address}`, async () => {
+      const { status: next, error } = await window.vds.forget(address);
+      if (error) throw new Error(error);
+      return next;
+    });
+  };
+
   const run = async (key: string, action: () => Promise<VdsStatus>) => {
     setPending(key);
     setActionError('');
@@ -120,6 +141,7 @@ export function VdsPanel({ active }: { active: boolean }) {
 
   // Bluetooth modes switch BlueZ's input plugin; Windows only attaches.
   const bluetoothModes = window.vds.platform === 'linux';
+  const canPair = window.vds.platform === 'linux' || window.vds.platform === 'win32';
   let modeDescription = 'Checking vdsd…';
   if (status?.accessHint) {
     modeDescription = status.accessHint;
@@ -247,7 +269,7 @@ export function VdsPanel({ active }: { active: boolean }) {
               <h3>Controllers</h3>
               <p>Paired controllers. Attach one to bridge it through OpenDS5.</p>
             </div>
-            {bluetoothModes && pair.phase === 'closed' && (
+            {canPair && pair.phase === 'closed' && (
               <button
                 type="button"
                 className="heading-action"
@@ -298,7 +320,7 @@ export function VdsPanel({ active }: { active: boolean }) {
             )}
             {status?.available && status.controllers.length === 0 && (
               <p className="vds-hint">
-                {bluetoothModes
+                {canPair
                   ? 'No paired controllers found. Use Pair New Controller above.'
                   : 'No paired controllers found. Pair the DualSense in your Bluetooth settings first (hold Create + PS until the light bar flashes).'}
               </p>
@@ -310,27 +332,39 @@ export function VdsPanel({ active }: { active: boolean }) {
                   <span>{controller.address}</span>
                   <span>{controllerState(controller, normalMode)}</span>
                 </div>
-                {controller.registered ? (
+                <div className="vds-controller-actions">
+                  {controller.registered ? (
+                    <button
+                      type="button"
+                      className="heading-action"
+                      disabled={pending !== null}
+                      onClick={() => void run(`detach-${controller.address}`, () => window.vds.detach(controller.address))}
+                    >
+                      <IconPlugConnectedX size={18} />
+                      Detach
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="heading-action"
+                      disabled={pending !== null}
+                      onClick={() => void run(`attach-${controller.address}`, () => window.vds.attach(controller.address))}
+                    >
+                      <IconPlugConnected size={18} />
+                      Attach
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="heading-action"
+                    className={`heading-action ${forgetArmed === controller.address ? 'danger' : ''}`}
                     disabled={pending !== null}
-                    onClick={() => void run(`detach-${controller.address}`, () => window.vds.detach(controller.address))}
+                    title="Detach it and remove it from your system's Bluetooth devices"
+                    onClick={() => forget(controller.address)}
                   >
-                    <IconPlugConnectedX size={18} />
-                    Detach
+                    <IconTrash size={18} />
+                    {forgetArmed === controller.address ? 'Forget?' : 'Forget'}
                   </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="heading-action"
-                    disabled={pending !== null}
-                    onClick={() => void run(`attach-${controller.address}`, () => window.vds.attach(controller.address))}
-                  >
-                    <IconPlugConnected size={18} />
-                    Attach
-                  </button>
-                )}
+                </div>
               </div>
             ))}
             {actionError && <p className="vds-error">{actionError}</p>}

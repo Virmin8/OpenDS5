@@ -141,10 +141,11 @@ touchpad as mouse and Bluetooth modes.
 
 ### 🎮 Pairing your controller
 
-**On Windows:** hold **Create** + **PS** until the lightbar flashes rapidly,
-pair the controller in **Settings → Bluetooth & devices**, then in OpenDS5 open
-the **Bluetooth** tab and click **Attach** under **Controllers**. Your other
-Bluetooth devices keep working.
+**On Windows:** in OpenDS5, open the **Bluetooth** tab and click **Pair New
+Controller**. Turn the controller off, hold **Create** + **PS** until the
+lightbar flashes rapidly, and press **Start**; OpenDS5 pairs it with Windows and
+attaches it. (Or pair it in **Settings → Bluetooth & devices** and click
+**Attach** under **Controllers**.) Your other Bluetooth devices keep working.
 
 **On Linux:** in OpenDS5, open the **Bluetooth** tab and click **Pair New
 Controller**. Turn the controller off, hold **Create** + **PS** until the
@@ -159,7 +160,9 @@ To do it by hand instead:
 4. Back in OpenDS5, set **Bluetooth Mode** to **OpenDS5**.
 5. Under **Controllers**, click **Attach**, then press **PS**.
 
-You only pair once; after that, **PS** connects straight to OpenDS5.
+You only pair once; after that, **PS** connects straight to OpenDS5. To remove a
+controller, click **Forget** next to it (click twice to confirm): it is
+detached and removed from your system's Bluetooth devices, on Linux and Windows.
 
 > [!NOTE]
 > In OpenDS5 mode, BlueZ's input plugin is off so vds can own the controller,

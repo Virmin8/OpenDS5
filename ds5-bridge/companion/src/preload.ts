@@ -456,6 +456,8 @@ const vdsApi = {
   /** Linux: pair a DualSense in pairing mode through BlueZ, then attach it. */
   pairStart: (): Promise<{ result: PairingResult; status: VdsStatus | null }> => ipcRenderer.invoke('vds:pairStart'),
   pairCancel: (): Promise<void> => ipcRenderer.invoke('vds:pairCancel'),
+  /** Detach the controller and remove it from the system's Bluetooth pairings. */
+  forget: (address: string): Promise<{ status: VdsStatus; error: string }> => ipcRenderer.invoke('vds:forget', address),
   onPairProgress: (cb: (stage: PairingStage | PairFlowStage) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, stage: PairingStage | PairFlowStage) => cb(stage);
     ipcRenderer.on('vds:pairProgress', listener);

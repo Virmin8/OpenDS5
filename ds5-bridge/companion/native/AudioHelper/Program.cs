@@ -11,6 +11,18 @@ using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 using NAudio.Wave;
 
+// Bluetooth tab: pair a controller in pairing mode, or forget a paired one.
+if (args.Length >= 1 && args[0] == "--pair-controller")
+{
+    Environment.ExitCode = await BluetoothPairingCli.PairAsync(TimeSpan.FromSeconds(60));
+    return;
+}
+if (args.Length >= 2 && args[0] == "--unpair-controller")
+{
+    Environment.ExitCode = await BluetoothPairingCli.UnpairAsync(args[1]);
+    return;
+}
+
 var options = HelperOptions.Parse(args);
 if (options.MediaDebugClock)
 {
