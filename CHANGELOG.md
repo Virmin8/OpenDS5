@@ -19,14 +19,15 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ## [1.10.0] - 2026-10-21 — More from the tray
 
-**Update as usual.**
+Pair and forget controllers from the app, a tray menu, and battery time left.
+**Update as usual.** The Windows installer is now on the Releases page too.
 
 ### ✨ Added
 - **Tray menu** — right-click the tray icon for the controller's battery and charging state, switch profile or controller mode (DualSense / DualShock 4 / Xbox 360), turn the microphone on or off, and turn off the controller, without opening the window.
 - **Pair New Controller** on the **Bluetooth** tab, on Linux and Windows — put the controller in pairing mode and press **Start**. OpenDS5 pairs it with the system and attaches it; no trip to your Bluetooth settings. On Linux it switches Bluetooth to Normal mode for the pairing and back afterwards, and a controller that was paired before is forgotten and paired fresh.
 - **Forget** next to each controller on the **Bluetooth** tab — detaches it and removes it from the system's Bluetooth devices (click twice to confirm).
 - **Battery time left** — the sidebar, tray menu and tray tooltip estimate how long the controller will last (for example *Battery 80% · ~4 h*). OpenDS5 learns it from how long each 10% lasts while you play, so the estimate appears after the first few drops and improves over time.
-- **Weak Signal** notification (bell menu) — a toast when the controller's Bluetooth link stays weak enough to make haptics and audio stutter for a minute, with what to try. Brief dips don't count, and it won't repeat for 15 minutes. Off by default.
+- **Weak Signal** notification (Linux, bell menu) — a toast when the controller's Bluetooth link stays weak enough to make haptics and audio stutter for a minute, with what to try. Brief dips don't count, and it won't repeat for 15 minutes. Off by default.
 - **Steam Input warning** (Linux) on the **Game Profile** page — when Steam's PlayStation Controller Support is set to **Enabled**, Steam Input takes over the controller even in games with native DualSense support, which then lose adaptive triggers and haptics. OpenDS5 says so and how to fix it. Dismiss it with **Don't show again** if you use Steam Input on purpose.
 - **Copy Support Report** in **System → Diagnostics** — copies versions, controller state, key settings and the end of the `vdsd` log for a bug report. Bluetooth addresses and your home folder are hidden, and your SteamGridDB key is never included.
 

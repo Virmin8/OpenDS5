@@ -50,7 +50,8 @@ Bluetooth.
 - 🎙️ **Microphone** — controller or headset mic in Linux, with one on/off switch, the Mute button and mute light, level and processing.
 - 💡 **Lighting** — lightbar and player LEDs, with an optional low-battery warning on the lightbar.
 - 🎛️ **Remapping & chords** — remap buttons and trigger actions with button combos.
-- 📶 **Bluetooth modes** (Linux) — switch between OpenDS5 mode and normal mode (keyboards and mice work again), or automatically.
+- 📶 **Bluetooth pairing** — pair and forget controllers from the app; on Linux, switch between OpenDS5 mode and normal mode (keyboards and mice work again), or automatically.
+- 🔋 **Tray menu & battery time** — battery and time left, profile, controller mode, mic and power from the tray icon.
 - 🕹️ **Controller shortcuts** — volume, profile and power with a touchpad click, mid-game.
 - 📦 **Easy install & uninstall** — AppImage with a setup wizard, a pacman package for Arch, a NixOS flake, or a Windows installer.
 - 💾 **Settings backup** — save your settings, trigger profiles and game art to one file and restore them on a new install.
@@ -136,8 +137,8 @@ Windows 10 or 11, 64-bit.
 2. On first start, the setup wizard installs [USB/IP](https://github.com/vadimgrn/usbip-win2), [HidHide](https://github.com/nefarius/HidHide) and the `vdsd` service, and asks for administrator rights once. Restart Windows if it asks you to; your USB 3 ports reset briefly while USB/IP installs.
 3. Updates are offered inside the app. To uninstall, remove **OpenDS5** in **Settings → Apps**; that also removes the `vdsd` service.
 
-Not on Windows yet: trigger modifiers and state switch rules, signal strength,
-touchpad as mouse and Bluetooth modes.
+Not on Windows yet: trigger modifiers and state switch rules, signal strength
+(and the Weak Signal notification), touchpad as mouse and Bluetooth modes.
 
 ### 🎮 Pairing your controller
 
@@ -353,9 +354,13 @@ This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
 - **Lights restored** when a game that used the lightbar exits.
 - **Battery warning** — the lightbar turns amber at 20% and red at 10%
   until the controller charges, and a notification when charging finishes.
+- **Battery time left** — learned from how you play, in the sidebar and tray.
+- **Tray menu** — battery, profile, controller mode, mic and turn off.
 
 **📶 Bluetooth**
 - **Bluetooth tab** — OpenDS5 / normal mode, auto switching, attach and detach controllers.
+- **Pair New Controller** and **Forget**, on Linux and Windows.
+- **Weak Signal** notification (Linux).
 - **Idle and PC-sleep disconnect** for the controller.
 
 **🔊 Audio & haptics**
@@ -375,7 +380,8 @@ This is [Virmin8/OpenDS5](https://github.com/Virmin8/OpenDS5), based on
 - **One-click uninstall** from Settings.
 - **Settings backup and restore** from System → About.
 - **Restart prompt** after pacman installs a new version.
-- **Diagnostics** — daemon log, tracing and live audio stats.
+- **Diagnostics** — daemon log, tracing, live audio stats and a **Copy Support Report** button.
+- **Steam Input warning** when Steam takes over the controller (Linux).
 - **Test Triggers** quick action.
 
 Full details are in the [Changelog](CHANGELOG.md).
