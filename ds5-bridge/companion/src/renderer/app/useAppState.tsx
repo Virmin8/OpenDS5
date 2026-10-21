@@ -1457,7 +1457,9 @@ export function useAppState() {
   const controllerToastEnabled = Boolean(snapshot?.settings.notifyControllerConnection);
   const lowBatteryToastEnabled = Boolean(snapshot?.settings.notifyLowBattery);
   const chargeCompleteToastEnabled = Boolean(snapshot?.settings.notifyChargeComplete);
-  const notificationsEnabled = controllerToastEnabled || lowBatteryToastEnabled || chargeCompleteToastEnabled;
+  const weakSignalToastEnabled = Boolean(snapshot?.settings.notifyWeakSignal);
+  const notificationsEnabled = controllerToastEnabled || lowBatteryToastEnabled || chargeCompleteToastEnabled
+    || weakSignalToastEnabled;
   const gameStreamActive = Boolean(snapshot?.status?.hostOutputRecent);
   const adaptiveTriggerOutputActive = Boolean(snapshot?.status?.adaptiveTriggerOutputRecent);
   const audioStatus = snapshot?.diagnostics.audioStatus;
@@ -1765,7 +1767,8 @@ export function useAppState() {
   const overviewNotificationItems = [
     controllerToastEnabled ? { id: 'controller-status', label: 'Controller Status' } : null,
     lowBatteryToastEnabled ? { id: 'low-battery', label: 'Low Battery' } : null,
-    chargeCompleteToastEnabled ? { id: 'charge-complete', label: 'Fully Charged' } : null
+    chargeCompleteToastEnabled ? { id: 'charge-complete', label: 'Fully Charged' } : null,
+    weakSignalToastEnabled ? { id: 'weak-signal', label: 'Weak Signal' } : null
   ].filter((item): item is { id: NotificationFocusTarget; label: string } => Boolean(item));
   const overviewPowerSavingLabel = snapshot?.settings.controllerPowerSavingEnabled
     ? controllerPowerSavingActive
@@ -4281,6 +4284,13 @@ export function useAppState() {
     ));
   }
 
+  function toggleWeakSignalNotifications() {
+    if (!snapshot) return;
+    void runAction('notify-weak-signal', () => (
+      window.bridge.setNotifyWeakSignal(!snapshot.settings.notifyWeakSignal)
+    ));
+  }
+
   function toggleChargeCompleteNotifications() {
     if (!snapshot) return;
     void runAction('notify-charged', () => (
@@ -4510,7 +4520,7 @@ export function useAppState() {
     submitGameCreate, submitRemapProfileDialog, supportedHostPersonaModes, systemHealthTone,
     testHapticsUnavailable, testLocked, testMicUnavailable, testNotifications, testRumbleUnavailable,
     testSpeakerUnavailable, toggleAdaptiveTriggersEnabled, toggleAudioEnabled,
-    toggleAudioHapticsFeature, toggleAudioReactiveHapticsEnabled, toggleChargeCompleteNotifications,
+    toggleAudioHapticsFeature, toggleAudioReactiveHapticsEnabled, toggleChargeCompleteNotifications, toggleWeakSignalNotifications, weakSignalToastEnabled,
     toggleChordFunctionKeyboardModifier, toggleClassicRumbleEnabled, toggleClassicRumbleV1Enabled,
     toggleControllerNotifications, toggleDuplexMicEnabled, toggleFeedbackBoostEnabled,
     toggleHapticsEnabled, toggleLargerAudioBlocks, toggleLightbarEnabled,

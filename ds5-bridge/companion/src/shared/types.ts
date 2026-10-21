@@ -102,6 +102,7 @@ export interface CompanionSettings {
   notifyControllerConnection: boolean;
   notifyLowBattery: boolean;
   notifyChargeComplete: boolean;
+  notifyWeakSignal: boolean;
   lightbarBatteryWarningEnabled: boolean;
   touchpadMouseEnabled: boolean;
   duplexMicEnabled: boolean;

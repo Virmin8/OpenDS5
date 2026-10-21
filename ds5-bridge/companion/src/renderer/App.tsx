@@ -108,7 +108,7 @@ export function App() {
     sleepControllerSupported, snapshot, startupTutorialFeatureActive, startupTutorialOpen,
     startupTutorialStep, startupVisible, statusTone, steamGridDbKeyDraft, submitChordFunctionDialog,
     submitControllerProfileDialog, submitGameCreate, submitRemapProfileDialog, testNotifications,
-    toggleChargeCompleteNotifications, toggleControllerNotifications, toggleLowBatteryNotifications,
+    toggleChargeCompleteNotifications, toggleWeakSignalNotifications, weakSignalToastEnabled, toggleControllerNotifications, toggleLowBatteryNotifications,
     triggerProfileDeleteConfirm, triggerProfileLibraryCatalog, triggerProfileLibraryInstallErrors,
     triggerProfileLibraryInstalling, triggerProfileLibraryLoading, triggerProfileLibraryOpen,
     triggerProfileLibraryQuery, triggerProfileLibraryRows, triggerProfileResetConfirm,
@@ -216,6 +216,22 @@ export function App() {
                       className={`switch ${chargeCompleteToastEnabled ? 'on' : ''}`}
                       disabled={pendingAction !== null}
                       onClick={toggleChargeCompleteNotifications}
+                    >
+                      <span />
+                    </button>
+                  </div>
+                  <div className={`settings-menu-row ${notificationFocusTarget === 'weak-signal' || notificationFocusTarget === 'all' ? 'settings-menu-row-highlight' : ''}`}>
+                    <div>
+                      <strong>Weak Signal</strong>
+                      <span>Toast when the Bluetooth link stays weak enough to stutter</span>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={weakSignalToastEnabled}
+                      className={`switch ${weakSignalToastEnabled ? 'on' : ''}`}
+                      disabled={pendingAction !== null}
+                      onClick={toggleWeakSignalNotifications}
                     >
                       <span />
                     </button>

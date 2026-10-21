@@ -206,6 +206,7 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   notifyControllerConnection: false,
   notifyLowBattery: false,
   notifyChargeComplete: false,
+  notifyWeakSignal: false,
   lightbarBatteryWarningEnabled: false,
   touchpadMouseEnabled: true,
   duplexMicEnabled: DEFAULT_CONTROLLER_PROFILE_SETTINGS.duplexMicEnabled,
@@ -1076,6 +1077,9 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     notifyChargeComplete: typeof value?.notifyChargeComplete === 'boolean'
       ? value.notifyChargeComplete
       : DEFAULT_SETTINGS.notifyChargeComplete,
+    notifyWeakSignal: typeof value?.notifyWeakSignal === 'boolean'
+      ? value.notifyWeakSignal
+      : DEFAULT_SETTINGS.notifyWeakSignal,
     lightbarBatteryWarningEnabled: typeof value?.lightbarBatteryWarningEnabled === 'boolean'
       ? value.lightbarBatteryWarningEnabled
       : DEFAULT_SETTINGS.lightbarBatteryWarningEnabled,

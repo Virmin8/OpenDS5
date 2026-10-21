@@ -107,7 +107,7 @@ export type FeatureTipsPanelProps = {
   audioHapticsOpen?: boolean;
 };
 export type SettingsFocusTarget = 'controller-power-saving' | 'sleep-shortcut' | 'volume-shortcut' | 'profile-shortcut';
-export type NotificationFocusTarget = 'controller-status' | 'low-battery' | 'charge-complete' | 'all';
+export type NotificationFocusTarget = 'controller-status' | 'low-battery' | 'charge-complete' | 'weak-signal' | 'all';
 export type ChordNotchTarget = {
   id: ChordNotchTargetId;
   label: string;

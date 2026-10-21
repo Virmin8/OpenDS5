@@ -94,6 +94,7 @@ import { SettingsStore, normalizeUiScalePercent, normalizeUiThemePreset } from '
 import { openCompanionTransport, type CompanionTransport } from './companion-transport';
 import { vdsdBackendActive } from './vdsd-backend';
 import { BatteryEstimator, loadBatteryState, saveBatteryState } from './battery-estimator';
+import { SignalWatch } from './signal-watch';
 
 const POLL_INTERVAL_MS = 500;
 const SHORTCUT_POLL_INTERVAL_MS = 50;
@@ -1451,6 +1452,7 @@ export class BridgeService extends EventEmitter {
   private readonly micKeepaliveEngine = new MicKeepaliveEngine();
   private readonly hidDiscovery = new HidDiscoveryClient();
   private readonly batteryEstimator: BatteryEstimator;
+  private readonly signalWatch = new SignalWatch();
   private cachedRawDevices: HidDeviceSummary[] = [];
   private cachedRawDevicesAt = 0;
   private audioHapticsSessionCache: { key: string; expiresAt: number; sessions: AudioHapticsSession[] } | null = null;
@@ -3216,6 +3218,12 @@ export class BridgeService extends EventEmitter {
     return this.getSnapshot();
   }
 
+  async setNotifyWeakSignal(enabled: boolean): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ notifyWeakSignal: enabled });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   async setNotifyChargeComplete(enabled: boolean): Promise<BridgeSnapshot> {
     this.snapshot.settings = this.settingsStore.update({ notifyChargeComplete: enabled });
     this.emitSnapshot();
@@ -4098,6 +4106,17 @@ export class BridgeService extends EventEmitter {
       } satisfies BridgeToast);
     }
     this.previousPowerState = powerState;
+
+    const weakSignal = this.signalWatch.update(
+      { connected: controllerConnected, dbm: status.signalStrengthDbm },
+      Date.now()
+    );
+    if (weakSignal && settings.notifyWeakSignal) {
+      this.emit('toast', {
+        title: 'OpenDS5',
+        body: `Weak Bluetooth signal (${status.signalStrengthDbm} dBm). Haptics and audio may stutter: move the controller closer, or keep the Bluetooth adapter away from USB 3 ports.`
+      } satisfies BridgeToast);
+    }
   }
 
   /**

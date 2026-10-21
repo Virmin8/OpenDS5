@@ -210,6 +210,9 @@ const api = {
   setNotifyChargeComplete: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setNotifyChargeComplete', value)
   ),
+  setNotifyWeakSignal: (value: boolean): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setNotifyWeakSignal', value)
+  ),
   setLightbarBatteryWarningEnabled: (value: boolean): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setLightbarBatteryWarningEnabled', value)
   ),

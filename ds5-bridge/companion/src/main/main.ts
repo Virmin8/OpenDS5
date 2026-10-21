@@ -1767,6 +1767,9 @@ function registerIpc(
   ipcMain.handle('bridge:setNotifyChargeComplete', (_event, value: boolean) => (
     service.setNotifyChargeComplete(value)
   ));
+  ipcMain.handle('bridge:setNotifyWeakSignal', (_event, value: boolean) => (
+    service.setNotifyWeakSignal(value)
+  ));
   ipcMain.handle('bridge:setLightbarBatteryWarningEnabled', (_event, value: boolean) => (
     service.setLightbarBatteryWarningEnabled(value)
   ));
