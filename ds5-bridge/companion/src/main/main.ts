@@ -23,7 +23,7 @@ import {
 import { SettingsStore } from './settings-store';
 import { appImagePath } from './appimage-updater';
 import os from 'node:os';
-import { installedModuleVersion, isCheckDue, isNixOS, UpdateService, type UpdateState } from './update-service';
+import { installedDriverVersion, isCheckDue, isNixOS, UpdateService, type UpdateState } from './update-service';
 import { watchForPackageUpgrade } from './package-upgrade-watcher';
 import { trayMenuSignature, trayMenuTemplate } from './tray-menu';
 import { buildSupportReport } from './support-report';
@@ -2047,7 +2047,7 @@ function registerUpdateIpc(settingsStore: SettingsStore, setupService: SetupServ
       kernel: os.release(),
       installType,
       vdsdVersion,
-      moduleVersion: process.platform === 'linux' ? installedModuleVersion() : null,
+      driver: process.platform === 'linux' ? installedDriverVersion() : null,
       snapshot,
       vds,
       daemonLog,

@@ -89,7 +89,7 @@ Pick one install method, then [pair your controller](#-pairing-your-controller).
 ### AppImage (any distro)
 
 1. Download `OpenDS5-Companion-Setup-x.y.z.AppImage` from [Releases](../../releases) and make it executable.
-2. Run it. The setup wizard shows what it will install (kernel module, `vdsd` service, udev rules) and asks for your password once.
+2. Run it. The setup wizard shows what it will install (`vdsd` service, udev rules, the in-tree `vhci-hcd` driver at boot) and asks for your password once.
 3. Updates are offered inside the app.
 
 ### Arch Linux / CachyOS (pacman)
@@ -106,7 +106,7 @@ Pick one install method, then [pair your controller](#-pairing-your-controller).
    ```
 3. **Log out and back in once**, so you're in the `vds` group.
 
-The package loads the module, starts `vdsd` and adds you to `vds` automatically.
+The package loads `vhci-hcd`, starts `vdsd` and adds you to `vds` automatically.
 New releases arrive with your normal system update (`sudo pacman -Syu`). The
 app lets you know when one is out, and offers **Restart now** once pacman has
 installed it. The repository is unsigned, so `TrustAll` is
@@ -172,21 +172,24 @@ detached and removed from your system's Bluetooth devices, on Linux and Windows.
 
 ## 🐧 Supported distros
 
-The setup wizard installs the `vds_hcd` kernel module through **DKMS**, which
-rebuilds it on every kernel update.
+OpenDS5 builds **no kernel module**. `vdsd` plugs the virtual controller into
+the kernel's own `vhci-hcd` driver (USB/IP), which distribution kernels ship
+and sign, so there is nothing to compile per kernel, no DKMS, no Secure Boot key
+to enroll, and the kernel is not tainted (which some anti-cheat checks look
+for). The wizard installs `vdsd` and loads `vhci-hcd` at boot. Upgrading from a
+release that used the old `vds_hcd` DKMS module removes it automatically.
 
-| Distro | What the wizard installs |
+| Distro | What the wizard installs besides `vdsd` |
 | --- | --- |
-| **Arch / CachyOS** | `dkms` + headers for your kernel flavor (or use the [pacman package](#arch-linux--cachyos-pacman)) |
-| **Fedora** | `dkms` + `kernel-devel` (`kernel-cachyos-devel` on COPR kernels) |
-| **Debian / Ubuntu** | `dkms` + `linux-headers-$(uname -r)` |
-| **openSUSE** | `dkms` + `kernel-default-devel` |
-| **Bazzite / Silverblue** | `dkms` + `kernel-devel` via `rpm-ostree`; reboot once, then run the wizard again |
+| **Arch / CachyOS** | Nothing (or use the [pacman package](#arch-linux--cachyos-pacman)) |
+| **Fedora** | `kernel-modules-extra` only if `vhci-hcd` is missing |
+| **Debian / Ubuntu** | `linux-modules-extra-$(uname -r)` only if `vhci-hcd` is missing |
+| **openSUSE** | Nothing |
+| **Bazzite / Silverblue** | `kernel-modules-extra` via `rpm-ostree` only if `vhci-hcd` is missing (then reboot once) |
 | **NixOS** | Nothing; use the [flake](#nixos) |
 
-**Secure Boot** works: the module is signed with DKMS's MOK key, and the wizard
-walks you through enrolling it if needed. Other distros get a clear
-"unsupported" message; see [docs/PORTING.md](docs/PORTING.md).
+Other distros get a clear "unsupported" message; see
+[docs/PORTING.md](docs/PORTING.md).
 
 From a terminal, `./OpenDS5.AppImage --install-system` and
 `--uninstall-system [--purge]` do the same as the wizard and the in-app
@@ -309,7 +312,7 @@ closing the window only hides it.
 DualSense (Bluetooth)
    │
    ▼
-vdsd + vds_hcd.ko (Linux)    ← virtual USB DualSense
+vdsd + vhci-hcd (Linux)      ← virtual USB DualSense (USB/IP, in-tree driver)
 vdsd + USB/IP (Windows)
    │
    ▼
@@ -321,8 +324,9 @@ Your games                   ← see a wired DualSense
 
 [vds](https://github.com/hurryman2212/vds) does the heavy lifting: a daemon
 that takes your Bluetooth DualSense and presents it as a USB-wired one, through
-a kernel module on Linux and USB/IP on Windows (HidHide hides the Bluetooth
-controller from games there). OpenDS5 installs and manages vds and adds
+USB/IP on both platforms: the kernel's in-tree `vhci-hcd` driver on Linux,
+usbip-win2 on Windows (HidHide hides the Bluetooth controller from games
+there). OpenDS5 installs and manages vds and adds
 everything you control on top.
 
 ## ⚠️ Limitations of custom trigger profiles

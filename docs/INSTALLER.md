@@ -1,7 +1,8 @@
 # OpenDS5 System Installer
 
-`installer/opends5-install` prepares a Linux host for OpenDS5: the `vds_hcd`
-kernel module and the `vdsd` userspace stack.
+`installer/opends5-install` prepares a Linux host for OpenDS5: the `vdsd`
+userspace stack, and the kernel's in-tree `vhci-hcd` (USB/IP) driver that
+`vdsd` plugs its virtual controllers into. No kernel module is built.
 
 **Most users never run it directly** — the app opens a setup wizard on first
 launch (see "Setup wizard" below). The CLI equivalents:
@@ -14,8 +15,9 @@ bash installer/opends5-install           # from a checkout
 It shows a numbered plan of exactly what it will do on your system and asks
 once before proceeding. Flags: `--yes` (no prompt), `--dry-run` (print the plan
 and exact commands, change nothing), `--json-progress` (machine-readable event
-stream; used by the wizard), `--rebuild-module` (force a fresh DKMS build and
-reload of `vds_hcd` even when it is already loaded; used after app updates).
+stream; used by the wizard), `--rebuild-module` (accepted for compatibility:
+the app passes it after an update; it changes nothing, since the userspace
+phase always reinstalls `vdsd`, which carries the virtual USB device).
 
 ## Uninstall
 
@@ -25,7 +27,9 @@ bash installer/opends5-install --uninstall [--purge] [--yes] [--dry-run]
 ```
 
 Removes everything the installer set up: the `vdsd` service and binaries, the
-`vds_hcd` DKMS module and autoload entry, udev rules, the `vds` group, `vdsd`
+`vhci-hcd` boot entry (the driver itself stays loaded until reboot, since other
+USB/IP users may share it), any leftover `vds_hcd` module from older releases,
+udev rules, the `vds` group, `vdsd`
 state and logs, the WirePlumber config, and the app launcher/autostart entry.
 It also re-enables BlueZ's input plugin. Every step runs even if an earlier
 one fails; the result is logged to `uninstall.log` in the root log directory.
@@ -34,21 +38,27 @@ installer logs. The same action is available from the app's settings menu.
 
 ## What it does per platform
 
-| Platform | Mechanism |
+| Platform | Driver step (only if `modprobe vhci-hcd` fails) |
 |---|---|
-| Fedora | dnf: dkms + `kernel-devel` (or `kernel-cachyos-devel` on CachyOS COPR kernels) |
-| Arch / CachyOS | pacman: dkms + flavor-matched headers (`linux-cachyos-headers`, `linux-zen-headers`, …); Clang/LTO kernels build with `LLVM=1` |
-| Debian / Ubuntu | apt: dkms + `linux-headers-$(uname -r)` |
-| openSUSE | zypper: dkms + `kernel-default-devel` |
-| Bazzite / Silverblue | `rpm-ostree install --idempotent dkms kernel-devel`; requires one reboot, then re-run the installer |
-| NixOS | Nothing to run: use the flake (see "NixOS" below). The installer's fallback writes `./opends5-vds.nix` + `./opends5-vds-src/` for non-flake configs |
+| Arch / CachyOS | Nothing: `vhci-hcd` ships with every Arch kernel package |
+| Fedora | dnf: `kernel-modules-extra-$(uname -r)` |
+| Debian / Ubuntu | apt: `linux-modules-extra-$(uname -r)` |
+| openSUSE | Nothing: `vhci-hcd` ships with the kernel |
+| Bazzite / Silverblue | `rpm-ostree install --idempotent kernel-modules-extra`; then one reboot (exit code 6) |
+| NixOS | Nothing to run: use the flake (see "NixOS" below). The installer's fallback writes `./opends5-vds.nix` for non-flake configs |
 | Anything else | Clean "unsupported" message; see docs/PORTING.md for manual steps |
 
-On all dkms-based platforms it then stages the module source to
-`/usr/src/vds_hcd-<version>/`, registers and builds it with DKMS (so future
-kernel updates rebuild automatically), and enables autoload via
-`/etc/modules-load.d/vds.conf`. When the module is already loaded, the kernel
-steps are skipped so re-runs are fast and idempotent.
+Everywhere it then loads `vhci-hcd` and enables it at boot via
+`/etc/modules-load.d/vds.conf`. It is part of the distribution's signed kernel,
+so there is nothing to compile per kernel, nothing to sign for Secure Boot, and
+the kernel is not tainted. When `vhci-hcd` is already loaded, only the boot
+entry is ensured, so re-runs are fast and idempotent.
+
+**Upgrading from a DKMS release.** Earlier releases built an out-of-tree
+`vds_hcd` module with DKMS. If one is loaded, registered with DKMS or staged in
+`/usr/src/vds_hcd-*`, the plan's first step stops `vdsd`, unloads it and
+removes every registered version. The app runs the installer once on the first
+launch after updating (see "Setup wizard"), so this happens automatically.
 
 ## Userspace phase
 
@@ -69,7 +79,8 @@ locally with `scripts/collect-vds-bin.sh`), the installer also:
    such as keyboards and mice will not work while this is active.** Revert
    anytime with `sudo /usr/share/opends5/override-bluetoothd.sh enable-input
    --restart`,
-6. reloads systemd and enables/starts `vdsd.service`.
+6. reloads systemd, enables `vdsd.service` and restarts it, so an updated
+   `vdsd` takes over immediately.
 
 Without a bundle (e.g. a plain repo checkout) these steps are skipped and
 `install-system.sh` builds vdsd from source instead.
@@ -95,7 +106,7 @@ build runs on every 2022-or-newer distribution.
 
 NixOS is configured declaratively, so the installer never escalates and never
 modifies the system there. The repo ships a **flake** that replaces the whole
-installer — kernel module *and* userspace — with one import.
+installer — driver *and* userspace — with one import.
 
 ### Flake (recommended)
 
@@ -122,15 +133,14 @@ Add the input and enable the service in your flake-based configuration:
 Then `sudo nixos-rebuild switch`. This is the declarative equivalent of
 everything the installer does on other distributions:
 
-- builds the `vds_hcd` kernel module from source against *your* configured
-  kernel (`boot.extraModulePackages`) and autoloads it — no DKMS, no MOK
-  signing; kernel bumps rebuild it automatically,
+- loads the kernel's in-tree `vhci-hcd` driver at boot
+  (`boot.kernelModules`) — nothing is built against your kernel,
 - builds `vdsd`/`vdsctl` from the `vds/` source tree (no glibc-prebuilt
   binaries, no nix-ld),
 - creates the `vds` group and adds the users listed in
   `services.opends5.users`,
 - installs the udev rules, the system-wide wireplumber config, and the
-  `vdsd` systemd unit,
+  `vdsd` systemd unit (passing `--max-ports` from `services.opends5.maxPorts`),
 - enables Bluetooth and runs bluetoothd with `--noplugin=input` so vds can
   own the controller's HID channels — without this, BlueZ claims the
   DualSense first and the app never sees it. While active, other Bluetooth
@@ -145,37 +155,44 @@ available. Update the flake input and rebuild declaratively:
 `nix flake update opends5 && sudo nixos-rebuild switch`.
 
 Smoke-test the packages without a NixOS machine (any box with Nix):
-`nix build .#vds` and `nix build .#vds-module`.
+`nix build .#vds`.
 
 ### Generator fallback (non-flake configs)
 
-`--install-system` on NixOS runs entirely unprivileged and writes two things
-to the current directory: `opends5-vds.nix` (a module that builds `vds_hcd`
-via `boot.extraModulePackages`) and `opends5-vds-src/` (the module source).
-Move both next to `configuration.nix`, add
-`imports = [ ./opends5-vds.nix ];`, and `sudo nixos-rebuild switch`.
+`--install-system` on NixOS runs entirely unprivileged and writes
+`opends5-vds.nix` to the current directory: a module that loads `vhci-hcd` at
+boot (`boot.kernelModules = [ "vhci-hcd" ];`). Move it next to
+`configuration.nix`, add `imports = [ ./opends5-vds.nix ];`, and
+`sudo nixos-rebuild switch`.
 
-The fallback covers the kernel module only. For userspace, mirror the flake
-module by hand: create the `vds` group, add your user, install the udev rules
-(`vds-bin/99-vds-dualsense-udev.rules`) via `services.udev.extraRules`, and
-run `vdsd` as a systemd service built from the `vds/` source (the prebuilt
-Ubuntu binaries need `programs.nix-ld.enable`). Re-run the generator and
-rebuild after driver updates.
+The fallback covers the driver only. For userspace, mirror the flake module by
+hand: create the `vds` group, add your user, install the udev rules
+(`vds-bin/99-vds-dualsense-udev.rules`) via `services.udev.extraRules`, and run
+`vdsd` as a systemd service built from the `vds/` source (the prebuilt Ubuntu
+binaries need `programs.nix-ld.enable`).
 
-Verify either path with `lsmod | grep vds_hcd` and `ls /dev/vds*` after the
-rebuild (reboot if the kernel changed).
+Verify either path with `lsmod | grep vhci_hcd` after the rebuild; once a
+controller connects, `/sys/devices/platform/vhci_hcd.0/status` lists a port in
+use.
 
 ## Setup wizard
 
-On Linux, the app checks at launch whether `vds_hcd` is loaded and
-`vdsd.service` is active. If not — and setup wasn't skipped before — it opens a
-setup window before the main window:
+On Linux, the app checks at launch whether `vhci_hcd` is loaded, the old
+`vds_hcd` module is gone and `vdsd.service` is active. If not — and setup wasn't
+skipped before — it opens a setup window before the main window:
 
 1. **Welcome** — what will be installed and why a password is needed.
 2. **Review** — the exact plan for *this* distribution.
 3. **Progress** — one polkit password prompt, then live per-step progress. On
    failure: the log path, Retry, Open log, and Copy diagnostics.
-4. **Done** — success (or "reboot to finish MOK enrollment").
+4. **Done** — success (or, on Bazzite/Silverblue after layering
+   `kernel-modules-extra`, "reboot to finish").
+
+After an app update, the app re-runs the installer by itself (one password
+prompt) when the bundled `vdsd` sources changed — it compares `SOURCE_HASH`,
+which `scripts/collect-vds-bin.sh` writes into the bundle, so UI-only releases
+never prompt. The first update from a DKMS release always re-runs it, which
+removes the old module.
 
 "Skip for now" is remembered in settings. NixOS shows copyable instructions
 instead of an install button, since it is configured declaratively.
@@ -205,14 +222,9 @@ bundle (log tail + detection snapshot) for bug reports.
 
 ## Secure Boot
 
-If Secure Boot is enabled, modules must be signed with a MOK-enrolled key —
-Fedora-lineage kernels enforce this even when lockdown reports `none`. The
-installer uses DKMS's own default signing key (`/var/lib/dkms/mok.key`,
-root-only; generated if missing) so systems that already did the MOK dance for
-any DKMS module need nothing extra. If the key isn't enrolled yet, it runs
-`mokutil --import` (you choose a one-time password, then confirm in the blue
-MOK Manager screen on next reboot); in that case the module is built and
-installed but only loads after the reboot (exit code 6).
+Nothing to do: `vhci-hcd` is part of the distribution kernel and signed with
+it, so it loads under Secure Boot and kernel lockdown like any other in-tree
+driver. The log still records the Secure Boot and lockdown state for support.
 
 ## Exit codes
 
@@ -221,9 +233,9 @@ installed but only loads after the reboot (exit code 6).
 | 0 | Success (or dry run) |
 | 2 | Usage error |
 | 3 | Unsupported distribution |
-| 4 | A step failed; partial DKMS registration rolled back |
-| 5 | Module built and loaded but `/dev/vds*` missing |
-| 6 | Module built and signed; reboot needed to complete MOK enrollment before it loads |
+| 4 | A step failed; the run stopped there |
+| 5 | `vhci-hcd` did not come up (`/sys/devices/platform/vhci_hcd.0/attach` missing) |
+| 6 | Bazzite/Silverblue: `kernel-modules-extra` was layered; reboot, then `vhci-hcd` loads |
 
 ## Security guarantees
 
@@ -234,13 +246,13 @@ installed but only loads after the reboot (exit code 6).
   never read or stored by the installer. Detection and planning run
   unprivileged; the NixOS flow never escalates at all.
 - No network access: everything executed ships inside the AppImage/repo.
-- Fail closed: the first failing step aborts the run, prints the exact manual
-  retry command, and rolls back the DKMS registration.
+- Fail closed: the first failing step aborts the run and prints the exact
+  manual retry command.
 
 ## Testing
 
 `bash installer/tests/run-tests.sh` runs the fixture-based suite (platform
-detection, per-distro plan output, Secure Boot logic, execution/rollback via a
+detection, per-distro plan output, legacy-module migration, execution via a
 stubbed root helper, userspace phase, JSON progress framing, logging, NixOS
 generation). No root required.
 

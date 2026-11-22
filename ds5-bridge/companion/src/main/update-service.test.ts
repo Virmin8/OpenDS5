@@ -7,7 +7,8 @@ import {
   UPDATE_CHECK_INTERVAL_MS,
   UpdateService,
   decideRebuild,
-  installedModuleVersion,
+  installedDriverVersion,
+  INSTALLED_VDSD,
   isCheckDue,
   isNixOS,
   type UpdateState,
@@ -46,19 +47,22 @@ describe('isNixOS', () => {
   });
 });
 
-describe('installedModuleVersion', () => {
-  it('reads the version modinfo reports', () => {
+describe('installedDriverVersion', () => {
+  it('reports an old DKMS vds_hcd as legacy, so the next update migrates it', () => {
     const run = vi.fn().mockReturnValue('1.7.0-beta.1\n');
-    expect(installedModuleVersion(run)).toBe('1.7.0-beta.1');
+    expect(installedDriverVersion(run, () => true)).toBe('legacy-vds_hcd-1.7.0-beta.1');
     expect(run).toHaveBeenCalledWith('modinfo', ['-F', 'version', 'vds_hcd']);
   });
 
-  it('reports no module when modinfo fails', () => {
-    expect(installedModuleVersion(() => null)).toBeNull();
+  it('reports vhci_hcd when the installer put vdsd in place', () => {
+    const exists = vi.fn().mockReturnValue(true);
+    expect(installedDriverVersion(() => null, exists)).toBe('vhci_hcd');
+    expect(exists).toHaveBeenCalledWith(INSTALLED_VDSD);
   });
 
-  it('reports no module when modinfo prints nothing', () => {
-    expect(installedModuleVersion(() => '  \n')).toBeNull();
+  it('reports nothing installed when neither is present', () => {
+    expect(installedDriverVersion(() => null, () => false)).toBeNull();
+    expect(installedDriverVersion(() => '  \n', () => false)).toBeNull();
   });
 });
 
@@ -189,13 +193,13 @@ describe('UpdateService.start', () => {
     // fail if rebuildIfNeeded() is moved back into start(): a hash/version override
     // alone could land on the 'adopt' path and skip the installer anyway.
     const moduleSourceHash = vi.fn().mockReturnValue('bbb');
-    const installedModuleVersion = vi.fn().mockReturnValue('1.7.0');
-    const { svc, setup } = service({ moduleSourceHash, installedModuleVersion });
+    const installedDriverVersion = vi.fn().mockReturnValue('1.7.0');
+    const { svc, setup } = service({ moduleSourceHash, installedDriverVersion });
 
     await svc.start();
 
     expect(moduleSourceHash).not.toHaveBeenCalled();
-    expect(installedModuleVersion).not.toHaveBeenCalled();
+    expect(installedDriverVersion).not.toHaveBeenCalled();
     expect(setup.install).not.toHaveBeenCalled();
   });
 
@@ -392,7 +396,7 @@ describe('UpdateService.rebuildIfNeeded', () => {
       isNixOS: () => false,
       fetchLatestRelease: vi.fn(),
       moduleSourceHash: () => 'bbb',
-      installedModuleVersion: () => '1.7.0',
+      installedDriverVersion: () => '1.7.0',
     });
     return { svc, setup, states };
   }
@@ -419,18 +423,18 @@ describe('UpdateService.rebuildIfNeeded', () => {
   it('does not inspect sources or run the installer on NixOS', async () => {
     const { setup } = service(0);
     const moduleSourceHash = vi.fn().mockReturnValue('bbb');
-    const installedModuleVersion = vi.fn().mockReturnValue('1.7.0');
+    const installedDriverVersion = vi.fn().mockReturnValue('1.7.0');
     const nixosService = new UpdateService('1.8.0', setup, () => {}, {
       platform: 'linux',
       appImagePath: () => '/x/OpenDS5.AppImage',
       isNixOS: () => true,
       moduleSourceHash,
-      installedModuleVersion,
+      installedDriverVersion,
     });
 
     await expect(nixosService.rebuildIfNeeded('aaa')).resolves.toBeNull();
     expect(moduleSourceHash).not.toHaveBeenCalled();
-    expect(installedModuleVersion).not.toHaveBeenCalled();
+    expect(installedDriverVersion).not.toHaveBeenCalled();
     expect(setup.install).not.toHaveBeenCalled();
   });
 });
@@ -514,7 +518,7 @@ describe('UpdateService on Windows', () => {
   });
 
   it('never runs the Linux driver rebuild', async () => {
-    const { svc, setup } = service({ installedModuleVersion: () => '1.7.0', moduleSourceHash: () => 'abc' });
+    const { svc, setup } = service({ installedDriverVersion: () => '1.7.0', moduleSourceHash: () => 'abc' });
     await expect(svc.rebuildIfNeeded('')).resolves.toBeNull();
     expect(setup.install).not.toHaveBeenCalled();
   });

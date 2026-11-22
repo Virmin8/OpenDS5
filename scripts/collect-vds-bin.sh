@@ -15,6 +15,14 @@ install -m 0644 "$repo/vds/vdsd.service.in" \
   "$repo/vds/99-vds-dualsense-wireplumber.conf" "$out/"
 install -m 0755 "$repo/vds/override-bluetoothd.sh" "$out/"
 
+# Hash of the driver sources (vdsd now carries the virtual USB device). The
+# companion's update gate reinstalls only when this changes: the vdsd binary
+# embeds the release version, so hashing it would prompt on every release.
+( cd "$repo/vds" && git ls-files -z -- src include CMakeLists.txt cmake \
+    vdsd.service.in 99-vds-dualsense-udev.rules 99-vds-dualsense-wireplumber.conf \
+    override-bluetoothd.sh |
+  sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1 ) > "$out/SOURCE_HASH"
+
 # ldd audit: libraries outside the universal baseline must be bundled (vds-bin/lib)
 allowed='linux-vdso|ld-linux|libc\.|libm\.|libpthread|libdl|librt|libgcc_s|libstdc\+\+|libasound|libbluetooth|libdbus|libopus|libudev|libsystemd'
 extras="$(ldd "$out/vdsd" | grep '=>' | grep -vE "$allowed" || true)"

@@ -31,19 +31,11 @@ assert_eq lqx     "$(KERNEL_RELEASE=6.15.4-lqx1-1-lqx detect_kernel_flavor)"    
 assert_eq fsync   "$(KERNEL_RELEASE=6.15.4-201.fsync.fc42.x86_64 detect_kernel_flavor)" "flavor fsync (Nobara)"
 assert_eq generic "$(KERNEL_RELEASE=6.8.0-41-generic detect_kernel_flavor)"      "flavor generic"
 
-assert_eq linux-cachyos-headers "$(headers_package arch cachyos)"   "arch cachyos headers"
-assert_eq linux-cachyos-bore-headers "$(headers_package arch cachyos-bore)" "arch cachyos-bore headers"
-assert_eq linux-zen-headers     "$(headers_package arch zen)"       "arch zen headers"
-assert_eq linux-headers         "$(headers_package arch generic)"   "arch stock headers"
-assert_eq kernel-cachyos-devel  "$(headers_package fedora cachyos)" "fedora COPR headers"
-assert_eq kernel-cachyos-lts-devel "$(headers_package fedora cachyoslts)" "fedora COPR lts headers"
-assert_eq kernel-cachyos-lto-devel "$(headers_package fedora cachyoslto)" "fedora COPR lto headers"
-assert_eq kernel-fsync-devel    "$(headers_package fedora fsync)"   "fedora fsync headers"
-assert_eq linux-xanmod-headers  "$(headers_package arch xanmod)"    "arch xanmod headers"
-assert_eq linux-lqx-headers     "$(headers_package arch lqx)"       "arch liquorix headers"
-assert_eq kernel-devel          "$(headers_package fedora generic)" "fedora headers"
-assert_eq "linux-headers-6.8.0-41-generic" "$(KERNEL_RELEASE=6.8.0-41-generic headers_package debian generic)" "debian headers"
-assert_eq kernel-default-devel  "$(KERNEL_RELEASE=6.15.4-1-default headers_package suse default)" "suse headers"
-assert_eq kernel-rt-devel       "$(KERNEL_RELEASE=6.15.4-1-rt headers_package suse rt)" "suse rt headers"
+# vhci-hcd.ko comes from an extra-modules package on Debian/Ubuntu and Fedora;
+# Arch and openSUSE ship it with the kernel.
+assert_eq "linux-modules-extra-6.8.0-41-generic" "$(KERNEL_RELEASE=6.8.0-41-generic vhci_package debian)" "debian vhci package"
+assert_eq "kernel-modules-extra-6.15.4-200.fc44.x86_64" "$(KERNEL_RELEASE=6.15.4-200.fc44.x86_64 vhci_package fedora)" "fedora vhci package"
+assert_eq "" "$(KERNEL_RELEASE=6.15.4-2-cachyos vhci_package arch)" "arch: vhci-hcd ships with the kernel"
+assert_eq "" "$(KERNEL_RELEASE=6.15.4-1-default vhci_package suse)" "suse: vhci-hcd ships with the kernel"
 
 finish

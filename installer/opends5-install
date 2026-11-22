@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# OpenDS5 system installer: prepares the host for the vds_hcd kernel module.
+# OpenDS5 system installer: installs vdsd and loads the in-tree vhci_hcd
+# (USB/IP) driver it plugs the virtual controllers into. Older releases built
+# an out-of-tree vds_hcd module with DKMS; this installer removes that.
 # Spec: docs/superpowers/specs/2026-07-11-system-installer-design.md
 set -euo pipefail
 
@@ -12,11 +14,10 @@ ASSUME_YES=0
 JSON_PROGRESS=0
 UNINSTALL=0
 PURGE=0
+# Accepted for compatibility (the companion passes it after an app update);
+# userspace is always reinstalled, there is no module to rebuild any more.
 REBUILD_MODULE=0
-
-module_version() { # dkms_conf_path -> version
-  sed -n 's/^PACKAGE_VERSION="\(.*\)"/\1/p' "$1"
-}
+APP_VER="${OPENDS5_MODULE_VERSION:-${OPENDS5_APP_VERSION:-unknown}}"
 
 user_log_dir() { echo "${OPENDS5_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/opends5}"; }
 root_log_dir() { echo "${OPENDS5_LOG_DIR:-/var/log/opends5}"; }
@@ -26,7 +27,7 @@ log_header() { # target_file
   {
     printf '=== opends5-install run %s ===\n' "$(date -Is)"
     printf 'version=%s platform=%s kernel=%s flavor=%s sb=%s lockdown=%s\n' \
-      "$MODULE_VER" "$(detect_platform)" "$KERNEL_RELEASE" \
+      "$APP_VER" "$(detect_platform)" "$KERNEL_RELEASE" \
       "$(detect_kernel_flavor)" "$(detect_secureboot)" "$(detect_lockdown)"
   } >> "$1"
 }
@@ -66,28 +67,13 @@ detect_kernel_flavor() {
   esac
 }
 
-headers_package() { # platform flavor
-  local platform="$1" flavor="$2"
-  case "$platform" in
-    arch)
-      case "$flavor" in
-        generic) echo linux-headers ;;
-        *)       echo "linux-${flavor}-headers" ;;
-      esac ;;
-    fedora|fedora-immutable)
-      case "$flavor" in
-        # COPR devel packages hyphenate the variant (kernel-cachyos-lts-devel)
-        # even when the uname runs it together (…-cachyoslts1.fc44).
-        cachyos*) echo "kernel-$(echo "$flavor" | sed 's/^cachyos/cachyos-/; s/--/-/; s/-$//')-devel" ;;
-        # Nobara / sentry COPR gaming kernel.
-        fsync)    echo kernel-fsync-devel ;;
-        *)        echo kernel-devel ;;
-      esac ;;
-    debian) echo "linux-headers-${KERNEL_RELEASE}" ;;
-    # SUSE devel packages follow the kernel flavor in the uname suffix
-    # (default, rt, longterm…): kernel-<flavor>-devel.
-    suse)   echo "kernel-${KERNEL_RELEASE##*-}-devel" ;;
-    *)      echo "" ;;
+# Package that provides vhci-hcd.ko when the running kernel's base package does
+# not (empty: it ships with the kernel). Only installed if modprobe fails.
+vhci_package() { # platform
+  case "$1" in
+    debian)                   echo "linux-modules-extra-${KERNEL_RELEASE}" ;;
+    fedora|fedora-immutable)  echo "kernel-modules-extra-${KERNEL_RELEASE}" ;;
+    *)                        echo "" ;;
   esac
 }
 
@@ -109,79 +95,50 @@ detect_secureboot() {
   fi
 }
 
-detect_sig_enforced() {
-  # Fedora-lineage kernels enforce module signatures whenever Secure Boot is
-  # on, even with lockdown reporting "none" — treat SB-on as enforced.
-  if [ "$(detect_secureboot)" = "1" ]; then echo 1; return; fi
-  if [ "$(detect_lockdown)" != "none" ]; then echo 1; return; fi
-  local cfg="${SYSROOT}/usr/lib/modules/${KERNEL_RELEASE}/build/.config"
-  if grep -qs '^CONFIG_MODULE_SIG_FORCE=y' "$cfg"; then echo 1; else echo 0; fi
-}
-
 PLAN_DESC=()
 PLAN_CMD=()
 PLAN_FATAL=""
 PLAN_NIXOS=0
-MODULE_SRC=""
-MODULE_VER=""
 
 plan_add() { PLAN_DESC+=("$1"); PLAN_CMD+=("$2"); }
 
-resolve_module_source() {
-  local script_dir cand
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  for cand in "${APPDIR:-/nonexistent}/resources/vds-module" \
-              "$script_dir/../vds-module" \
-              "$script_dir/../vds/module"; do
-    if [ -f "$cand/dkms.conf" ]; then
-      MODULE_SRC="$cand"
-      MODULE_VER="$(module_version "$cand/dkms.conf")"
-      break
-    fi
-  done
-  if [ -z "$MODULE_SRC" ]; then
-    echo "error: vds module source not found (looked in AppImage resources and repo)" >&2
-    exit 1
-  fi
-  # In-tree dkms.conf carries an "unknown" placeholder; resolve the real version
-  # from the caller (AppImage passes the app version), then generate-version.sh.
-  if [ -z "$MODULE_VER" ] || [ "$MODULE_VER" = "unknown" ]; then
-    MODULE_VER="${OPENDS5_MODULE_VERSION:-}"
-  fi
-  if [ -z "$MODULE_VER" ] || [ "$MODULE_VER" = "unknown" ]; then
-    if [ -x "$MODULE_SRC/../generate-version.sh" ]; then
-      MODULE_VER="$("$MODULE_SRC/../generate-version.sh" 2>/dev/null || true)"
-    fi
-  fi
-  [ -n "$MODULE_VER" ] && [ "$MODULE_VER" != "unknown" ] || MODULE_VER="0.0.0"
+# A leftover out-of-tree vds_hcd from an earlier release (loaded, registered
+# with DKMS, or its sources staged).
+detect_legacy_module() {
+  if [ -d "${SYSROOT}/sys/module/vds_hcd" ]; then echo 1; return; fi
+  if compgen -G "${SYSROOT}/usr/src/vds_hcd-*" >/dev/null; then echo 1; return; fi
+  if [ -z "$SYSROOT" ] && command -v dkms >/dev/null 2>&1 && \
+     dkms status vds_hcd 2>/dev/null | grep -q .; then echo 1; return; fi
+  echo 0
 }
 
-plan_source_staging() {
-  local dest="/usr/src/vds_hcd-${MODULE_VER}"
-  # Kbuild compiles with -I$(src)/include; the shared headers live in the
-  # sibling vds/include/ in the repo (already inside MODULE_SRC when bundled).
-  local inc=""
-  if [ -d "${MODULE_SRC}/../include/uapi" ]; then
-    inc=" && cp -a '${MODULE_SRC}/../include/.' '${dest}/include/'"
-  fi
-  plan_add "Stage module source to ${dest}" \
-    "rm -rf '${dest}' && mkdir -p '${dest}/include' && cp -a '${MODULE_SRC}/.' '${dest}/'${inc} && \
-     find '${dest}' \\( -name '*.o' -o -name '*.ko*' -o -name '*.mod*' -o -name modules.order -o -name Module.symvers \\) -delete && \
-     sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION=\"${MODULE_VER}\"/' '${dest}/dkms.conf'"
+# Shell snippet that removes the legacy module everywhere it can live.
+LEGACY_REMOVE_CMD="modprobe -r vds_hcd >/dev/null 2>&1 || true; \
+     if command -v dkms >/dev/null 2>&1; then dkms status vds_hcd 2>/dev/null | sed -n 's|^vds_hcd[/,] *\\([^,:]*\\).*|\\1|p' | sort -u | while read -r v; do [ -n \"\$v\" ] && dkms remove \"vds_hcd/\$v\" --all || true; done; fi; \
+     rm -rf /usr/src/vds_hcd-*"
+
+VHCI_BOOT_CMD="printf '# OpenDS5: virtual controllers are plugged in over USB/IP\\nvhci-hcd\\n' > /etc/modules-load.d/vds.conf"
+
+plan_legacy_cleanup() {
+  [ "$(detect_legacy_module)" = "1" ] || return 0
+  plan_add "Stop vdsd and remove the old out-of-tree vds_hcd module (DKMS)" \
+    "systemctl stop vdsd.service >/dev/null 2>&1 || true; ${LEGACY_REMOVE_CMD}"
 }
 
-plan_dkms() {
-  # Clang/LTO kernels are handled by the module Makefile's own LLVM auto-detect
-  # (from the headers' compile.h); dkms silently ignores trailing VAR=1 args,
-  # so passing LLVM=1 here would be dead code.
-  local mk=""
-  # Remove every registered vds_hcd, not just MODULE_VER: an upgrade changes the
-  # version, so removing only the incoming one would strand the old registration
-  # and leave two DKMS entries fighting over the same /extra/vds_hcd.ko.
-  plan_add "Register and build vds_hcd with DKMS" \
-    "dkms status vds_hcd 2>/dev/null | sed -n 's|^vds_hcd[/,] *\\([^,:]*\\).*|\\1|p' | sort -u | while read -r v; do [ -n \"\$v\" ] && dkms remove \"vds_hcd/\$v\" --all >/dev/null 2>&1 || true; done; dkms add vds_hcd/${MODULE_VER} && dkms install vds_hcd/${MODULE_VER}${mk}"
-  plan_add "Enable autoload on boot" \
-    "printf 'vds_hcd\n' > /etc/modules-load.d/vds.conf"
+plan_vhci() { # platform
+  local pkg install=""
+  pkg="$(vhci_package "$1")"
+  case "$1" in
+    debian)  [ -n "$pkg" ] && install="apt-get install -y ${pkg}" ;;
+    fedora)  [ -n "$pkg" ] && install="dnf install -y ${pkg}" ;;
+  esac
+  if [ -n "$install" ]; then
+    plan_add "Load the in-tree vhci-hcd USB/IP driver (installing ${pkg} if needed)" \
+      "modprobe vhci-hcd 2>/dev/null || { ${install} && modprobe vhci-hcd; }"
+  else
+    plan_add "Load the in-tree vhci-hcd USB/IP driver" "modprobe vhci-hcd"
+  fi
+  plan_add "Load vhci-hcd on boot" "${VHCI_BOOT_CMD}"
 }
 
 USERSPACE_SRC=""
@@ -221,7 +178,7 @@ resolve_icon_source() {
 # mounted them — the escalated half of the run cannot see inside. Copy the
 # bundled sources out to a root-readable staging dir while still unprivileged.
 needs_root_staging() {
-  case "${MODULE_SRC}:${USERSPACE_SRC}:${ICON_SRC}" in
+  case "${USERSPACE_SRC}:${ICON_SRC}" in
     /tmp/.mount_*|*:/tmp/.mount_*) echo 1; return ;;
   esac
   if [ -n "${APPDIR:-}" ]; then echo 1; else echo 0; fi
@@ -232,11 +189,6 @@ stage_sources_for_root() {
   STAGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/opends5-stage.XXXXXX")"
   chmod 0755 "$STAGE_DIR"
   trap cleanup_stage EXIT
-  if [ -n "$MODULE_SRC" ]; then
-    cp -a "$MODULE_SRC" "$STAGE_DIR/vds-module"
-    chmod -R a+rX "$STAGE_DIR/vds-module"
-    MODULE_SRC="$STAGE_DIR/vds-module"
-  fi
   if [ -n "$USERSPACE_SRC" ]; then
     cp -a "$USERSPACE_SRC" "$STAGE_DIR/vds-bin"
     chmod -R a+rX "$STAGE_DIR/vds-bin"
@@ -249,8 +201,8 @@ stage_sources_for_root() {
   fi
 }
 
-detect_kernel_satisfied() {
-  if [ -d "${SYSROOT}/sys/module/vds_hcd" ]; then echo 1; else echo 0; fi
+detect_vhci_loaded() {
+  if [ -d "${SYSROOT}/sys/module/vhci_hcd" ]; then echo 1; else echo 0; fi
 }
 
 plan_userspace() {
@@ -324,47 +276,37 @@ plan_desktop_entry() {
      { update-desktop-database '$(dirname "$desktop")' >/dev/null 2>&1 || true; }"
 }
 
-plan_kernel_and_userspace() { # [pkg_install_desc pkg_install_cmd]
-  if [ "$(detect_kernel_satisfied)" = "1" ] && [ -n "$USERSPACE_SRC" ] && [ "$REBUILD_MODULE" != "1" ]; then
-    plan_add "Kernel module already loaded; skipping module build" "true"
+plan_driver_and_userspace() { # platform
+  plan_legacy_cleanup
+  if [ "$(detect_vhci_loaded)" = "1" ]; then
+    plan_add "vhci-hcd already loaded; making sure it loads on boot" "${VHCI_BOOT_CMD}"
   else
-    [ -n "${1:-}" ] && plan_add "$1" "$2"
-    if [ "$REBUILD_MODULE" = "1" ] && [ "$(detect_kernel_satisfied)" = "1" ]; then
-      # An app update ships new module sources: the loaded module must go so
-      # the rebuilt one is what modprobe loads at the end of the run.
-      plan_add "Stop vdsd and unload the old vds_hcd module" \
-        "systemctl stop vdsd.service >/dev/null 2>&1 || true; modprobe -r vds_hcd"
-    fi
-    plan_secureboot; plan_source_staging; plan_dkms
+    plan_vhci "$1"
   fi
   plan_userspace
   plan_desktop_entry
 }
 
 build_plan() {
-  local platform flavor hdrs
+  local platform
   platform="$(detect_platform)"
-  flavor="$(detect_kernel_flavor)"
-  hdrs="$(headers_package "$platform" "$flavor")"
   if [ "${OPENDS5_TEST_ONLY_INJECTED:-0}" = "1" ]; then
     plan_add "test-injected failure" "${OPENDS5_TEST_INJECT_FAIL:-true}"
     return
   fi
   case "$platform" in
-    fedora)
-      plan_kernel_and_userspace "Install DKMS and kernel headers (dnf)" "dnf install -y dkms ${hdrs}" ;;
+    fedora|arch|debian|suse)
+      plan_driver_and_userspace "$platform" ;;
     fedora-immutable)
-      plan_add "Layer dkms + headers (rpm-ostree; REBOOT REQUIRED before module build)" \
-        "rpm-ostree install --idempotent dkms ${hdrs}"
-      plan_add "After reboot, re-run this installer to build the module" \
-        "echo 'reboot, then run: opends5-install'"
-      plan_kernel_and_userspace ;;
-    arch)
-      plan_kernel_and_userspace "Install DKMS and kernel headers (pacman)" "pacman -S --needed --noconfirm dkms ${hdrs}" ;;
-    debian)
-      plan_kernel_and_userspace "Install DKMS and kernel headers (apt)" "apt-get install -y dkms ${hdrs}" ;;
-    suse)
-      plan_kernel_and_userspace "Install DKMS and kernel headers (zypper)" "zypper --non-interactive install dkms ${hdrs}" ;;
+      # vhci-hcd ships in kernel-modules-extra; layering it needs a reboot.
+      plan_legacy_cleanup
+      if [ "$(detect_vhci_loaded)" != "1" ]; then
+        plan_add "Load vhci-hcd, layering kernel-modules-extra if needed (rpm-ostree; REBOOT REQUIRED if layered)" \
+          "modprobe vhci-hcd 2>/dev/null || rpm-ostree install --idempotent kernel-modules-extra"
+      fi
+      plan_add "Load vhci-hcd on boot" "${VHCI_BOOT_CMD}"
+      plan_userspace
+      plan_desktop_entry ;;
     nixos)
       PLAN_NIXOS=1
       plan_add "Generate NixOS module snippet ./opends5-vds.nix (no system changes)" "generate_nixos_snippet" ;;
@@ -375,29 +317,6 @@ See docs/PORTING.md for manual installation instructions." ;;
   if [ -n "${OPENDS5_TEST_INJECT_FAIL:-}" ]; then
     plan_add "test-injected failure" "$OPENDS5_TEST_INJECT_FAIL"
   fi
-}
-
-plan_secureboot() {
-  [ "$(detect_secureboot)" = "1" ] || return 0
-  # DKMS signs with its own default key (/var/lib/dkms/mok.key), which on many
-  # systems is already enrolled in MOK. Use it instead of a custom key, and
-  # remove the signing override an earlier OpenDS5 installer version wrote.
-  local key=/var/lib/dkms/mok.key cert=/var/lib/dkms/mok.pub
-  plan_add "Ensure DKMS signing key exists and is enrolled in MOK (Secure Boot)" \
-    "rm -f /etc/dkms/framework.conf.d/opends5.conf; \
-     if [ ! -f '${key}' ]; then \
-       openssl req -new -x509 -newkey rsa:2048 -nodes -days 36500 \
-         -subj '/CN=DKMS module signing key/' \
-         -keyout '${key}' -outform DER -out '${cert}'; \
-       chmod 0600 '${key}'; \
-     fi; \
-     if mokutil --test-key '${cert}' 2>/dev/null | grep -qi 'already enrolled'; then \
-       echo 'DKMS signing key already enrolled in MOK'; \
-     else \
-       echo 'Enrolling DKMS signing key: choose a one-time password now;'; \
-       echo 'on next reboot pick Enroll MOK in the blue MOK Manager screen.'; \
-       mokutil --import '${cert}'; \
-     fi"
 }
 
 as_root() {
@@ -411,8 +330,8 @@ as_root() {
 }
 
 # Emit one root-executed runner script for the whole plan, so the user
-# authenticates exactly once. Fail-closed: the first failing step rolls back
-# the DKMS registration inside the same script and exits 4.
+# authenticates exactly once. Fail-closed: the first failing step stops the
+# run and exits 4.
 build_runner() { # path
   {
     printf '#!/usr/bin/env bash\nset -u\n'
@@ -425,12 +344,10 @@ build_runner() { # path
     printf '  echo "  Full log: $RLOG" >&2\n'
     printf '  echo "  Troubleshooting: https://github.com/LordVicky/OpenDS5/blob/main/docs/INSTALLER.md" >&2\n'
     printf '  log "FAILED: $1"\n'
-    printf '  echo "Rolling back partial DKMS registration..." >&2\n'
-    printf '  dkms remove vds_hcd/%s --all >/dev/null 2>&1 || true\n' "$MODULE_VER"
     printf '  exit 4\n}\n'
-    printf 'fail_quiet() { log "FAILED: $1"; dkms remove vds_hcd/%s --all >/dev/null 2>&1 || true; exit 4; }\n' "$MODULE_VER"
+    printf 'fail_quiet() { log "FAILED: $1"; exit 4; }\n'
     printf 'log "=== opends5-install run $(date -Is) ==="\n'
-    printf 'log %q\n' "version=$MODULE_VER platform=$(detect_platform) kernel=$KERNEL_RELEASE flavor=$(detect_kernel_flavor) sb=$(detect_secureboot) lockdown=$(detect_lockdown)"
+    printf 'log %q\n' "version=$APP_VER platform=$(detect_platform) kernel=$KERNEL_RELEASE flavor=$(detect_kernel_flavor) sb=$(detect_secureboot) lockdown=$(detect_lockdown)"
     local i
     for i in "${!PLAN_CMD[@]}"; do
       if [ "$JSON_PROGRESS" = "1" ]; then
@@ -454,19 +371,20 @@ build_runner() { # path
     if [ "${OPENDS5_SKIP_VERIFY:-0}" != "1" ]; then
       local say=""
       [ "$JSON_PROGRESS" = "1" ] && say=": " # suppress human chatter in JSON mode
-      printf '%secho "==> Loading module"\nlog "STEP: modprobe vds_hcd"\n' "$say"
-      if [ "$(detect_secureboot)" = "1" ]; then
-        # A freshly imported MOK key only becomes trusted after the reboot
-        # enrollment; a signature rejection here is expected in that case.
-        printf 'modprobe vds_hcd >>"$RLOG" 2>&1 || { %secho "Module built and signed, but the kernel rejected the key. If you just enrolled the MOK key: reboot, complete Enroll MOK, and the module will load automatically."; log "modprobe rejected (MOK pending)"; exit 6; }\n' "$say"
+      printf '%secho "==> Loading vhci-hcd"\nlog "STEP: modprobe vhci-hcd"\n' "$say"
+      if [ "$(detect_platform)" = "fedora-immutable" ]; then
+        # A freshly layered kernel-modules-extra only exists after a reboot.
+        printf 'modprobe vhci-hcd >>"$RLOG" 2>&1 || { %secho "kernel-modules-extra was layered: reboot, and vhci-hcd will load automatically."; log "modprobe vhci-hcd: reboot pending"; exit 6; }\n' "$say"
       else
-        printf 'modprobe vds_hcd >>"$RLOG" 2>&1 || fail "Load vds_hcd" "modprobe vds_hcd"\n'
+        printf 'modprobe vhci-hcd >>"$RLOG" 2>&1 || fail "Load vhci-hcd" "modprobe vhci-hcd"\n'
       fi
       # Start the daemon when it is already installed (daemon install itself
       # is out of scope for this installer until the userspace phase lands).
       printf 'if systemctl list-unit-files vdsd.service >/dev/null 2>&1 && systemctl cat vdsd.service >/dev/null 2>&1; then\n'
       printf '  %secho "==> Starting vdsd.service"\n  log "STEP: enable vdsd.service"\n' "$say"
-      printf '  systemctl enable --now vdsd.service >>"$RLOG" 2>&1 || fail "Start vdsd.service" "systemctl enable --now vdsd.service"\n'
+      # restart, not just --now: an update replaces the vdsd binary (the USB
+      # device model lives there), and a running daemon must pick it up.
+      printf '  { systemctl enable vdsd.service && systemctl restart vdsd.service; } >>"$RLOG" 2>&1 || fail "Start vdsd.service" "systemctl enable vdsd.service && systemctl restart vdsd.service"\n'
       printf 'else\n'
       printf '  %secho "vdsd.service not installed yet; skipping daemon start"\n' "$say"
       printf 'fi\n'
@@ -509,59 +427,37 @@ confirm_and_execute() {
 
 verify_install() {
   [ "$JSON_PROGRESS" = "1" ] || echo "==> Verifying"
-  if ls /dev/vds* >/dev/null 2>&1; then
-    [ "$JSON_PROGRESS" = "1" ] || echo "Success: vds_hcd loaded, /dev/vds* present."
+  if [ -e "${SYSROOT}/sys/devices/platform/vhci_hcd.0/attach" ]; then
+    [ "$JSON_PROGRESS" = "1" ] || echo "Success: vhci-hcd loaded; vdsd can plug in virtual controllers."
   else
-    echo "Module loaded but /dev/vds* not found; check 'dmesg | grep vds_hcd'." >&2
+    echo "vhci-hcd did not come up; check 'dmesg | grep vhci'." >&2
     [ "$JSON_PROGRESS" = "1" ] && printf '{"event":"done","exit":5}\n'
     exit 5
   fi
 }
 generate_nixos_snippet() {
-  rm -rf ./opends5-vds-src
-  cp -a "$MODULE_SRC" ./opends5-vds-src
-  if [ -d "$MODULE_SRC/../include/uapi" ]; then
-    mkdir -p ./opends5-vds-src/include
-    cp -a "$MODULE_SRC/../include/." ./opends5-vds-src/include/
-  fi
-  find ./opends5-vds-src \( -name '*.o' -o -name '*.ko*' -o -name '*.mod*' \) -delete
-  cat > ./opends5-vds.nix <<EOF
-# OpenDS5 vds_hcd kernel module for NixOS.
+  cat > ./opends5-vds.nix <<'NIX'
+# OpenDS5 for NixOS: vdsd plugs its virtual controllers into the kernel's
+# in-tree vhci-hcd (USB/IP) driver; no out-of-tree module is needed.
 # Import from configuration.nix:  imports = [ ./opends5-vds.nix ];
-{ config, pkgs, ... }:
-let
-  kernel = config.boot.kernelPackages.kernel;
-  vds_hcd = pkgs.stdenv.mkDerivation {
-    pname = "vds_hcd";
-    version = "${MODULE_VER}";
-    src = ./opends5-vds-src;
-    hardeningDisable = [ "pic" ];
-    nativeBuildInputs = kernel.moduleBuildDependencies;
-    makeFlags = [
-      "KERNELRELEASE=\${kernel.modDirVersion}"
-      "KDIR=\${kernel.dev}/lib/modules/\${kernel.modDirVersion}/build"
-      "INSTALL_MOD_PATH=\$(out)"
-    ];
-    installPhase = ''
-      install -D vds_hcd.ko \$out/lib/modules/\${kernel.modDirVersion}/extra/vds_hcd.ko
-    '';
-  };
-in
+# For the full stack (vdsd service, udev rules, wireplumber), prefer the
+# OpenDS5 flake's nixosModules.opends5 (services.opends5.enable = true).
+{ ... }:
 {
-  boot.extraModulePackages = [ vds_hcd ];
-  boot.kernelModules = [ "vds_hcd" ];
+  boot.kernelModules = [ "vhci-hcd" ];
 }
-EOF
-  cat <<'EOF'
-Wrote ./opends5-vds.nix and ./opends5-vds-src/.
+NIX
+  cat <<'MSG'
+Wrote ./opends5-vds.nix.
 NixOS cannot be modified imperatively; to install:
-  1. Move both into your configuration directory.
-  2. Add  imports = [ ./opends5-vds.nix ];  to configuration.nix.
+  1. Move it into your configuration directory.
+  2. Add  imports = [ ./opends5-vds.nix ];  to configuration.nix
+     (or use the OpenDS5 flake's nixosModules.opends5).
   3. Run: sudo nixos-rebuild switch
-EOF
+MSG
 }
 
-# --- uninstall: undo everything plan_userspace / plan_dkms / plan_desktop_entry did ---
+# --- uninstall: undo everything plan_userspace / plan_vhci / plan_desktop_entry did ---
 plan_uninstall() {
   local user home apps
   user="$(id -un)"
@@ -580,10 +476,10 @@ plan_uninstall() {
      elif [ -n '${bt_fallback}' ]; then bash '${bt_fallback}' enable-input --restart; \
      else echo 'override script not found; BlueZ input plugin left as is'; fi; \
      rm -rf /usr/share/opends5"
-  plan_add "Unload and remove the vds_hcd kernel module (DKMS)" \
-    "modprobe -r vds_hcd >/dev/null 2>&1 || true; \
-     dkms status vds_hcd 2>/dev/null | sed -n 's|^vds_hcd[/,] *\\([^,:]*\\).*|\\1|p' | sort -u | while read -r v; do [ -n \"\$v\" ] && dkms remove \"vds_hcd/\$v\" --all || true; done; \
-     rm -rf /usr/src/vds_hcd-*; rm -f /etc/modules-load.d/vds.conf"
+  # vhci-hcd stays loaded until reboot (other USB/IP users may need it); only
+  # OpenDS5's boot entry and any legacy vds_hcd module are removed.
+  plan_add "Stop loading vhci-hcd on boot and remove any old vds_hcd module" \
+    "rm -f /etc/modules-load.d/vds.conf; ${LEGACY_REMOVE_CMD}"
   plan_add "Remove vdsd and vdsctl from /usr/local/bin" \
     "rm -f /usr/local/bin/vdsd /usr/local/bin/vdsctl"
   plan_add "Remove udev rules" \
@@ -713,7 +609,6 @@ main() {
     fi
     run_uninstall
   fi
-  resolve_module_source
   resolve_userspace_source
   resolve_icon_source
   # Dry runs change nothing, so they report the real bundle paths.
@@ -732,9 +627,11 @@ usage() {
   cat <<'EOF'
 Usage: opends5-install [--yes] [--dry-run] [--json-progress] [--rebuild-module]
        opends5-install --uninstall [--purge] [--yes] [--dry-run]
-Prepares this system for the vds_hcd kernel module, or with --uninstall removes
-everything the installer set up (module, vdsd, udev rules, wireplumber config,
-BlueZ override, vds group, app launcher). --purge also removes app settings.
+Installs vdsd and loads the in-tree vhci-hcd (USB/IP) driver it uses, removing
+the out-of-tree vds_hcd module of older releases. With --uninstall, removes
+everything the installer set up (vdsd, udev rules, wireplumber config, BlueZ
+override, vds group, app launcher, vhci-hcd boot entry). --purge also removes
+app settings. --rebuild-module is accepted for compatibility and does nothing.
 EOF
 }
 

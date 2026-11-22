@@ -41,7 +41,5 @@ jobs:
         run: nix flake check --no-build
       - name: build userspace (vdsd, vdsctl)
         run: nix build .#vds --print-build-logs
-      - name: build kernel module
-        run: nix build .#vds-module --print-build-logs
       - name: build companion package
         run: nix build .#opends5 --print-build-logs

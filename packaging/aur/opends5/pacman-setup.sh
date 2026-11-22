@@ -1,6 +1,6 @@
 #!/bin/sh
 # Run by 95-opends5.hook after pacman installs or upgrades OpenDS5: adds the user
-# who ran pacman to the vds group, loads vds_hcd and (re)starts vdsd.
+# who ran pacman to the vds group, loads vhci-hcd and (re)starts vdsd.
 
 # Nothing to start in a chroot or container build.
 [ -d /run/systemd/system ] || exit 0
@@ -22,15 +22,14 @@ else
   echo '       sudo usermod -aG vds "$USER"'
 fi
 
-# An upgrade ships a new module; swap it in when the loaded one is a different
-# version. A controller still holding it keeps the old one until reboot.
-loaded=$(cat /sys/module/vds_hcd/version 2>/dev/null)
-installed=$(modinfo -F version vds_hcd 2>/dev/null)
-if [ -n "$loaded" ] && [ -n "$installed" ] && [ "$loaded" != "$installed" ]; then
+# Older releases used an out-of-tree vds_hcd module (the opends5-dkms package this
+# one replaces). vdsd now plugs its controllers into the in-tree vhci-hcd driver;
+# drop a still-loaded vds_hcd so nothing keeps using it.
+if [ -d /sys/module/vds_hcd ]; then
   systemctl stop vdsd.service 2>/dev/null
-  rmmod vds_hcd 2>/dev/null || echo "  -> vds_hcd $loaded is in use; $installed loads after a reboot."
+  rmmod vds_hcd 2>/dev/null || echo "  -> The old vds_hcd module is in use; it goes away after a reboot."
 fi
-modprobe vds_hcd || echo "  -> Could not load vds_hcd; see 'dkms status vds_hcd'."
+modprobe vhci-hcd || echo "  -> Could not load vhci-hcd; check that your kernel provides it (CONFIG_USBIP_VHCI_HCD)."
 
 if systemctl is-active --quiet vdsd.service; then
   systemctl restart vdsd.service

@@ -17,6 +17,17 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
+## [1.11.0] - 2026-11-22 — No more kernel module on Linux
+
+OpenDS5 no longer builds or loads its own kernel module. **Update as usual;** the first launch asks for your password once to switch over.
+
+### 🔄 Changed
+- **Linux: the virtual controller now runs on the kernel's built-in USB/IP driver (`vhci-hcd`)** instead of the out-of-tree `vds_hcd` module. `vdsd` presents the same USB DualSense (buttons, haptics, speaker, microphone, adaptive triggers, the DualShock 4 and Xbox 360 modes) to games. Nothing is compiled per kernel any more: no DKMS, no kernel headers, no Secure Boot key to enroll, and the kernel is no longer tainted, which some anti-cheat systems check for.
+- Updating removes the old `vds_hcd` module automatically: the AppImage on its first launch, the pacman packages through `replaces=opends5-dkms`, the Debian/Arch `vds` packages on upgrade.
+- NixOS: `services.opends5` loads `vhci-hcd` instead of building a module; `maxPorts` keeps working (now a `vdsd --max-ports` option).
+
+---
+
 ## [1.10.0] - 2026-10-21 — More from the tray
 
 Pair and forget controllers from the app, a tray menu, and battery time left.

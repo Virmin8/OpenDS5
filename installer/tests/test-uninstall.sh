@@ -19,10 +19,10 @@ assert_contains "$out" "systemctl disable --now vdsd.service" "service stopped"
 assert_contains "$out" "rm -f /etc/systemd/system/vdsd.service" "unit removed"
 assert_contains "$out" "enable-input --restart" "BlueZ input plugin restored"
 assert_contains "$out" "rm -rf /usr/share/opends5" "override script removed"
-assert_contains "$out" "modprobe -r vds_hcd" "module unloaded"
-assert_contains "$out" "dkms remove" "dkms registration removed"
-assert_contains "$out" "rm -rf /usr/src/vds_hcd-*" "module source removed"
-assert_contains "$out" "rm -f /etc/modules-load.d/vds.conf" "autoload removed"
+assert_contains "$out" "modprobe -r vds_hcd" "any legacy module unloaded"
+assert_contains "$out" "dkms remove" "any legacy dkms registration removed"
+assert_contains "$out" "rm -rf /usr/src/vds_hcd-*" "any legacy module source removed"
+assert_contains "$out" "rm -f /etc/modules-load.d/vds.conf" "vhci-hcd boot entry removed"
 assert_contains "$out" "rm -f /usr/local/bin/vdsd /usr/local/bin/vdsctl" "binaries removed"
 assert_contains "$out" "rm -f /etc/udev/rules.d/99-vds-dualsense-udev.rules" "udev rules removed"
 assert_contains "$out" "groupdel vds" "group removed"
@@ -42,17 +42,11 @@ out="$(env OPENDS5_OS_RELEASE="$here/fixtures/fedora/os-release" OPENDS5_UNAME_R
       OPENDS5_DRY_RUN=1 bash "$here/../opends5-install" --yes)"
 assert_contains "$out" "install -D -m 0755 '$tmp/vds-bin/override-bluetoothd.sh' /usr/share/opends5/override-bluetoothd.sh &&" "override script always installed"
 
-# --rebuild-module rebuilds even with vds_hcd loaded (app update with new module sources).
-mkdir -p "$tmp/sys/sys/module/vds_hcd"
+# --rebuild-module (passed by the companion after an app update) is accepted
+# and still reinstalls userspace: the updated vdsd is the driver now.
 out="$(env OPENDS5_OS_RELEASE="$here/fixtures/fedora/os-release" OPENDS5_UNAME_R=6.15.4-200.fc44.x86_64 \
-      OPENDS5_SB_STATE=disabled OPENDS5_USERSPACE_DIR="$tmp/vds-bin" OPENDS5_SYSROOT="$tmp/sys" \
-      OPENDS5_DRY_RUN=1 bash "$here/../opends5-install" --yes)"
-assert_contains "$out" "Kernel module already loaded; skipping module build" "loaded module skipped by default"
-out="$(env OPENDS5_OS_RELEASE="$here/fixtures/fedora/os-release" OPENDS5_UNAME_R=6.15.4-200.fc44.x86_64 \
-      OPENDS5_SB_STATE=disabled OPENDS5_USERSPACE_DIR="$tmp/vds-bin" OPENDS5_SYSROOT="$tmp/sys" \
+      OPENDS5_SB_STATE=disabled OPENDS5_USERSPACE_DIR="$tmp/vds-bin" OPENDS5_SYSROOT=/nonexistent \
       OPENDS5_DRY_RUN=1 bash "$here/../opends5-install" --yes --rebuild-module)"
-assert_contains "$out" "modprobe -r vds_hcd" "rebuild unloads the old module"
-assert_contains "$out" "dkms add vds_hcd/" "rebuild registers the new module"
-
+assert_contains "$out" "install -m 0755 '$tmp/vds-bin/vdsd'" "update reinstalls vdsd"
 rm -rf "$tmp"
 finish

@@ -10,9 +10,8 @@ mkdir -p "$tmp/Downloads"
 : > "$appimg"
 chmod +x "$appimg"
 appdir="$tmp/.mount_fake"
-mkdir -p "$appdir/resources/assets/controllers" "$appdir/resources/vds-module"
+mkdir -p "$appdir/resources/assets/controllers"
 : > "$appdir/resources/assets/controllers/opends5_app-icon.png"
-printf 'PACKAGE_VERSION="1.6.3"\n' > "$appdir/resources/vds-module/dkms.conf"
 
 plan() { # extra env...
   env "$@" OPENDS5_OS_RELEASE="$here/fixtures/fedora/os-release" \

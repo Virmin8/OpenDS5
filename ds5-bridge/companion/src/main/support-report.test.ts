@@ -32,7 +32,7 @@ function input(overrides: Partial<SupportReportInput> = {}): SupportReportInput 
     kernel: '7.2.11-1-cachyos',
     installType: 'distro package',
     vdsdVersion: 'vds 46711b5',
-    moduleVersion: '1.9.13',
+    driver: 'vhci_hcd',
     snapshot,
     vds: {
       available: true,

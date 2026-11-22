@@ -5,8 +5,8 @@ import path from 'node:path';
  * Linux: whether Steam has the virtual DualSense open. Steam Input opens a
  * controller's hidraw node to take it over; for a game with native DualSense
  * support that means doubled input and no adaptive triggers or haptics. The
- * virtual controller is the hidraw node under vds_hcd's virtual USB host, so a
- * real wired DualSense doesn't count.
+ * virtual controller is the hidraw node under vhci_hcd (the USB/IP host vdsd
+ * plugs it into), so a real wired DualSense doesn't count.
  */
 export function steamHasVirtualController(roots: { proc?: string; sys?: string; dev?: string } = {}): boolean {
   const proc = roots.proc ?? '/proc';
@@ -23,7 +23,7 @@ export function steamHasVirtualController(roots: { proc?: string; sys?: string; 
   for (const name of hidraws) {
     try {
       const device = fs.realpathSync(path.join(sys, 'class', 'hidraw', name, 'device'));
-      if (/\/vds_hcd\.\d+\//.test(device)) {
+      if (/\/vhci_hcd\.\d+\//.test(device)) {
         virtualNodes.add(path.join(dev, name));
       }
     } catch {

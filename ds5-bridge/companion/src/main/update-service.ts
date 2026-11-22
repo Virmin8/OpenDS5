@@ -11,7 +11,7 @@ import {
   swapInPlace,
   tempDownloadPath,
 } from './appimage-updater';
-import { moduleSourceHash } from './module-source-hash';
+import { driverBundleHash } from './module-source-hash';
 import { decideUpdate, type UpdateDecision } from './update-checker';
 import { fetchLatestRelease } from './update-source';
 import type { SetupService } from './setup-service';
@@ -58,20 +58,31 @@ function runCommand(cmd: string, args: string[]): string | null {
   return result.stdout;
 }
 
+export const INSTALLED_VDSD = '/usr/local/bin/vdsd';
+
 /**
- * The DKMS module version is stamped from package.json, so it is the app version.
- * Null means no module is installed — skip the installer rather than prompting
- * a user-mode-only install for a password.
+ * What driver the installer has put on this system, or null if it never ran --
+ * skip the installer then rather than prompting a user-mode-only install for a
+ * password.
+ *
+ * - The out-of-tree vds_hcd module of older releases reports
+ *   "legacy-vds_hcd-<version>": never equal to an app version, so the first
+ *   launch after updating always reinstalls, which migrates it to vhci_hcd.
+ * - Otherwise an installed vdsd (the USB/IP device on the in-tree vhci_hcd)
+ *   reports "vhci_hcd".
  */
-export function installedModuleVersion(run = runCommand): string | null {
-  const out = run('modinfo', ['-F', 'version', 'vds_hcd']);
-  const version = out?.trim() ?? '';
-  return version.length > 0 ? version : null;
+export function installedDriverVersion(
+  run = runCommand,
+  exists: (file: string) => boolean = fs.existsSync,
+): string | null {
+  const legacy = run('modinfo', ['-F', 'version', 'vds_hcd'])?.trim() ?? '';
+  if (legacy.length > 0) return `legacy-vds_hcd-${legacy}`;
+  return exists(INSTALLED_VDSD) ? 'vhci_hcd' : null;
 }
 
 /**
- * The rebuild gate. Gating on the app version would prompt for a password on every
- * release, because dkms.conf is stamped from package.json; gate on the sources.
+ * The reinstall gate. Gating on the app version would prompt for a password on
+ * every release; gate on the bundled driver's sources (see driverBundleHash).
  */
 export function decideRebuild(input: {
   bundledHash: string;
@@ -112,9 +123,9 @@ export type UpdateServiceDeps = {
   sha256File: typeof sha256File;
   swapInPlace: typeof swapInPlace;
   moduleSourceHash: (root: string) => string;
-  installedModuleVersion: () => string | null;
+  installedDriverVersion: () => string | null;
   fetchText: (url: string) => Promise<string>;
-  moduleSourceRoot: () => string;
+  driverBundleRoot: () => string;
   isNixOS: () => boolean;
 };
 
@@ -127,15 +138,15 @@ const DEFAULT_DEPS: UpdateServiceDeps = {
   downloadTo,
   sha256File,
   swapInPlace,
-  moduleSourceHash,
-  installedModuleVersion,
+  moduleSourceHash: driverBundleHash,
+  installedDriverVersion,
   // The checksum asset is 64 bytes; a total deadline is right for it (unlike the
   // AppImage itself, which uses an inactivity timeout — see downloadTo).
   fetchText: async (url) => (await fetch(url, { signal: AbortSignal.timeout(15_000) })).text(),
   // resourcesPath only exists inside Electron; outside it (tests, plain node) there is
-  // no bundled module. Return '' rather than a cwd-relative 'vds-module', which a stray
+  // no bundled driver. Return '' rather than a cwd-relative 'vds-bin', which a stray
   // directory of that name would turn into a live rebuild gate.
-  moduleSourceRoot: () => (process.resourcesPath ? path.join(process.resourcesPath, 'vds-module') : ''),
+  driverBundleRoot: () => (process.resourcesPath ? path.join(process.resourcesPath, 'vds-bin') : ''),
   isNixOS,
 };
 
@@ -377,9 +388,9 @@ export class UpdateService {
     // Windows has no kernel module; the setup wizard updates vdsd on launch.
     if (this.deps.isNixOS() || this.deps.platform === 'win32') return null;
     const outcome = decideRebuild({
-      bundledHash: this.deps.moduleSourceHash(this.deps.moduleSourceRoot()),
+      bundledHash: this.deps.moduleSourceHash(this.deps.driverBundleRoot()),
       recordedHash,
-      installedVersion: this.deps.installedModuleVersion(),
+      installedVersion: this.deps.installedDriverVersion(),
       appVersion: this.currentVersion,
     });
 
@@ -407,7 +418,7 @@ export class UpdateService {
       this.set({
         phase: 'failed',
         version,
-        message: "OpenDS5 updated, but the controller driver didn't rebuild.",
+        message: "OpenDS5 updated, but the controller driver didn't install.",
         retry: 'rebuild',
       });
       return null;

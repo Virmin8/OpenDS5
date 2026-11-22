@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { moduleSourceHash } from './module-source-hash';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { driverBundleHash, moduleSourceHash } from './module-source-hash';
 
 let dir: string;
 
@@ -100,5 +100,30 @@ describe('moduleSourceHash', () => {
       throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
     });
     expect(moduleSourceHash(root)).toBe('');
+  });
+});
+
+describe('driverBundleHash', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'opends5-bundle-'));
+  afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it('uses the SOURCE_HASH stamp, so a rebuilt vdsd binary alone does not count', () => {
+    const a = path.join(dir, 'a');
+    const b = path.join(dir, 'b');
+    for (const [root, binary] of [[a, 'vdsd built for 1.7.0'], [b, 'vdsd built for 1.8.0']]) {
+      fs.mkdirSync(root, { recursive: true });
+      fs.writeFileSync(path.join(root, 'vdsd'), binary);
+      fs.writeFileSync(path.join(root, 'SOURCE_HASH'), 'abc123\n');
+    }
+    expect(driverBundleHash(a)).toBe('abc123');
+    expect(driverBundleHash(b)).toBe('abc123');
+  });
+
+  it('falls back to the tree hash without a stamp', () => {
+    const c = path.join(dir, 'c');
+    fs.mkdirSync(c, { recursive: true });
+    fs.writeFileSync(path.join(c, 'vdsd'), 'x');
+    expect(driverBundleHash(c)).toBe(moduleSourceHash(c));
+    expect(driverBundleHash(path.join(dir, 'missing'))).toBe('');
   });
 });
