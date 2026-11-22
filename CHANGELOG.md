@@ -17,7 +17,7 @@ the reader has to do in bold), then emoji ### sections with short bullets.
 
 ---
 
-## [Unreleased] — No more kernel module on Linux
+## [1.11.0] - 2026-11-22 — No more kernel module on Linux
 
 OpenDS5 no longer builds or loads its own kernel module. **Update as usual;** the first launch asks for your password once to switch over.
 
