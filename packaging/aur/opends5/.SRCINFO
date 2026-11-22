@@ -26,9 +26,9 @@ pkgbase = opends5
 	sha256sums = 9aa2ba00141150a9f037893d600bdb11720b8ab9fad6616c0120bad2018755ca
 	sha256sums = 186bfa5d777c54add852220c578846a80d242e7cbee6608d4804a1193d9456c8
 	sha256sums = 134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa
-	sha256sums = 5554373b4a2907063636255caf2ebdc4056ae5c9858876a91392a16766eebd9e
-	sha256sums = 41c917458c771ae1803bd20a089d758ba7914e077f976c5b7229e219d993fafe
-	sha256sums = 02401e946d12ecae7b0c14d94c107d08e68379991c86020d981eea9b0d1f1113
+	sha256sums = 06daf5da8aa7fe6d36e0ea6b6edbf69330239fce7f5d6399f0e49d2c15428238
+	sha256sums = 60b8034dba4c2cb9e75ea33f068d3008c50a6757a49b9dad68507e585eb322ea
+	sha256sums = fb60f42824fe6cb4650c048565cc72b85de6b16483c6c6bf71e1c0819e38e97b
 	sha256sums = 23273cfee6d424a788f6d1e83891aa314716896eedff287dce9ba2884783cf6b
 
 pkgname = opends5
@@ -37,7 +37,6 @@ pkgname = opends5
 	license = AGPL-3.0-only
 	license = MIT
 	depends = electron39
-	depends = opends5-dkms=1.9.3
 	depends = bluez
 	depends = bluez-libs
 	depends = dbus
@@ -49,8 +48,5 @@ pkgname = opends5
 	depends = pipewire
 	depends = hicolor-icon-theme
 	optdepends = wireplumber: names the virtual controller audio device and sets its channels
-
-pkgname = opends5-dkms
-	pkgdesc = vds_hcd virtual USB host controller kernel module for OpenDS5 (DKMS)
-	license = MIT
-	depends = dkms
+	conflicts = opends5-dkms
+	replaces = opends5-dkms

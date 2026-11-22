@@ -159,7 +159,7 @@ export function SetupWizard() {
               <p>
                 {WINDOWS
                   ? 'Restart Windows to finish installing USB/IP. The OpenDS5 service starts automatically after that.'
-                  : 'Your Secure Boot key was enrolled. Reboot, choose “Enroll MOK” in the blue screen, and the driver loads automatically. You can use the app after that.'}
+                  : 'The USB/IP driver package was installed. Reboot, and the driver loads automatically. You can use the app after that.'}
               </p>
               <div className="setup-actions">
                 <button onClick={() => void window.setup.finish()}>Close</button>

@@ -28,7 +28,7 @@ describe.skipIf(process.platform === 'win32')('steamHasVirtualController', () =>
     roots = { proc: path.join(root, 'proc'), sys: path.join(root, 'sys'), dev: path.join(root, 'dev') };
     fs.mkdirSync(roots.proc, { recursive: true });
     hidraw('hidraw2', 'pci0000:00/usb1/1-5/1-5:1.0/0003:2516:0015.0002');
-    hidraw('hidraw11', 'platform/vds_hcd.0/usb5/5-1/5-1:1.3/0003:054C:0CE6.0010');
+    hidraw('hidraw11', 'platform/vhci_hcd.0/usb5/5-1/5-1:1.3/0003:054C:0CE6.0010');
   });
 
   afterEach(() => {

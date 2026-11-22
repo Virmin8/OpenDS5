@@ -35,16 +35,20 @@ describe('parseProgressLine', () => {
 });
 
 describe('isSetupNeeded', () => {
-  it('needed when module sysfs missing', () => {
-    expect(isSetupNeeded({ moduleSysfs: '/nonexistent/vds_hcd', serviceActive: () => true })).toBe(
-      true,
-    );
+  const noLegacy = '/nonexistent/vds_hcd';
+  it('needed when vhci_hcd is not loaded', () => {
+    expect(
+      isSetupNeeded({ moduleSysfs: '/nonexistent/vhci_hcd', legacyModuleSysfs: noLegacy, serviceActive: () => true }),
+    ).toBe(true);
   });
   it('needed when service inactive', () => {
-    expect(isSetupNeeded({ moduleSysfs: '/', serviceActive: () => false })).toBe(true);
+    expect(isSetupNeeded({ moduleSysfs: '/', legacyModuleSysfs: noLegacy, serviceActive: () => false })).toBe(true);
   });
-  it('not needed when both fine', () => {
-    expect(isSetupNeeded({ moduleSysfs: '/', serviceActive: () => true })).toBe(false);
+  it('needed while the old vds_hcd module is still loaded (migration)', () => {
+    expect(isSetupNeeded({ moduleSysfs: '/', legacyModuleSysfs: '/', serviceActive: () => true })).toBe(true);
+  });
+  it('not needed when vhci_hcd is loaded and vdsd runs', () => {
+    expect(isSetupNeeded({ moduleSysfs: '/', legacyModuleSysfs: noLegacy, serviceActive: () => true })).toBe(false);
   });
 });
 

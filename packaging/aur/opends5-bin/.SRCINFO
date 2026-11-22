@@ -7,7 +7,6 @@ pkgbase = opends5-bin
 	arch = x86_64
 	license = AGPL-3.0-only
 	license = MIT
-	depends = dkms
 	depends = bluez
 	depends = bluez-libs
 	depends = dbus
@@ -22,9 +21,9 @@ pkgbase = opends5-bin
 	depends = hicolor-icon-theme
 	optdepends = wireplumber: names the virtual controller audio device and sets its channels
 	provides = opends5=1.9.3
-	provides = opends5-dkms=1.9.3
 	conflicts = opends5
 	conflicts = opends5-dkms
+	replaces = opends5-dkms
 	noextract = OpenDS5-1.9.3.AppImage
 	options = !strip
 	options = !debug
@@ -39,8 +38,8 @@ pkgbase = opends5-bin
 	sha256sums = 3ea5ed7a5469227808b9eec840ff2d3edd2aab530f805c01cc57bd7d80e1b745
 	sha256sums = 186bfa5d777c54add852220c578846a80d242e7cbee6608d4804a1193d9456c8
 	sha256sums = 134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa
-	sha256sums = 5554373b4a2907063636255caf2ebdc4056ae5c9858876a91392a16766eebd9e
-	sha256sums = 41c917458c771ae1803bd20a089d758ba7914e077f976c5b7229e219d993fafe
-	sha256sums = 02401e946d12ecae7b0c14d94c107d08e68379991c86020d981eea9b0d1f1113
+	sha256sums = 06daf5da8aa7fe6d36e0ea6b6edbf69330239fce7f5d6399f0e49d2c15428238
+	sha256sums = 60b8034dba4c2cb9e75ea33f068d3008c50a6757a49b9dad68507e585eb322ea
+	sha256sums = fb60f42824fe6cb4650c048565cc72b85de6b16483c6c6bf71e1c0819e38e97b
 
 pkgname = opends5-bin

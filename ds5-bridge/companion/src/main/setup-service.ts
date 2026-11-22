@@ -22,15 +22,24 @@ export function parseProgressLine(line: string): SetupProgressEvent | null {
   }
 }
 
+/**
+ * Linux: setup is needed until vhci_hcd (the in-tree USB/IP driver vdsd plugs
+ * the virtual controllers into) is loaded and vdsd runs -- and while the
+ * out-of-tree vds_hcd module of older releases is still loaded, so the
+ * installer migrates it away.
+ */
 export function isSetupNeeded(opts?: {
   moduleSysfs?: string;
+  legacyModuleSysfs?: string;
   serviceActive?: () => boolean;
 }): boolean {
-  const sysfs = opts?.moduleSysfs ?? '/sys/module/vds_hcd';
+  const sysfs = opts?.moduleSysfs ?? '/sys/module/vhci_hcd';
+  const legacySysfs = opts?.legacyModuleSysfs ?? '/sys/module/vds_hcd';
   const serviceActive =
     opts?.serviceActive ??
     (() => spawnSync('systemctl', ['is-active', '--quiet', 'vdsd.service']).status === 0);
   if (!fs.existsSync(sysfs)) return true;
+  if (fs.existsSync(legacySysfs)) return true;
   return !serviceActive();
 }
 
@@ -130,16 +139,17 @@ export class SetupService {
    * Resolves with the installer's exit code; progress events stream to onEvent.
    */
   /**
-   * `rebuildModule` forces a fresh DKMS build even when vds_hcd is loaded — used after
-   * an app update ships new module sources (the installer skips a loaded module otherwise).
+   * `rebuildModule` marks an app-update reinstall (the installer accepts the flag; it
+   * always reinstalls vdsd, which now carries the virtual USB device).
    */
   install(onEvent: (e: SetupProgressEvent) => void, rebuildModule = false): Promise<number> {
     return this.run(['--yes', '--json-progress', ...(rebuildModule ? ['--rebuild-module'] : [])], onEvent);
   }
 
   /**
-   * Removes everything the installer set up (module, vdsd, udev rules, wireplumber
-   * config, BlueZ override, vds group, launcher); `purge` also drops app settings.
+   * Removes everything the installer set up (vdsd, udev rules, wireplumber config,
+   * BlueZ override, vds group, launcher, vhci-hcd boot entry); `purge` also drops
+   * app settings.
    */
   uninstall(purge: boolean, onEvent: (e: SetupProgressEvent) => void): Promise<number> {
     return this.run(['--uninstall', '--yes', '--json-progress', ...(purge ? ['--purge'] : [])], onEvent);

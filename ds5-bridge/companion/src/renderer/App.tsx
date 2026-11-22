@@ -879,10 +879,10 @@ export function App() {
               <>
                 {VDS_LINUX ? (
                   <p className="remap-profile-dialog-copy">
-                    This removes everything the installer set up: the vds_hcd kernel module (DKMS),
-                    vdsd and vdsctl, the systemd service, udev rules, the WirePlumber config, the
-                    vds group, the Bluetooth override (other Bluetooth input devices work again),
-                    and the OpenDS5 AppImage, menu entry and autostart entry. You will be asked for
+                    This removes everything the installer set up: vdsd and vdsctl, the systemd
+                    service, udev rules, the WirePlumber config, the vds group, the vhci-hcd boot
+                    entry, the Bluetooth override (other Bluetooth input devices work again), and
+                    the OpenDS5 AppImage, menu entry and autostart entry. You will be asked for
                     your password once.
                   </p>
                 ) : (

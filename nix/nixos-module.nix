@@ -35,7 +35,7 @@ in {
     maxPorts = lib.mkOption {
       type = lib.types.ints.between 1 4;
       default = 4;
-      description = "Number of virtual DualSense ports to create.";
+      description = "Number of virtual DualSense ports vdsd offers.";
     };
 
     users = lib.mkOption {
@@ -61,15 +61,10 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    boot.extraModulePackages = [
-      (pkgs.callPackage ./vds-module.nix {
-        kernel = config.boot.kernelPackages.kernel;
-        inherit version;
-      })
-    ];
-
+    # Virtual controllers are plugged into the kernel's in-tree USB/IP host
+    # driver; no out-of-tree module is built.
     boot.kernelModules = [
-      "vds_hcd"
+      "vhci-hcd"
     ];
 
     users.groups.vds = { };
@@ -85,10 +80,6 @@ in {
         ""
         "${config.hardware.bluetooth.package}/libexec/bluetooth/bluetoothd -f /etc/bluetooth/main.conf --noplugin=input"
       ]);
-
-    boot.extraModprobeConfig = ''
-      options vds_hcd max_port=${toString cfg.maxPorts}
-    '';
 
     environment.systemPackages = [
       cfg.package
@@ -120,7 +111,7 @@ in {
       serviceConfig = {
         Type = "simple";
 
-        ExecStart = "${cfg.vdsPackage}/bin/vdsd";
+        ExecStart = "${cfg.vdsPackage}/bin/vdsd --max-ports ${toString cfg.maxPorts}";
 
         Restart = "on-failure";
         RestartSec = "1s";

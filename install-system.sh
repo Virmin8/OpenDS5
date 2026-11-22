@@ -1,6 +1,6 @@
 #!/bin/sh
 # One-time system install for the Virtual DS5 Bridge stack:
-# kernel module (DKMS + autoload), vdsd/vdsctl + systemd service,
+# in-tree vhci-hcd driver (+ autoload), vdsd/vdsctl + systemd service,
 # vds group for socket access, and udev rules.
 #
 # Usage: sudo ./install-system.sh [username-to-grant-access]
@@ -18,9 +18,9 @@ echo "==> stopping dev test units"
 systemctl stop vdsd-test vdsd-test2 vdsd-test3 2>/dev/null || true
 systemctl reset-failed vdsd-test vdsd-test2 vdsd-test3 2>/dev/null || true
 
-echo "==> kernel module (opends5-install)"
+echo "==> vhci-hcd driver (opends5-install)"
 OPENDS5_SKIP_VERIFY=1 bash "$repo/installer/opends5-install" --yes
-modprobe vds_hcd
+modprobe vhci-hcd
 
 echo "==> userspace + systemd service"
 cmake -S "$repo/vds" -B "$repo/vds/build" -DINSTALL_SERVICE=YES >/dev/null

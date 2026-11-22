@@ -1,5 +1,5 @@
-# Loading vds_hcd, the vds group and starting vdsd happen in 95-opends5.hook, which
-# runs after the DKMS build at the end of the transaction.
+# Loading vhci-hcd, the vds group and starting vdsd happen in 95-opends5.hook, which
+# runs at the end of the transaction.
 
 _warn_installer_leftovers() {
   # The AppImage's system installer puts vdsd in /usr/local/bin and its unit in
@@ -8,14 +8,13 @@ _warn_installer_leftovers() {
     cat <<'EOF'
 ==> WARNING: files from the OpenDS5 AppImage installer were found
   (/etc/systemd/system/vdsd.service or /usr/local/bin/vdsd). They take priority
-  over this package. Remove them by hand (not with the AppImage's
-  --uninstall-system, which would also delete this package's module source):
+  over this package. Remove them by hand:
        sudo systemctl disable --now vdsd.service
        sudo rm -f /etc/systemd/system/vdsd.service /etc/modules-load.d/vds.conf \
                   /usr/local/bin/vdsd /usr/local/bin/vdsctl
        sudo systemctl daemon-reload
-  Then remove any other vds_hcd version listed by `dkms status vds_hcd`:
-       sudo dkms remove vds_hcd/<old-version> --all
+  If `dkms status vds_hcd` still lists the old out-of-tree module, remove it:
+       sudo dkms remove vds_hcd/<version> --all
 EOF
   fi
 }
@@ -33,9 +32,8 @@ pre_remove() {
   if [ -d /run/systemd/system ]; then
     systemctl disable --now vdsd.service 2>/dev/null || true
   fi
-  # rmmod, not modprobe -r: the DKMS remove hook has already deleted the module
-  # file by now, and modprobe -r gives up when it cannot find it.
-  rmmod vds_hcd 2>/dev/null || true
+  # vhci-hcd is an in-tree driver other USB/IP users may share; it stays loaded
+  # until reboot and no longer loads at boot once this package is gone.
   # vdsd's OpenDS5 mode runs bluetoothd with --noplugin=input through a drop-in in
   # /etc that pacman does not own; left behind, Bluetooth keyboards and mice stay off.
   if grep -qs 'noplugin=input' /etc/systemd/system/bluetooth.service.d/override.conf; then

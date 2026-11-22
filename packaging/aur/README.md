@@ -5,12 +5,13 @@ Each folder is one AUR package (one AUR git repository):
 | Folder | AUR package | How it installs |
 |---|---|---|
 | `opends5-bin/` | `opends5-bin` | Unpacks the release AppImage; nothing to compile. Recommended for most users |
-| `opends5/` | `opends5` + `opends5-dkms` | Builds the app and `vdsd` from the release source tarball, using the system `electron39` |
+| `opends5/` | `opends5` | Builds the app and `vdsd` from the release source tarball, using the system `electron39` |
 
 Both install the companion app, `vdsd`, `vdsctl`, `vdsd.service`, the udev rules, the
-WirePlumber config and the `vds` group, plus the `vds_hcd` module source, which DKMS
-compiles for each installed kernel (kernel modules always have to be built per kernel).
-They conflict with each other.
+WirePlumber config, the `vds` group and a `modules-load.d` entry for the kernel's
+in-tree `vhci-hcd` (USB/IP) driver, which `vdsd` plugs the virtual controllers into.
+Nothing is compiled per kernel. They conflict with each other, and both replace the
+`opends5-dkms` package of earlier releases (pacman removes it on upgrade).
 
 The launcher sets `OPENDS5_LAUNCHER`, so the app knows a package manages the system:
 the setup wizard and in-app uninstaller are hidden, the AppImage updater stays off,
@@ -47,15 +48,15 @@ cd packaging/aur/opends5-bin    # or packaging/aur/opends5
 makepkg -si
 ```
 
-A pacman hook (`95-opends5.hook`) then finishes the setup once DKMS has built the
-module: it adds the user who ran `sudo pacman`/the AUR helper to the `vds` group, loads
-`vds_hcd`, and enables and starts `vdsd.service` (on upgrades it reloads the module and
-restarts `vdsd`). Log out and back in once after the first install so the new group
+A pacman hook (`95-opends5.hook`) then finishes the setup: it adds the user who ran
+`sudo pacman`/the AUR helper to the `vds` group, unloads an old `vds_hcd` module if one
+is still loaded, loads `vhci-hcd`, and enables and starts `vdsd.service` (on upgrades
+it restarts `vdsd`). Log out and back in once after the first install so the new group
 membership applies.
 
-`sudo pacman -R opends5-bin` (or `opends5 opends5-dkms`) removes everything outside
-your home folder: it stops `vdsd`, unloads the module (the DKMS hook deletes the built
-module for every kernel), turns BlueZ's input plugin back on so Bluetooth keyboards and
+`sudo pacman -R opends5-bin` (or `opends5`) removes everything outside your home
+folder: it stops `vdsd`, drops the `vhci-hcd` boot entry (the driver stays loaded until
+reboot), turns BlueZ's input plugin back on so Bluetooth keyboards and
 mice work again, and deletes `vdsd`'s data in `/var/lib/vds`, its log and the `vds`
 group. A "Launch at startup" entry that starts the package's launcher is removed
 too (one pointing at an AppImage is left alone). Your settings in `~/.config/OpenDS5`
@@ -63,8 +64,8 @@ are kept.
 
 Machines that used the AppImage's system installer must remove its files first
 (`/etc/systemd/system/vdsd.service`, `/etc/modules-load.d/vds.conf`,
-`/usr/local/bin/vdsd`, `/usr/local/bin/vdsctl`, and the `vds_hcd` DKMS registration
-and `/usr/src/vds_hcd-*`), otherwise pacman reports file conflicts or the old unit
+`/usr/local/bin/vdsd`, `/usr/local/bin/vdsctl`, and from older releases the `vds_hcd`
+DKMS registration and `/usr/src/vds_hcd-*`), otherwise pacman reports file conflicts or the old unit
 overrides the packaged one.
 
 ## Update for a new release

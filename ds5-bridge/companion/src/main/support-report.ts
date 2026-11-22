@@ -10,7 +10,7 @@ export interface SupportReportInput {
   kernel: string;
   installType: string;
   vdsdVersion: string | null;
-  moduleVersion: string | null;
+  driver: string | null;
   snapshot: BridgeSnapshot;
   vds: VdsStatus | null;
   daemonLog: VdsDaemonLog | null;
@@ -59,7 +59,7 @@ export function buildSupportReport(input: SupportReportInput): string {
   row('OS', `${input.osName} (${input.platform} ${input.arch}, kernel ${input.kernel})`);
   row('Install', input.installType);
   row('vdsd', input.vdsdVersion);
-  row('Driver (vds_hcd)', input.moduleVersion);
+  row('Driver', input.driver);
 
   lines.push('', '[Bridge]');
   row('State', snapshot.state);

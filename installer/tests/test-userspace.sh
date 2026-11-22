@@ -37,13 +37,14 @@ assert_contains "$out" "chown" "wireplumber conf owned by user"
 assert_contains "$out" "disable-input --restart" "bluez input plugin override planned"
 assert_contains "$out" "noplugin=input" "override skipped when already applied"
 assert_contains "$out" "systemctl daemon-reload" "daemon reloaded"
-assert_contains "$out" "dkms install" "kernel steps still planned when module not loaded"
+assert_contains "$out" "Load the in-tree vhci-hcd USB/IP driver" "vhci-hcd load planned when not loaded"
 
-# kernel satisfied -> kernel steps skipped, userspace kept
-mkdir -p "$tmp/sys/module/vds_hcd"
+# vhci-hcd already loaded -> only the boot entry is ensured, userspace kept
+mkdir -p "$tmp/sys/module/vhci_hcd"
 out="$(plan OPENDS5_SYSROOT="$tmp" OPENDS5_USERSPACE_DIR="$tmp/vds-bin")"
-case "$out" in *"dkms install"*) f=1 ;; *) f=0 ;; esac
-assert_eq 0 "$f" "kernel steps skipped when module already loaded"
+case "$out" in *"Load the in-tree vhci-hcd"*) f=1 ;; *) f=0 ;; esac
+assert_eq 0 "$f" "no load step when vhci-hcd already loaded"
+assert_contains "$out" "vhci-hcd already loaded; making sure it loads on boot" "boot entry still ensured"
 assert_contains "$out" "/usr/local/bin/" "userspace steps still planned"
 rm -rf "$tmp"
 finish

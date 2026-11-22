@@ -7,13 +7,11 @@ tmp="$(mktemp -d)"
 # Simulate an AppImage mount: sources live under $APPDIR/resources/, which on a
 # real FUSE mount root cannot read.
 appdir="$tmp/.mount_fake"
-mkdir -p "$appdir/resources/vds-bin" "$appdir/resources/vds-module" \
-         "$appdir/resources/assets/controllers"
+mkdir -p "$appdir/resources/vds-bin" "$appdir/resources/assets/controllers"
 for f in vdsd vdsctl; do : > "$appdir/resources/vds-bin/$f"; done
 printf 'ExecStart=@VDS_SYSTEMD_VDSD@\n' > "$appdir/resources/vds-bin/vdsd.service.in"
 : > "$appdir/resources/vds-bin/99-vds-dualsense-udev.rules"
 : > "$appdir/resources/vds-bin/99-vds-dualsense-wireplumber.conf"
-printf 'PACKAGE_VERSION="1.6.3"\n' > "$appdir/resources/vds-module/dkms.conf"
 # the launcher icon lives in the mount too — it must be staged like everything else
 : > "$appdir/resources/assets/controllers/opends5_app-icon.png"
 appimg="$tmp/Downloads/OpenDS5.AppImage"

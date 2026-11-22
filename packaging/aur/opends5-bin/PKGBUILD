@@ -1,7 +1,7 @@
 # Maintainer: Virmin8 <59330972+Virmin8@users.noreply.github.com>
 
-# Repackages the release AppImage: nothing is compiled except the vds_hcd kernel
-# module, which DKMS builds for the installed kernels.
+# Repackages the release AppImage: nothing is compiled. The virtual controllers
+# are plugged into the kernel's in-tree vhci-hcd (USB/IP) driver.
 pkgname=opends5-bin
 pkgver=1.9.3
 pkgrel=1
@@ -9,11 +9,12 @@ pkgdesc='DualSense companion app and Bluetooth-to-USB bridge (haptics, adaptive 
 arch=(x86_64)
 url='https://github.com/Virmin8/OpenDS5'
 license=(AGPL-3.0-only MIT)
-depends=(dkms bluez bluez-libs dbus opus systemd-libs gcc-libs glibc pipewire
+depends=(bluez bluez-libs dbus opus systemd-libs gcc-libs glibc pipewire
          gtk3 nss alsa-lib hicolor-icon-theme)
 optdepends=('wireplumber: names the virtual controller audio device and sets its channels')
-provides=("opends5=$pkgver" "opends5-dkms=$pkgver")
+provides=("opends5=$pkgver")
 conflicts=(opends5 opends5-dkms)
+replaces=(opends5-dkms)
 options=(!strip !debug)
 install=opends5.install
 source=("OpenDS5-$pkgver.AppImage::$url/releases/download/v$pkgver/OpenDS5-Companion-Setup-$pkgver.AppImage"
@@ -28,9 +29,9 @@ sha256sums=('53a1f9daafb3b622705bea5e3d92fbe005ed375d483cd84db943398f2bb02592'
             '3ea5ed7a5469227808b9eec840ff2d3edd2aab530f805c01cc57bd7d80e1b745'
             '186bfa5d777c54add852220c578846a80d242e7cbee6608d4804a1193d9456c8'
             '134e83a1587b4c2251430ced60f3211e7c6a355c8ee0602e908d00983b313cfa'
-            '5554373b4a2907063636255caf2ebdc4056ae5c9858876a91392a16766eebd9e'
-            '41c917458c771ae1803bd20a089d758ba7914e077f976c5b7229e219d993fafe'
-            '02401e946d12ecae7b0c14d94c107d08e68379991c86020d981eea9b0d1f1113')
+            '06daf5da8aa7fe6d36e0ea6b6edbf69330239fce7f5d6399f0e49d2c15428238'
+            '60b8034dba4c2cb9e75ea33f068d3008c50a6757a49b9dad68507e585eb322ea'
+            'fb60f42824fe6cb4650c048565cc72b85de6b16483c6c6bf71e1c0819e38e97b')
 
 prepare() {
   chmod +x "OpenDS5-$pkgver.AppImage"
@@ -65,16 +66,12 @@ package() {
     "$pkgdir/usr/share/wireplumber/wireplumber.conf.d/99-vds-dualsense.conf"
   # vdsd runs this to switch bluetoothd between OpenDS5 and Normal mode.
   install -Dm755 "$res/vds-bin/override-bluetoothd.sh" "$pkgdir/usr/share/opends5/override-bluetoothd.sh"
-  # After the DKMS build: add the installing user to vds, load vds_hcd, start vdsd.
+  # Add the installing user to vds, load vhci-hcd, start vdsd.
   install -Dm644 "$srcdir/95-opends5.hook" "$pkgdir/usr/share/libalpm/hooks/95-opends5.hook"
   install -Dm755 "$srcdir/pacman-setup.sh" "$pkgdir/usr/share/opends5/pacman-setup.sh"
   # vdsd gives the vds group access to its control socket.
   install -Dm644 "$srcdir/opends5.sysusers" "$pkgdir/usr/lib/sysusers.d/opends5.conf"
 
-  # Kernel module source; the dkms package's pacman hook builds and installs it.
-  install -d "$pkgdir/usr/src/vds_hcd-$pkgver"
-  cp -a "$res/vds-module/." "$pkgdir/usr/src/vds_hcd-$pkgver/"
-  chmod -R u+rwX,go+rX,go-w "$pkgdir/usr/src/vds_hcd-$pkgver"
   install -Dm644 "$srcdir/opends5-modules-load.conf" "$pkgdir/usr/lib/modules-load.d/opends5.conf"
 
   install -Dm644 "$app/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"

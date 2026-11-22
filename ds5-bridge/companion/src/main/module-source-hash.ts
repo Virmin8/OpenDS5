@@ -11,11 +11,9 @@ function walk(root: string, dir: string, out: string[]): void {
 }
 
 /**
- * dkms.conf's PACKAGE_VERSION is generated, not authored: electron-builder's
- * afterPack stamps it from package.json, so it changes on every release even
- * when the driver does not. Hashing it would make a UI-only update prompt for a
- * password. Flatten that one line to a constant; every other line of dkms.conf
- * (MAKE, BUILT_MODULE_NAME, ...) is a real driver change and must still count.
+ * Kept from the DKMS era (bundles before SOURCE_HASH shipped the module source):
+ * dkms.conf's PACKAGE_VERSION was stamped from package.json on every release,
+ * so it is flattened to a constant; every other line still counts.
  */
 function contentsFor(root: string, relative: string): Buffer {
   const raw = fs.readFileSync(path.join(root, relative));
@@ -24,6 +22,26 @@ function contentsFor(root: string, relative: string): Buffer {
     raw.toString('utf8').replace(/^PACKAGE_VERSION=.*$/m, 'PACKAGE_VERSION="__hashed__"'),
     'utf8'
   );
+}
+
+/**
+ * The rebuild/reinstall gate's view of the bundled driver (resources/vds-bin).
+ * collect-vds-bin.sh writes SOURCE_HASH, a hash of the vds sources: the vdsd
+ * binary itself embeds the release version and so differs on every release,
+ * which would prompt for a password on UI-only updates. Without that file
+ * (older bundles), fall back to hashing the tree.
+ */
+export function driverBundleHash(root: string): string {
+  try {
+    const stamp = path.join(root, 'SOURCE_HASH');
+    if (fs.existsSync(stamp)) {
+      const value = fs.readFileSync(stamp, 'utf8').trim();
+      if (value.length > 0) return value;
+    }
+  } catch {
+    /* fall through to the tree hash */
+  }
+  return moduleSourceHash(root);
 }
 
 export function moduleSourceHash(root: string): string {

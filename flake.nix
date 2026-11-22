@@ -35,11 +35,6 @@
           inherit version;
         };
 
-        vds-module = pkgs.callPackage ./nix/vds-module.nix {
-          kernel = pkgs.linuxPackages.kernel;
-          inherit version;
-        };
-
         default = opends5;
       }
     );

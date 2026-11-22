@@ -1,7 +1,7 @@
 # Porting plan: DS5 Bridge features on Linux via vds
 
 Goal: run the DS5 Bridge companion experience on Linux with a
-Bluetooth-connected DualSense, using vds (`vds_hcd.ko` + `vdsd`) as the
+Bluetooth-connected DualSense, using vds (`vdsd` on the in-tree `vhci-hcd` USB/IP driver) as the
 transport instead of the Pico 2 W dongle.
 
 Upstream snapshots vendored here:
